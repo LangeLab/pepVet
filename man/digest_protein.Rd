@@ -4,32 +4,40 @@
 \alias{digest_protein}
 \title{Simulate a Proteolytic Digest}
 \usage{
-digest_protein(
-  sequences,
-  enzyme = "trypsin",
-  min_length = 7L,
-  max_length = 35L
-)
+digest_protein(sequence, enzyme = "trypsin", missed_cleavages = 0L)
 }
 \arguments{
-\item{sequences}{Protein sequence input. This will eventually accept
-character vectors and \code{Biostrings::AAStringSet} objects.}
+\item{sequence}{Protein input supplied as a single sequence, a named
+character vector of sequences, a \code{Biostrings::AAString}, a
+\code{Biostrings::AAStringSet}, or a path to a FASTA file. File extension is
+not used to detect FASTA input; any existing file that
+\code{Biostrings::readAAStringSet()} can parse as FASTA is accepted.}
 
-\item{enzyme}{Enzyme name or cleavage rule identifier.}
+\item{enzyme}{Cleavage rule name. pepVet validates this against its
+hard-coded registry of cleaver-compatible enzyme names, including
+\code{trypsin}, \code{lysc}, \verb{glutamyl endopeptidase}, \verb{asp-n endopeptidase},
+\code{chymotrypsin-high}, and \code{thermolysin}.}
 
-\item{min_length}{Minimum peptide length to retain.}
-
-\item{max_length}{Maximum peptide length to retain.}
+\item{missed_cleavages}{Maximum number of missed cleavages to include.}
 }
 \value{
-This scaffold currently aborts with class
-\code{"pepvet_not_implemented"} and does not return a value.
+A tibble with one row per peptide and the columns \code{protein_id},
+\code{peptide}, \code{start}, \code{end}, \code{length}, and \code{missed_cleavages}.
 }
 \description{
-\code{digest_protein()} is the first public entry point for pepVet. The current
-implementation is a scaffold stub that reserves the package API while the
-digestion pipeline is built out.
+\code{digest_protein()} normalizes protein-like input, validates the amino-acid
+alphabet, applies a cleaver-compatible enzyme rule, and returns peptide
+coordinates in a tidy tibble.
+}
+\details{
+FASTA record names are preserved as \code{protein_id} values when they
+are present, including irregular headers that do not use UniProt pipe
+formatting. Unnamed input sequences receive generated \verb{sequence_<n>} IDs.
+pepVet uses cleaver-compatible cleavage rules for the strict cut sites and
+expands missed cleavages itself so repeated peptides and overlapping ranges
+retain exact start and end coordinates.
 }
 \examples{
-try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
+digest_protein("MKWVTFISLLFLFSSAYSR")
+digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"))
 }

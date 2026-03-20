@@ -17,11 +17,12 @@ library(pepVet)
 data("aa_properties", package = "pepVet")
 ```
 
-`pepVet` is being built as a Bioconductor-oriented package for simulating
-proteolytic digestion and evaluating peptide sets for proteomics workflows.
+`pepVet` is a Bioconductor-oriented package for simulating proteolytic
+digestion and evaluating peptide sets for proteomics workflows.
 
-The current repository state provides the package scaffold only. The primary
-public entry point is reserved below and will be implemented in the next phase.
+The current implementation already includes a working digestion layer,
+reference FASTA fixtures, and amino-acid reference data. The scoring and
+evaluation layers come later, but the digest API is live and validated.
 
 ## Reference data conventions
 
@@ -41,8 +42,63 @@ as context-specific protein pKa predictions.
 aa_properties
 ```
 
-```{r digest-stub}
-try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
+## Digest proteins
+
+`digest_protein()` accepts several input shapes and always returns a tibble
+with `protein_id`, `peptide`, `start`, `end`, `length`, and
+`missed_cleavages`.
+
+```{r digest-character}
+digest_protein("MKWVTFISLLFLFSSAYSR")
+```
+
+```{r digest-aastring}
+digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"), enzyme = "trypsin")
+```
+
+## Supported enzyme names
+
+pepVet validates enzyme names against a pinned registry of cleaver-compatible
+rules. A few commonly useful examples are:
+
+- `trypsin`
+- `lysc`
+- `glutamyl endopeptidase`
+- `asp-n endopeptidase`
+- `chymotrypsin-high`
+- `thermolysin`
+
+The validation layer also trims whitespace and normalizes case, so values such
+as `" Trypsin "` are accepted and normalized internally.
+
+## FASTA input
+
+The package ships pinned FASTA fixtures in `inst/extdata/`. You can digest
+single-entry or multi-entry FASTA files directly, and the FASTA record names
+are preserved in `protein_id`.
+
+```{r digest-fasta}
+bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+digest_protein(bsa_path, enzyme = "trypsin")
+```
+
+```{r digest-fasta-multi}
+isoform_path <- system.file(
+  "extdata",
+  "P37840_isoforms.fasta",
+  package = "pepVet"
+)
+
+head(digest_protein(isoform_path, enzyme = "trypsin"))
+```
+
+## Missed cleavages
+
+Missed cleavages are expanded explicitly in pepVet so peptide coordinates stay
+exact even when peptides overlap.
+
+```{r digest-missed-cleavages}
+digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 1L)
 ```
 
 ```{r session-info}

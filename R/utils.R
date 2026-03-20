@@ -55,6 +55,125 @@
   "trypsin-simple"
 )
 
+.default_scoring_weights <- list(
+  protein_only = c(
+    S_length = 0.25,
+    S_coverage = 0.25,
+    S_count = 0.20,
+    S_hydro = 0.15,
+    S_charge = 0.15
+  ),
+  proteome_aware = c(
+    S_length = 0.20,
+    S_coverage = 0.20,
+    S_count = 0.15,
+    S_hydro = 0.15,
+    S_charge = 0.10,
+    S_unique = 0.20
+  )
+)
+
+.validate_weights <- function(weights, has_proteome) {
+  defaults <- if (isTRUE(has_proteome)) {
+    .default_scoring_weights$proteome_aware
+  } else {
+    .default_scoring_weights$protein_only
+  }
+
+  if (is.null(weights)) {
+    return(defaults)
+  }
+
+  if (!is.numeric(weights) || anyNA(weights)) {
+    cli::cli_abort(
+      "{.arg weights} must be a numeric vector with no missing values.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  if (length(weights) != length(defaults)) {
+    cli::cli_abort(
+      paste0(
+        "{.arg weights} must contain exactly ",
+        length(defaults),
+        " value(s) in this scoring mode."
+      ),
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  expected_names <- names(defaults)
+
+  if (is.null(names(weights))) {
+    normalized_weights <- as.numeric(weights)
+    names(normalized_weights) <- expected_names
+  } else {
+    observed_names <- trimws(names(weights))
+
+    if (anyNA(observed_names) || any(!nzchar(observed_names))) {
+      cli::cli_abort(
+        "Named {.arg weights} entries must all have non-empty names.",
+        class = "pepvet_error_invalid_weights"
+      )
+    }
+
+    if (!setequal(observed_names, expected_names)) {
+      cli::cli_abort(
+        c(
+          "Named {.arg weights} must match the scoring component names.",
+          "i" = paste("Expected names:", paste(expected_names, collapse = ", "))
+        ),
+        class = "pepvet_error_invalid_weights"
+      )
+    }
+
+    normalized_weights <- as.numeric(
+      weights[match(expected_names, observed_names)]
+    )
+    names(normalized_weights) <- expected_names
+  }
+
+  if (any(normalized_weights < 0)) {
+    cli::cli_abort(
+      "{.arg weights} must not contain negative values.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  if (!isTRUE(all.equal(sum(normalized_weights), 1, tolerance = 1e-8))) {
+    cli::cli_abort(
+      "{.arg weights} must sum to 1.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  normalized_weights
+}
+
+.build_proteome_index <- function(proteome_digests) {
+  index <- new.env(hash = TRUE, parent = emptyenv())
+
+  if (nrow(proteome_digests) == 0L) {
+    return(index)
+  }
+
+  peptide_pairs <- unique(proteome_digests[c("peptide", "protein_id")])
+
+  for (row_index in seq_len(nrow(peptide_pairs))) {
+    peptide <- peptide_pairs$peptide[[row_index]]
+    protein_id <- peptide_pairs$protein_id[[row_index]]
+    indexed_proteins <- get0(peptide, envir = index, inherits = FALSE)
+
+    if (is.null(indexed_proteins)) {
+      assign(peptide, protein_id, envir = index)
+    } else if (!protein_id %in% indexed_proteins) {
+      assign(peptide, c(indexed_proteins, protein_id), envir = index)
+    }
+  }
+
+  index
+}
+
 .normalize_enzyme <- function(enzyme) {
   if (!is.character(enzyme) || length(enzyme) != 1L || is.na(enzyme)) {
     cli::cli_abort(

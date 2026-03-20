@@ -2,27 +2,28 @@
 
 `pepVet` is a Bioconductor-oriented R package for simulating proteolytic digests and evaluating peptide sets for proteomics workflows.
 
-## Status
+## Overview
 
-This repository now includes a working digestion layer plus pinned reference fixtures and validation tests. The scoring and evaluation layers are still to come, but the package can already normalize protein input, digest with cleaver-compatible rules, and return exact peptide coordinates.
+Version `0.0.2` provides a usable core workflow for peptide-centric method development. The package can normalize protein input, simulate cleaver-compatible digests, and score peptide sets at the protein level with validated component metrics.
 
-Current implementation highlights:
+Current capabilities:
 
 - digest simulation via `digest_protein()`
-- input handling for character sequences, `AAString`, `AAStringSet`, and FASTA
- paths
+- peptide-set scoring via `score_peptides()`
+- input handling for character sequences, `AAString`, `AAStringSet`, and FASTA paths
 - pinned reference FASTA fixtures in `inst/extdata/`
 - exact start/end coordinate tracking, including missed cleavages
 - amino-acid property reference data in `aa_properties`
-- installed-package validation with `devtools::test()`, `lintr`, `pkgdown`,
- and `R CMD check`
+- component scores for length, coverage, count, hydrophobicity, charge, and optional proteome uniqueness
+- full validation through `devtools::test()`, `lintr`, `pkgdown`, and `R CMD check`
 
 ## Quick Start
 
 ```r
 library(pepVet)
 
-digest_protein("MKWVTFISLLFLFSSAYSR")
+digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")
+score_peptides(digest_result)
 ```
 
 ```r
@@ -36,6 +37,26 @@ digest_protein(
  system.file("extdata", "P02769.fasta", package = "pepVet"),
  enzyme = "lysc",
  missed_cleavages = 1L
+)
+```
+
+```r
+bsa_digest <- digest_protein(
+ system.file("extdata", "P02769.fasta", package = "pepVet"),
+ enzyme = "trypsin"
+)
+
+score_peptides(bsa_digest)
+```
+
+```r
+proteome_digest <- digest_protein(
+ c(target = "AAAAAAARAAAAAAAK", background = "AAAAAAARGGGGGGGK")
+)
+
+score_peptides(
+ proteome_digest[proteome_digest$protein_id == "target", ],
+ proteome = proteome_digest
 )
 ```
 
@@ -61,6 +82,21 @@ digest_protein(
 
 The implementation uses cleaver-compatible strict cut rules and expands missed cleavages inside pepVet so repeated peptides and overlapping coordinates remain exact.
 
+## Scoring Output
+
+`score_peptides()` returns one row per `protein_id` with:
+
+- `S_length`
+- `S_coverage`
+- `S_count`
+- `S_hydro`
+- `S_charge`
+- optional `S_unique` when a proteome digest is supplied
+- `composite_score`
+- `verdict`
+
+Protein-only scoring uses default weights of `0.25/0.25/0.20/0.15/0.15` for length, coverage, count, hydrophobicity, and charge. Proteome-aware scoring adds `S_unique` and switches to `0.20/0.20/0.15/0.15/0.10/0.20`.
+
 ## Reference Fixtures
 
 The package ships pinned FASTA fixtures in `inst/extdata/` for:
@@ -74,8 +110,14 @@ The package ships pinned FASTA fixtures in `inst/extdata/` for:
 - alpha-synuclein isoforms (`P37840_isoforms.fasta`)
 - a 50-protein human fixture (`small_proteome_50_proteins.fasta`)
 
-## Next steps
+## Roadmap
 
-1. Implement the scoring engine on top of the digest output.
-2. Add digest evaluation and comparison helpers.
-3. Expand the pkgdown site with scoring and evaluation walkthroughs.
+1. Add evaluation, comparison, and recommendation helpers on top of the digest and scoring layers.
+2. Add batch workflows and proteome-aware summaries for multi-protein inputs.
+3. Expand console reporting and documentation around score interpretation.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
+
+---

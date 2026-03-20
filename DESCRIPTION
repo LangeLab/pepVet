@@ -1,13 +1,13 @@
 Package: pepVet
 Type: Package
 Title: Evaluate Proteolytic Digests for Proteomics Workflows
-Version: 0.0.1
+Version: 0.0.2
 Authors@R:
     person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"))
-Description: Tools for simulating proteolytic digestion and evaluating
-    peptide sets for proteomics workflows. The current repository state
-    provides the initial Bioconductor-oriented package scaffold, dependency
-    manifest, and testing surface for incremental feature development.
+Description: Tools for simulating proteolytic digestion and scoring
+    peptide sets for proteomics workflows. The package currently provides
+    validated digest generation, amino-acid reference data, and a core
+    scoring engine for summarizing peptide suitability at the protein level.
 License: MIT + file LICENSE
 URL: https://github.com/LangeLab/pepVet, https://langelab.github.io/pepVet/
 BugReports: https://github.com/LangeLab/pepVet/issues

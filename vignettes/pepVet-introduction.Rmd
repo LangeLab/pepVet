@@ -21,8 +21,9 @@ data("aa_properties", package = "pepVet")
 digestion and evaluating peptide sets for proteomics workflows.
 
 The current implementation already includes a working digestion layer,
-reference FASTA fixtures, and amino-acid reference data. The scoring and
-evaluation layers come later, but the digest API is live and validated.
+reference FASTA fixtures, amino-acid reference data, and a protein-level
+scoring engine. The higher-level evaluation and comparison layers come later,
+but the digest and scoring APIs are live and validated.
 
 ## Reference data conventions
 
@@ -99,6 +100,44 @@ exact even when peptides overlap.
 
 ```{r digest-missed-cleavages}
 digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 1L)
+```
+
+## Score peptide sets
+
+`score_peptides()` summarizes a digest tibble into component scores and a
+weighted composite verdict.
+
+```{r score-basic}
+digest_result <- digest_protein(bsa_path, enzyme = "trypsin")
+score_peptides(digest_result)
+```
+
+The default protein-only scoring components are:
+
+- `S_length`
+- `S_coverage`
+- `S_count`
+- `S_hydro`
+- `S_charge`
+
+The composite score is a weighted sum of those components, and the verdict is
+classified as `Good`, `Moderate`, or `Poor`.
+
+## Proteome-aware uniqueness scoring
+
+If you supply a proteome digest, pepVet adds `S_unique` and uses the
+proteome-aware default weight set.
+
+```{r score-proteome-aware}
+proteome_digest <- digest_protein(
+  c(target = "AAAAAAARAAAAAAAK", background = "AAAAAAARGGGGGGGK"),
+  enzyme = "trypsin"
+)
+
+score_peptides(
+  proteome_digest[proteome_digest$protein_id == "target", ],
+  proteome = proteome_digest
+)
 ```
 
 ```{r session-info}

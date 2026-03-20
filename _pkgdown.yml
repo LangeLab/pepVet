@@ -14,3 +14,4 @@ reference:
     contents:
       - aa_properties
       - digest_protein
+      - score_peptides

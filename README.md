@@ -17,6 +17,41 @@ Current capabilities:
 - component scores for length, coverage, count, hydrophobicity, charge, and optional proteome uniqueness
 - full validation through `devtools::test()`, `lintr`, `pkgdown`, and `R CMD check`
 
+## Installation
+
+`pepVet` depends on Bioconductor infrastructure packages, so install those first, then install pepVet from GitHub.
+
+Recommended: install the tagged `v0.0.2` version instead of tracking the live development branch.
+
+```r
+install.packages("remotes")
+
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+ install.packages("BiocManager")
+}
+
+BiocManager::install(c("Biostrings", "IRanges", "S4Vectors"))
+remotes::install_github("LangeLab/pepVet@v0.0.2", dependencies = TRUE)
+```
+
+Development install from the current GitHub branch is available, but it is not
+the recommended path for routine use because the package API and scoring logic
+are still evolving.
+
+```r
+install.packages("remotes")
+
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+ install.packages("BiocManager")
+}
+
+BiocManager::install(c("Biostrings", "IRanges", "S4Vectors"))
+remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
+```
+
+If the repository remains private, GitHub installs require credentials with
+access to the repository.
+
 ## Quick Start
 
 ```r

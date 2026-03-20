@@ -14,15 +14,15 @@ BugReports: https://github.com/LangeLab/pepVet/issues
 Depends:
     R (>= 4.5.0)
 Imports:
-    cleaver,
+    cli
+Suggests:
     Biostrings,
+    cleaver,
     IRanges,
     S4Vectors,
     tibble,
     dplyr,
-    cli,
-    rlang
-Suggests:
+    rlang,
     ggplot2,
     data.table,
     BiocParallel,

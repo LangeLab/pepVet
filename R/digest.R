@@ -10,7 +10,8 @@
 #' @param min_length Minimum peptide length to retain.
 #' @param max_length Maximum peptide length to retain.
 #'
-#' @return A tibble-like object describing candidate peptides.
+#' @return This scaffold currently aborts with class
+#'   `"pepvet_not_implemented"` and does not return a value.
 #' @examples
 #' try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
 #' @export
@@ -18,15 +19,6 @@ digest_protein <- function(sequences,
                            enzyme = "trypsin",
                            min_length = 7L,
                            max_length = 35L) {
-  invisible(list(
-    cleaver = cleaver::cleave,
-    Biostrings = Biostrings::AAStringSet,
-    IRanges = IRanges::IRanges,
-    S4Vectors = S4Vectors::DataFrame,
-    tibble = tibble::tibble,
-    dplyr = dplyr::mutate,
-    rlang = rlang::check_installed
-  ))
   cli::cli_abort(
     c(
       "{.pkg pepVet} does not implement {.val digest_protein() } yet.",

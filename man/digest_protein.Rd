@@ -22,7 +22,8 @@ character vectors and \code{Biostrings::AAStringSet} objects.}
 \item{max_length}{Maximum peptide length to retain.}
 }
 \value{
-A tibble-like object describing candidate peptides.
+This scaffold currently aborts with class
+\code{"pepvet_not_implemented"} and does not return a value.
 }
 \description{
 \code{digest_protein()} is the first public entry point for pepVet. The current

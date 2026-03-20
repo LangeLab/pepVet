@@ -7,7 +7,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -20,8 +20,12 @@ proteolytic digestion and evaluating peptide sets for proteomics workflows.
 The current repository state provides the package scaffold only. The primary
 public entry point is reserved below and will be implemented in the next phase.
 
-```{r, eval = FALSE}
+```{r digest-stub}
 library(pepVet)
 
-digest_protein("MKWVTFISLLFLFSSAYSR")
+try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
+```
+
+```{r session-info}
+sessionInfo()
 ```

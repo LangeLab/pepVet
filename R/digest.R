@@ -11,11 +11,21 @@
 #' @param max_length Maximum peptide length to retain.
 #'
 #' @return A tibble-like object describing candidate peptides.
+#' @examples
+#' try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
 #' @export
 digest_protein <- function(sequences,
                            enzyme = "trypsin",
                            min_length = 7L,
                            max_length = 35L) {
-  pepvet_touch_runtime_imports()
+  invisible(list(
+    cleaver = cleaver::cleave,
+    Biostrings = Biostrings::AAStringSet,
+    IRanges = IRanges::IRanges,
+    S4Vectors = S4Vectors::DataFrame,
+    tibble = tibble::tibble,
+    dplyr = dplyr::mutate,
+    rlang = rlang::check_installed
+  ))
   pepvet_not_implemented("digest_protein()")
 }

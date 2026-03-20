@@ -29,3 +29,6 @@ A tibble-like object describing candidate peptides.
 implementation is a scaffold stub that reserves the package API while the
 digestion pipeline is built out.
 }
+\examples{
+try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
+}

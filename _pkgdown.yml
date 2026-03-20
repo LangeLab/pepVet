@@ -1,0 +1,12 @@
+template:
+  bootstrap: 5
+
+home:
+  title: pepVet
+
+url: https://langelab.github.io/pepVet/
+
+reference:
+  - title: Core Functions
+    contents:
+      - digest_protein

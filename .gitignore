@@ -29,6 +29,8 @@ src/*.gcov
 inst/doc/
 Meta/
 vignettes/*.html
+docs/
+*.BiocCheck/
 
 # Dependency management
 renv/library/

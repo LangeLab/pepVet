@@ -22,6 +22,10 @@
 ^README\.Rmd$
 ^LICENSE\.md$
 ^_pkgdown\.yml$
+^docs$
+^docs/
 ^pkgdown$
 ^pkgdown/
+^.*\.BiocCheck$
+^.*\.BiocCheck/
 ^\.DS_Store$

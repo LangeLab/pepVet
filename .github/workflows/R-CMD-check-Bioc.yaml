@@ -1,0 +1,35 @@
+name: R-CMD-check-Bioc
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
+
+jobs:
+  bioc-release-check:
+    runs-on: ubuntu-latest
+    container:
+      image: bioconductor/bioconductor_docker:RELEASE_3_22
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install check tooling
+        run: |
+          Rscript -e 'install.packages(c("BiocManager", "remotes", "rcmdcheck"), repos = "https://cloud.r-project.org")'
+
+      - name: Install package dependencies
+        run: |
+          Rscript -e 'options(repos = BiocManager::repositories(version = "3.22")); remotes::install_deps(dependencies = TRUE, upgrade = "never")'
+
+      - name: Run Bioconductor-flavored R CMD check
+        run: |
+          Rscript -e 'rcmdcheck::rcmdcheck(args = c("--no-manual"), error_on = "warning")'

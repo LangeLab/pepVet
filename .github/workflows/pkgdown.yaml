@@ -1,16 +1,13 @@
 name: pkgdown
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
 
 jobs:
@@ -34,7 +31,7 @@ jobs:
 
       - name: Build site
         run: |
-          Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
+          Rscript -e 'pkgdown::build_site(new_process = FALSE, install = TRUE)'
 
       - uses: actions/upload-artifact@v4
         with:

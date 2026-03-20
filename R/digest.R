@@ -27,5 +27,11 @@ digest_protein <- function(sequences,
     dplyr = dplyr::mutate,
     rlang = rlang::check_installed
   ))
-  pepvet_not_implemented("digest_protein()")
+  cli::cli_abort(
+    c(
+      "{.pkg pepVet} does not implement {.val digest_protein() } yet.",
+      "i" = "This repository currently contains the package skeleton only."
+    ),
+    class = "pepvet_not_implemented"
+  )
 }

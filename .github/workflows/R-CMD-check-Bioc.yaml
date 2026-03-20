@@ -1,16 +1,13 @@
 name: R-CMD-check-Bioc
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
 
 jobs:

@@ -17,6 +17,7 @@ pinned development environment targeting R 4.5 and Bioconductor 3.22.
 Useful links:
 \itemize{
   \item \url{https://github.com/LangeLab/pepVet}
+  \item \url{https://langelab.github.io/pepVet/}
   \item Report bugs at \url{https://github.com/LangeLab/pepVet/issues}
 }
 

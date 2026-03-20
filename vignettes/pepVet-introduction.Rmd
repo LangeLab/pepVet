@@ -12,6 +12,9 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+
+library(pepVet)
+data("aa_properties", package = "pepVet")
 ```
 
 `pepVet` is being built as a Bioconductor-oriented package for simulating
@@ -20,9 +23,25 @@ proteolytic digestion and evaluating peptide sets for proteomics workflows.
 The current repository state provides the package scaffold only. The primary
 public entry point is reserved below and will be implemented in the next phase.
 
-```{r digest-stub}
-library(pepVet)
+## Reference data conventions
 
+`pepVet` ships a small amino acid reference table, `aa_properties`, that is
+used by the early scoring and validation helpers.
+
+The `molecular_weight` column stores free amino acid monoisotopic masses. If
+you need peptide residue masses instead, subtract the mass of water
+(18.01056 Da) from those values.
+
+The `pKa_side_chain` column stores conventional reference pKa values for the
+ionizable side chains `C`, `D`, `E`, `H`, `K`, `R`, and `Y`. Those values are
+appropriate for lightweight package heuristics, but they should not be treated
+as context-specific protein pKa predictions.
+
+```{r aa-properties-preview}
+aa_properties
+```
+
+```{r digest-stub}
 try(digest_protein("MKWVTFISLLFLFSSAYSR"), silent = TRUE)
 ```
 

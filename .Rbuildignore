@@ -21,6 +21,8 @@
 ^\.git/
 ^README\.Rmd$
 ^LICENSE\.md$
+^data-raw$
+^data-raw/
 ^_pkgdown\.yml$
 ^docs$
 ^docs/

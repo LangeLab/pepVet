@@ -6,7 +6,11 @@ home:
 
 url: https://langelab.github.io/pepVet/
 
+repo:
+  branch: main
+
 reference:
   - title: Core Functions
     contents:
+      - aa_properties
       - digest_protein

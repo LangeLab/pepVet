@@ -1,0 +1,17 @@
+.git
+.github
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Renviron
+.Renviron.site
+plan
+*.tar.gz
+*.Rcheck
+renv/library
+renv/local
+renv/cache
+renv/python
+renv/staging
+packrat

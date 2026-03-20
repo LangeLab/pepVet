@@ -1,0 +1,50 @@
+# Project planning
+plan/
+
+# R session / IDE state
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Local environment and secrets
+.Renviron
+.Renviron.site
+.env
+.env.*
+
+# Package build artifacts
+/*.tar.gz
+/*.Rcheck/
+src/*.o
+src/*.so
+src/*.dll
+src/*.dylib
+src/*.gcda
+src/*.gcno
+src/*.gcov
+
+# Vignette and check outputs
+inst/doc/
+Meta/
+vignettes/*.html
+
+# Dependency management
+renv/library/
+renv/local/
+renv/staging/
+renv/python/
+renv/cache/
+
+# Legacy dependency managers
+packrat/lib/
+packrat/src/
+
+# Docker local overrides
+docker-compose.override.yml
+.docker/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db

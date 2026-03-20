@@ -1,0 +1,39 @@
+Package: pepVet
+Type: Package
+Title: Evaluate Proteolytic Digests for Proteomics Workflows
+Version: 0.0.0.9000
+Authors@R:
+    person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"))
+Description: Tools for simulating proteolytic digestion and evaluating
+    peptide sets for proteomics workflows. The current repository state
+    provides the initial Bioconductor-oriented package scaffold, dependency
+    manifest, and testing surface for incremental feature development.
+License: MIT + file LICENSE
+URL: https://github.com/LangeLab/pepVet
+BugReports: https://github.com/LangeLab/pepVet/issues
+Depends:
+    R (>= 4.5.0)
+Imports:
+    cleaver,
+    Biostrings,
+    IRanges,
+    S4Vectors,
+    tibble,
+    dplyr,
+    cli,
+    rlang
+Suggests:
+    ggplot2,
+    data.table,
+    BiocParallel,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    vdiffr,
+    covr
+VignetteBuilder: knitr
+biocViews: Proteomics, MassSpectrometry, QualityControl
+Encoding: UTF-8
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3

@@ -1,0 +1,27 @@
+---
+title: "Getting Started with pepVet"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with pepVet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`pepVet` is being built as a Bioconductor-oriented package for simulating
+proteolytic digestion and evaluating peptide sets for proteomics workflows.
+
+The current repository state provides the package scaffold only. The primary
+public entry point is reserved below and will be implemented in the next phase.
+
+```{r, eval = FALSE}
+library(pepVet)
+
+digest_protein("MKWVTFISLLFLFSSAYSR")
+```

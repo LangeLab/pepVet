@@ -3,6 +3,7 @@
 export(batch_evaluate)
 export(compare_digests)
 export(digest_protein)
+export(digest_report)
 export(evaluate_digest)
 export(recommend_enzyme)
 export(score_peptides)

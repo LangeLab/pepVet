@@ -1,0 +1,285 @@
+---
+title: "Choosing a Proteolytic Enzyme with pepVet"
+description: >
+  A practical guide to enzyme selection for LC-MS/MS proteomics workflows.
+  Covers the biology of each scoring component, worked multi-enzyme comparisons
+  on real proteins, and guidance for difficult targets like histones, membrane
+  proteins, and large intrinsically disordered proteins.
+output:
+  rmarkdown::html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pepVet)
+bsa_path   <- system.file("extdata", "P02769.fasta", package = "pepVet")
+h3_path    <- system.file("extdata", "P68431.fasta", package = "pepVet")
+syn_path   <- system.file("extdata", "P37840_isoforms.fasta", package = "pepVet")
+```
+
+## Why enzyme choice matters
+
+Every proteomics experiment that uses bottom-up mass spectrometry begins with
+proteolytic digestion. The enzyme you choose determines the size, sequence
+coverage, charge-state distribution, and uniqueness of the peptides that reach
+the mass spectrometer. A poor choice can make a perfectly good protein
+effectively invisible:
+
+- **Too many short peptides** — fragments shorter than ~7 residues are lost in
+  the void volume of most reversed-phase columns and fail to produce reliable
+  MS/MS spectra.
+- **Too few long peptides** — peptides longer than ~25 residues have retention
+  times that drift, fragment ions that are hard to assign, and poor precursor
+  charge states under standard ESI conditions.
+- **Highly hydrophobic peptides** — stick to sample prep surfaces and column
+  frits; yields are variable and reproducibility suffers.
+- **Peptides with no basic residues** — ionise poorly in positive-mode ESI and
+  produce weak, unpredictable fragmentation patterns.
+
+pepVet quantifies all of these dimensions as component scores, combines them
+into a weighted composite, and returns a verdict that lets you compare enzymes
+on equal footing.
+
+## The 40 supported enzymes
+
+pepVet validates against all 40 cleaver-compatible enzyme names. The most
+relevant for standard bottom-up proteomics workflows are:
+
+| Enzyme | Cleavage rule | Common use case |
+|---|---|---|
+| `trypsin` | C-terminal to K, R (not before P) | Default choice; ~85 % of published proteomics |
+| `lysc` | C-terminal to K only | Histones, basic proteins; longer peptides than trypsin |
+| `glutamyl endopeptidase` | C-terminal to E (GluC in phosphate buffer) | Proteins poor in K/R; good for acidic regions |
+| `asp-n endopeptidase` | N-terminal to D, C | Phosphoproteomics; orthogonal to trypsin |
+| `chymotrypsin-high` | C-terminal to F, Y, W, L (high specificity) | Hydrophobic transmembrane regions |
+| `thermolysin` | N-terminal to hydrophobics (L, I, M, V, A, F) | Membrane proteins; orthogonal fragmentation |
+| `lysarginase` | C-terminal to K and R | Like trypsin but includes all K and R without Pro exception |
+| `pepsin` | C-terminal to F, L; various others | HDX-MS; activity at low pH |
+
+For a complete list, see `?digest_protein` or call:
+
+```{r enzyme-list, eval=FALSE}
+# pepVet validates against this registry internally
+# You can inspect it by triggering a validation error intentionally:
+tryCatch(
+  digest_protein("MKWVTFISLLFLFSSAYSR", enzyme = "unknown"),
+  error = function(e) message(conditionMessage(e))
+)
+```
+
+## Worked example 1 — BSA (a tractable protein)
+
+BSA (UniProt P02769) is the canonical positive control for proteomics sample
+prep. It is a monomeric, soluble, modestly hydrophobic protein with ~580
+residues. Trypsin should score well but let us verify and compare.
+
+```{r bsa-compare}
+enzymes_standard <- c(
+  "trypsin", "lysc", "glutamyl endopeptidase",
+  "asp-n endopeptidase", "chymotrypsin-high"
+)
+
+comp_bsa <- compare_digests(bsa_path,
+  enzymes = enzymes_standard,
+  missed_cleavages = 1L
+)
+comp_bsa
+```
+
+```{r bsa-report}
+digest_report(comp_bsa)
+```
+
+**Reading the table:** The `>` marker indicates the top-scoring enzyme.
+Columns are abbreviated — `S_len` = S_length, `S_cov` = S_coverage,
+`S_cnt` = S_count, `S_hyd` = S_hydro, `S_chg` = S_charge.
+
+**What to look for:**
+
+- `S_coverage` near 1.0 is ideal. Values below 0.6 mean large parts of the
+  protein sequence will not be detected.
+- `S_length` below 0.5 usually signals an enzyme that either over-digests or
+  under-digests the target.
+- A `Good` composite (> 0.70) means you can expect reliable, reproducible
+  quantification with standard LC-MS/MS parameters.
+
+At mc=1, glutamyl endopeptidase edges ahead of trypsin on BSA primarily
+because it generates a higher fraction of uniquely detectable peptides in
+the optimal length range. This illustrates that trypsin is not always the
+best choice even for "easy" proteins.
+
+### The effect of missed cleavages
+
+Missed cleavages dramatically change the score landscape. With mc=0, trypsin
+over-cuts BSA and scores lower because a large fraction of tryptic peptides
+are adjacent K/R dipeptides that produce sub-7-residue fragments.
+
+```{r bsa-mc}
+# mc=0: strict cleavage
+comp_mc0 <- compare_digests(bsa_path, enzymes = c("trypsin", "lysc"),
+                            missed_cleavages = 0L)
+comp_mc0[, c("enzyme", "composite_score", "verdict", "S_length")]
+
+# mc=1: one allowed skip
+comp_mc1 <- compare_digests(bsa_path, enzymes = c("trypsin", "lysc"),
+                            missed_cleavages = 1L)
+comp_mc1[, c("enzyme", "composite_score", "verdict", "S_length")]
+```
+
+For most trypsin experiments, mc=1 is the biologically realistic setting
+because a small fraction of cleavage sites will always be missed in practice.
+mc=2 or higher is typically only useful for long or poorly digesting peptides.
+
+## Worked example 2 — Histone H3.1 (a basic, difficult protein)
+
+Histone H3.1 (UniProt P68431) has a highly basic N-terminal tail rich in K
+and R. Trypsin cuts after nearly every residue in that tail, producing
+dozens of 1–3 residue fragments that fall far below the detection window.
+This makes H3.1 a difficult target for standard trypsin workflows and a
+classic case where enzyme choice is non-trivial.
+
+```{r h3-compare}
+comp_h3 <- compare_digests(h3_path,
+  enzymes = c(
+    "trypsin", "lysc", "glutamyl endopeptidase", "asp-n endopeptidase"
+  )
+)
+digest_report(comp_h3)
+```
+
+LysC cleaves after K only, skipping the many R residues in the tail. This
+results in longer peptides and substantially better S_length and S_coverage
+scores. Even with LysC scoring only Moderate, the improvement over trypsin
+is large enough to make a meaningful experimental difference.
+
+**Practical takeaway:** For highly basic proteins (histones, protamines, some
+kinases), always benchmark LysC alongside trypsin. For very challenging
+targets, GluC or Asp-N can provide orthogonal coverage of the basic regions
+that both trypsin and LysC miss.
+
+## Worked example 3 — Alpha-synuclein isoforms (proteome-aware scoring)
+
+Alpha-synuclein (UniProt P37840) is an intrinsically disordered protein
+associated with Parkinson's disease. The reference file ships three isoforms
+(canonical + 2 alternatively spliced variants). When you need to distinguish
+between isoforms, peptide uniqueness becomes critical — a peptide shared
+between two isoforms cannot tell you which isoform it came from.
+
+```{r syn-proteome-aware}
+# First build the proteome background from all three isoforms
+syn_proteome <- digest_protein(syn_path, enzyme = "trypsin")
+
+# Score isoform 1 against that background
+syn_main <- system.file("extdata", "P37840_isoforms.fasta", package = "pepVet")
+ev_syn <- evaluate_digest(syn_main, enzyme = "trypsin",
+                          proteome = syn_proteome)
+ev_syn$scores
+```
+
+The `S_unique` value quantifies what fraction of valid peptides are unique to
+one isoform within the background. A low `S_unique` means most peptides are
+shared, and isoform-level quantification will be unreliable regardless of how
+well the other scores look.
+
+## Choosing enzymes for special cases
+
+### Membrane proteins
+
+Transmembrane helices are rich in hydrophobic residues (L, I, V, F, M, W).
+Trypsin rarely cuts within a helix because K and R are excluded from the
+membrane interior by the positive-inside rule. This leaves large transmembrane
+stretches uncovered.
+
+Recommended alternatives:
+- `chymotrypsin-high` — cuts C-terminal to F, Y, W, L; enters hydrophobic
+  segments directly
+- `thermolysin` — cuts N-terminal to hydrophobics; thermostable; active in
+  detergent conditions compatible with membrane protein solubilisation
+- `glutamyl endopeptidase` — cuts C-terminal to E; E residues often flank
+  helix ends in polar loop regions
+
+For the best coverage of membrane proteins, a two-enzyme strategy is common:
+trypsin for soluble loops + chymotrypsin or thermolysin for transmembrane
+helices.
+
+### Phosphoproteomics
+
+Sequence coverage around phosphorylation sites requires enzymes whose cleavage
+windows overlap the site of interest.
+
+- `asp-n endopeptidase` — cuts N-terminal to D; complementary windows to
+  trypsin around serine/threonine-rich regions
+- `glutamyl endopeptidase` — cuts after E; particularly useful for pY sites
+  near acidic clusters
+- `lysc` + trypsin sequential digestion — longer initial LysC peptides are
+  secondarily cut by trypsin; good for basic, tightly phosphorylated sequences
+
+### Large intrinsically disordered proteins
+
+IDPs like huntingtin, FUS, or TDP-43 contain long low-complexity regions with
+very few K/R. Standard trypsin digestion leaves stretches of hundreds of
+residues completely uncovered.
+
+Recommended: `glutamyl endopeptidase` (cuts after E, which appears throughout
+most low-complexity regions) or `chymotrypsin-high` (cuts after aromatic/
+hydrophobic residues, often enriched in aggregation-prone segments).
+
+## Using `recommend_enzyme()` in scripts
+
+For scripted workflows, `recommend_enzyme()` returns a character string you
+can use directly — no need to parse a comparison tibble.
+
+```{r recommend}
+# Returns the single best enzyme name
+recommend_enzyme(bsa_path,
+  enzymes = enzymes_standard,
+  missed_cleavages = 1L
+)
+```
+
+```{r recommend-h3}
+# H3.1 correctly identifies lysc over trypsin
+recommend_enzyme(h3_path,
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")
+)
+```
+
+In automated pipelines you might iterate over a target list:
+
+```{r recommend-loop, eval=FALSE}
+targets <- c(bsa_path, h3_path)
+
+for (path in targets) {
+  winner <- recommend_enzyme(path,
+    enzymes = c("trypsin", "lysc", "glutamyl endopeptidase"))
+  message(basename(path), "  →  ", winner)
+}
+```
+
+## Summary decision tree
+
+```
+Is the protein basic (many K/R)?
+  Yes → Try lysc first; compare with glutamyl endopeptidase
+  No  → Does the protein have transmembrane domains?
+          Yes → Try chymotrypsin-high or thermolysin; two-enzyme strategy
+          No  → Try trypsin at mc=1 first
+                  composite > 0.7 (Good)? → Done
+                  No → compare_digests() across all candidates
+```
+
+Use `digest_report()` to review the score breakdown at any stage. The bar
+chart view from `evaluate_digest()` immediately reveals which sub-score is
+dragging the composite down, pointing to the specific enzyme property you need
+to address.
+
+```{r session-info}
+sessionInfo()
+```

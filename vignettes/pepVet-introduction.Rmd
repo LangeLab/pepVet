@@ -1,6 +1,9 @@
 ---
 title: "Getting Started with pepVet"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
 vignette: >
   %\VignetteIndexEntry{Getting Started with pepVet}
   %\VignetteEngine{knitr::rmarkdown}
@@ -12,133 +15,294 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-
 library(pepVet)
 data("aa_properties", package = "pepVet")
 ```
 
-`pepVet` is a Bioconductor-oriented package for simulating proteolytic
-digestion and evaluating peptide sets for proteomics workflows.
+pepVet is a Bioconductor-oriented R package for evaluating proteolytic digests
+before you spend time at the bench. Given a protein sequence and an enzyme, it
+tells you how suitable the resulting peptides are for LC-MS/MS detection.
+The package walks a single conceptual pipeline — from raw sequence all the way
+to a ranked enzyme recommendation — and every step is individually accessible.
 
-The current implementation already includes a working digestion layer,
-reference FASTA fixtures, amino-acid reference data, and a protein-level
-scoring engine. The higher-level evaluation and comparison layers come later,
-but the digest and scoring APIs are live and validated.
+## The core pipeline
 
-## Reference data conventions
-
-`pepVet` ships a small amino acid reference table, `aa_properties`, that is
-used by the early scoring and validation helpers.
-
-The `molecular_weight` column stores free amino acid monoisotopic masses. If
-you need peptide residue masses instead, subtract the mass of water
-(18.01056 Da) from those values.
-
-The `pKa_side_chain` column stores conventional reference pKa values for the
-ionizable side chains `C`, `D`, `E`, `H`, `K`, `R`, and `Y`. Those values are
-appropriate for lightweight package heuristics, but they should not be treated
-as context-specific protein pKa predictions.
-
-```{r aa-properties-preview}
-aa_properties
+```
+Protein sequence
+      │
+      ▼
+digest_protein()    →  tibble of peptides (one row per peptide)
+      │
+      ▼
+score_peptides()    →  one-row tibble of component scores + verdict
+      │
+      ▼
+evaluate_digest()   →  convenience wrapper: digest + score + params in one call
+      │
+      ▼
+compare_digests()   →  run evaluate_digest across N enzymes, rank by composite
+      │
+      ▼
+recommend_enzyme()  →  return the name of the top-ranked enzyme
+      │
+      ▼
+batch_evaluate()    →  run evaluate_digest across all proteins in a FASTA
+      │
+      ▼
+digest_report()     →  styled console output for any of the above
 ```
 
-## Digest proteins
+## Protein input
 
-`digest_protein()` accepts several input shapes and always returns a tibble
-with `protein_id`, `peptide`, `start`, `end`, `length`, and
-`missed_cleavages`.
+Every pepVet function that takes a protein sequence accepts the same flexible
+input shapes. You can pass:
 
-```{r digest-character}
-digest_protein("MKWVTFISLLFLFSSAYSR")
-```
+- a raw character sequence
+- a named character vector (one entry per protein)
+- a `Biostrings::AAString` or `AAStringSet`
+- a path to a FASTA file (single- or multi-entry)
 
-```{r digest-aastring}
-digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"), enzyme = "trypsin")
-```
+The package ships pinned FASTA fixtures in `inst/extdata/` that are used
+throughout this vignette.
 
-## Supported enzyme names
-
-pepVet validates enzyme names against a pinned registry of cleaver-compatible
-rules. A few commonly useful examples are:
-
-- `trypsin`
-- `lysc`
-- `glutamyl endopeptidase`
-- `asp-n endopeptidase`
-- `chymotrypsin-high`
-- `thermolysin`
-
-The validation layer also trims whitespace and normalizes case, so values such
-as `" Trypsin "` are accepted and normalized internally.
-
-## FASTA input
-
-The package ships pinned FASTA fixtures in `inst/extdata/`. You can digest
-single-entry or multi-entry FASTA files directly, and the FASTA record names
-are preserved in `protein_id`.
-
-```{r digest-fasta}
+```{r paths}
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-digest_protein(bsa_path, enzyme = "trypsin")
-```
-
-```{r digest-fasta-multi}
-isoform_path <- system.file(
-  "extdata",
-  "P37840_isoforms.fasta",
-  package = "pepVet"
+h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+proteome_path <- system.file(
+  "extdata", "small_proteome_50_proteins.fasta", package = "pepVet"
 )
-
-head(digest_protein(isoform_path, enzyme = "trypsin"))
 ```
 
-## Missed cleavages
+## Step 1 — Digest a protein
 
-Missed cleavages are expanded explicitly in pepVet so peptide coordinates stay
-exact even when peptides overlap.
+`digest_protein()` cleaves a protein sequence using any cleaver-compatible
+enzyme rule and returns a tibble with one row per peptide fragment.
 
-```{r digest-missed-cleavages}
+```{r digest-basic}
+digest_protein(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+```
+
+The output columns are:
+
+| Column | Description |
+|---|---|
+| `protein_id` | Full FASTA header or supplied name |
+| `peptide` | Amino acid sequence of the fragment |
+| `start` | 1-based start position in the parent protein |
+| `end` | 1-based end position (inclusive) |
+| `length` | Peptide length in residues |
+| `missed_cleavages` | Number of internal cleavage sites skipped |
+
+Missed cleavages are expanded explicitly inside pepVet so that start/end
+coordinates remain exact and every combination of adjacent peptides is
+represented.
+
+```{r digest-mc}
+# mc=0: strict cleavage only
+digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 0L)
+
+# mc=1: also include once-skipped joins
 digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 1L)
 ```
 
-## Score peptide sets
+Enzyme names are validated against a registry of 40 cleaver-compatible rules.
+Common examples: `trypsin`, `lysc`, `glutamyl endopeptidase`,
+`asp-n endopeptidase`, `chymotrypsin-high`, `thermolysin`. The validation
+layer normalises case and trims whitespace, so `" Trypsin "` is accepted.
 
-`score_peptides()` summarizes a digest tibble into component scores and a
-weighted composite verdict.
+## Step 2 — Score the peptide set
+
+`score_peptides()` summarises a digest tibble into per-protein component scores
+and a weighted composite suitability verdict.
 
 ```{r score-basic}
-digest_result <- digest_protein(bsa_path, enzyme = "trypsin")
+digest_result <- digest_protein(bsa_path, enzyme = "trypsin",
+                                missed_cleavages = 1L)
 score_peptides(digest_result)
 ```
 
-The default protein-only scoring components are:
+**What counts as a "valid" peptide?** Only peptides between 7 and 25 residues
+are counted for detection-window scoring (S_length, S_coverage, S_count).
+Fragments outside that window still appear in the digest tibble — they are
+simply excluded from the numerator of those components.
 
-- `S_length`
-- `S_coverage`
-- `S_count`
-- `S_hydro`
-- `S_charge`
+The five standard components:
 
-The composite score is a weighted sum of those components, and the verdict is
-classified as `Good`, `Moderate`, or `Poor`.
+| Score | Numerator / logic | Optimal direction |
+|---|---|---|
+| `S_length` | Valid peptides / total peptides | Higher → more peptides in the LC-MS window |
+| `S_coverage` | Non-overlapping valid residues / protein length | Higher → less dark proteome |
+| `S_count` | Soft-normalised valid peptide count | Higher → more IDs per protein |
+| `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 → balanced retention |
+| `S_charge` | Valid peptides with ≥ 1 K/R/H / total valid | Higher → better ESI ionisation |
 
-## Proteome-aware uniqueness scoring
+Composite score verdict thresholds: **Good** ≥ 0.70 · **Moderate** ≥ 0.40 · **Poor** < 0.40.
 
-If you supply a proteome digest, pepVet adds `S_unique` and uses the
-proteome-aware default weight set.
+### Proteome-aware uniqueness scoring
 
-```{r score-proteome-aware}
-proteome_digest <- digest_protein(
-  c(target = "AAAAAAARAAAAAAAK", background = "AAAAAAARGGGGGGGK"),
-  enzyme = "trypsin"
+When you supply a `proteome` digest, `score_peptides()` adds a sixth component
+`S_unique` — the fraction of valid peptides that appear in exactly one protein
+in the proteome. This matters for protein-level inference: shared peptides can
+be attributed to multiple proteins and inflate or confuse quantification.
+
+```{r score-proteome, eval=FALSE}
+# Digest the proteome background first
+proteome_digest <- digest_protein(proteome_path, enzyme = "trypsin")
+
+# Score BSA in the context of that proteome
+bsa_digest <- digest_protein(bsa_path, enzyme = "trypsin")
+score_peptides(bsa_digest, proteome = proteome_digest)
+```
+
+Proteome-aware scoring also switches the default weight set to give `S_unique`
+a 20 % share: `c(0.20, 0.20, 0.15, 0.15, 0.10, 0.20)`.
+
+## Step 3 — Evaluate in one call
+
+`evaluate_digest()` wraps `digest_protein()` + `score_peptides()` into a
+single call and returns a named list.
+
+```{r evaluate}
+ev <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+names(ev)
+```
+
+```{r evaluate-scores}
+ev$scores
+```
+
+```{r evaluate-params}
+ev$params
+```
+
+The `$params` element records the resolved enzyme name, missed cleavages, and
+the full protein IDs found in the input — useful for logging or downstream
+annotation.
+
+## Step 4 — Compare enzymes
+
+`compare_digests()` runs `evaluate_digest()` across a vector of enzyme names
+for a single protein and returns a tibble sorted from best to worst composite
+score.
+
+```{r compare}
+comp <- compare_digests(
+  bsa_path,
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
+              "asp-n endopeptidase", "chymotrypsin-high"),
+  missed_cleavages = 1L
 )
+comp
+```
 
-score_peptides(
-  proteome_digest[proteome_digest$protein_id == "target", ],
-  proteome = proteome_digest
+`compare_digests()` rejects multi-protein input by design — enzyme comparison
+is a protein-level decision and mixing proteins would produce a meaningless
+aggregate score.
+
+## Step 5 — Get a recommendation
+
+`recommend_enzyme()` runs `compare_digests()` internally and returns the name
+of the best-scoring enzyme as a character string. If multiple enzymes tie on
+the composite score, all tied names are returned in alphabetical order.
+
+```{r recommend}
+recommend_enzyme(
+  bsa_path,
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
+              "asp-n endopeptidase", "chymotrypsin-high"),
+  missed_cleavages = 1L
 )
 ```
+
+## Step 6 — Batch across a proteome
+
+`batch_evaluate()` runs `evaluate_digest()` independently for every protein in
+a multi-FASTA file and returns a named list. Each element is identical to the
+list you would get from calling `evaluate_digest()` directly on that single
+protein.
+
+```{r batch, eval=FALSE}
+batch <- batch_evaluate(proteome_path, enzyme = "trypsin",
+                        missed_cleavages = 1L)
+
+# How many proteins were evaluated?
+length(batch)
+
+# Score of the first protein
+batch[[1]]$scores
+```
+
+Because each protein is evaluated independently, `batch_evaluate()` parallelises
+safely — wrap it in `BiocParallel::bplapply()` if you are processing thousands
+of proteins.
+
+## Step 7 — Report to the console
+
+`digest_report()` produces a styled, colour-coded summary for either an
+`evaluate_digest()` result (single protein, bar-chart style) or a
+`compare_digests()` tibble (ranked table style). It returns its input
+invisibly so pipeline chains continue uninterrupted.
+
+```{r report-single}
+digest_report(ev)
+```
+
+```{r report-compare}
+digest_report(comp)
+```
+
+Because `digest_report()` returns `invisible(x)`, you can insert it anywhere
+in a pipeline to print a human-readable checkpoint without breaking the chain:
+
+```{r pipe, eval=FALSE}
+# The printed report appears; the tibble flows on to recommend_enzyme
+winner <- compare_digests(bsa_path,
+    enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")) |>
+  digest_report() |>
+  recommend_enzyme()
+```
+
+## A challenging protein — Histone H3.1
+
+Histone H3.1 is a useful sanity check because trypsin performs poorly on it.
+The protein has a highly basic N-terminal tail rich in lysine and arginine,
+so trypsin over-digests it into dozens of very short fragments that fall below
+the 7-residue detection threshold.
+
+```{r h3-trypsin}
+ev_h3_trypsin <- evaluate_digest(h3_path, enzyme = "trypsin")
+ev_h3_trypsin$scores$verdict
+```
+
+LysC recognises only lysine and cleaves less frequently on H3.1, producing
+longer peptides that score better overall:
+
+```{r h3-compare}
+compare_digests(
+  h3_path,
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
+              "asp-n endopeptidase")
+)
+```
+
+This is the kind of non-obvious result pepVet is designed to surface before
+you run a gel.
+
+## Amino acid reference data
+
+The package ships `aa_properties`, a 20-row tibble with physical and chemical
+properties for the standard amino acids used by the scoring engine.
+
+```{r aa-properties}
+aa_properties
+```
+
+The `kyte_doolittle` column contains the Kyte-Doolittle (1982) hydrophobicity
+scale used in `S_hydro`. The `pKa_side_chain` column holds reference pKa
+values for the seven ionisable residues (C, D, E, H, K, R, Y) and is used in
+`S_charge` classification.
+
+## Session info
 
 ```{r session-info}
 sessionInfo()

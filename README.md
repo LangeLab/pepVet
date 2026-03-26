@@ -1,158 +1,109 @@
 # pepVet
 
-`pepVet` is a Bioconductor-oriented R package for simulating proteolytic digests and evaluating peptide sets for proteomics workflows.
+**pepVet** is a Bioconductor-oriented R package for simulating proteolytic
+digests and evaluating peptide sets for proteomics workflows. Given a protein
+sequence and an enzyme, pepVet tells you how suitable the resulting peptides
+are for downstream LC-MS/MS detection — and helps you pick the best enzyme
+before you ever run a gel.
 
-## Overview
+## What pepVet does
 
-Version `0.0.2` provides a usable core workflow for peptide-centric method development. The package can normalize protein input, simulate cleaver-compatible digests, and score peptide sets at the protein level with validated component metrics.
-
-Current capabilities:
-
-- digest simulation via `digest_protein()`
-- peptide-set scoring via `score_peptides()`
-- input handling for character sequences, `AAString`, `AAStringSet`, and FASTA paths
-- pinned reference FASTA fixtures in `inst/extdata/`
-- exact start/end coordinate tracking, including missed cleavages
-- amino-acid property reference data in `aa_properties`
-- component scores for length, coverage, count, hydrophobicity, charge, and optional proteome uniqueness
-- full validation through `devtools::test()`, `lintr`, `pkgdown`, and `R CMD check`
-
-## Installation
-
-`pepVet` depends on Bioconductor infrastructure packages, so install those first, then install pepVet from GitHub.
-
-Recommended: install the tagged `v0.0.2` version instead of tracking the live development branch.
-
-```r
-install.packages("remotes")
-
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
- install.packages("BiocManager")
-}
-
-BiocManager::install(c("Biostrings", "IRanges", "S4Vectors"))
-remotes::install_github("LangeLab/pepVet@v0.0.2", dependencies = TRUE)
-```
-
-Development install from the current GitHub branch is available, but it is not
-the recommended path for routine use because the package API and scoring logic
-are still evolving.
-
-```r
-install.packages("remotes")
-
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
- install.packages("BiocManager")
-}
-
-BiocManager::install(c("Biostrings", "IRanges", "S4Vectors"))
-remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
-```
-
-If the repository remains private, GitHub installs require credentials with
-access to the repository.
-
-## Quick Start
+Choosing a proteolytic enzyme is one of the earliest and most consequential
+decisions in a proteomics experiment. Cut too aggressively and you get
+thousands of tiny, undetectable fragments. Cut too conservatively and large
+peptides fail to fly or resolve on the column. pepVet quantifies this
+trade-off with five orthogonal scoring components and a weighted composite
+score that you can act on immediately.
 
 ```r
 library(pepVet)
 
-digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")
-score_peptides(digest_result)
+bsa <- system.file("extdata", "P02769.fasta", package = "pepVet")
+
+# One-step evaluate
+evaluate_digest(bsa, enzyme = "trypsin", missed_cleavages = 1L)
+
+# Compare all candidate enzymes side by side
+comp <- compare_digests(bsa,
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
+              "asp-n endopeptidase", "chymotrypsin-high"))
+
+# Print a styled report to the console
+digest_report(comp)
+
+# Get the winner programmatically
+recommend_enzyme(bsa, enzymes = c("trypsin", "lysc", "glutamyl endopeptidase"))
 ```
+
+## Installation
+
+pepVet depends on Bioconductor infrastructure. Install those first, then
+install pepVet from GitHub.
 
 ```r
-library(Biostrings)
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
 
-digest_protein(AAString("MKWVTFISLLFLFSSAYSR"), enzyme = "trypsin")
+BiocManager::install(c("Biostrings", "IRanges", "S4Vectors"))
+
+install.packages("remotes")
+remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
 ```
 
-```r
-digest_protein(
- system.file("extdata", "P02769.fasta", package = "pepVet"),
- enzyme = "lysc",
- missed_cleavages = 1L
-)
+## The scored workflow
+
+```
+digest_protein()  →  score_peptides()  →  verdict
+                                               │
+evaluate_digest() ─────────────────────────────┤
+compare_digests() ─── rank enzymes ─────────────┤
+recommend_enzyme()─── top pick ─────────────────┘
+batch_evaluate()  ─── whole proteome ──────────►  digest_report()
 ```
 
-```r
-bsa_digest <- digest_protein(
- system.file("extdata", "P02769.fasta", package = "pepVet"),
- enzyme = "trypsin"
-)
+Every function accepts the same flexible input: a raw character sequence,
+a named character vector, a `Biostrings::AAString` or `AAStringSet`, or a
+FASTA file path.
 
-score_peptides(bsa_digest)
-```
+## Scoring components
 
-```r
-proteome_digest <- digest_protein(
- c(target = "AAAAAAARAAAAAAAK", background = "AAAAAAARGGGGGGGK")
-)
+| Score        | What it measures                                       | Why it matters                                   |
+| ------------ | ------------------------------------------------------ | ------------------------------------------------ |
+| `S_length`   | Fraction of peptides in the 7–25 aa detection window   | Short peptides vanish; long ones don't fly       |
+| `S_coverage` | Fraction of protein sequence covered by valid peptides | Blind spots hurt quantification confidence       |
+| `S_count`    | Normalised peptide count                               | Too few peptides = fragile identification        |
+| `S_hydro`    | Mean GRAVY score of valid peptides                     | Extreme hydrophobics stick to columns            |
+| `S_charge`   | Fraction of peptides with ≥ 1 basic residue            | Charge enables ESI ionisation                    |
+| `S_unique`   | Fraction unique within a proteome _(optional)_         | Shared peptides confound protein-level inference |
 
-score_peptides(
- proteome_digest[proteome_digest$protein_id == "target", ],
- proteome = proteome_digest
-)
-```
+The **composite score** is a weighted sum (default weights 0.25/0.25/0.20/0.15/0.15).
+Verdicts: **Good** ≥ 0.70 · **Moderate** ≥ 0.40 · **Poor** < 0.40.
 
-## Supported Inputs
+## Reference fixtures
 
-- single character sequence
-- named character vector of sequences
-- `Biostrings::AAString`
-- `Biostrings::AAStringSet`
-- FASTA file path, including multi-entry fixtures and irregular but valid FASTA
- headers
+The package ships pinned FASTA fixtures in `inst/extdata/` covering a range of
+challenging proteins:
 
-## Digest Output
+| File                               | Protein              | Why it's interesting                         |
+| ---------------------------------- | -------------------- | -------------------------------------------- |
+| `P02769.fasta`                     | BSA                  | Workhorse standard; trypsin scores Good      |
+| `P68431.fasta`                     | Histone H3.1         | Very basic tail; trypsin scores Poor         |
+| `Q8WZ42.fasta`                     | Titin                | Largest human protein; stress-tests coverage |
+| `P0CG48.fasta`                     | Ubiquitin            | Very small; tests edge-case peptide count    |
+| `P37840_isoforms.fasta`            | α-Synuclein          | Multi-isoform; tests proteome-aware scoring  |
+| `small_proteome_50_proteins.fasta` | 50-protein human set | Batch workflow fixture                       |
 
-`digest_protein()` returns a tibble with:
+## Learn more
 
-- `protein_id`
-- `peptide`
-- `start`
-- `end`
-- `length`
-- `missed_cleavages`
-
-The implementation uses cleaver-compatible strict cut rules and expands missed cleavages inside pepVet so repeated peptides and overlapping coordinates remain exact.
-
-## Scoring Output
-
-`score_peptides()` returns one row per `protein_id` with:
-
-- `S_length`
-- `S_coverage`
-- `S_count`
-- `S_hydro`
-- `S_charge`
-- optional `S_unique` when a proteome digest is supplied
-- `composite_score`
-- `verdict`
-
-Protein-only scoring uses default weights of `0.25/0.25/0.20/0.15/0.15` for length, coverage, count, hydrophobicity, and charge. Proteome-aware scoring adds `S_unique` and switches to `0.20/0.20/0.15/0.15/0.10/0.20`.
-
-## Reference Fixtures
-
-The package ships pinned FASTA fixtures in `inst/extdata/` for:
-
-- BSA (`P02769.fasta`)
-- lysozyme C (`P00698.fasta`)
-- beta-secretase 1 (`P56817.fasta`)
-- ubiquitin (`P0CG48.fasta`)
-- histone H3.1 (`P68431.fasta`)
-- titin (`Q8WZ42.fasta`)
-- alpha-synuclein isoforms (`P37840_isoforms.fasta`)
-- a 50-protein human fixture (`small_proteome_50_proteins.fasta`)
-
-## Roadmap
-
-1. Add evaluation, comparison, and recommendation helpers on top of the digest and scoring layers.
-2. Add batch workflows and proteome-aware summaries for multi-protein inputs.
-3. Expand console reporting and documentation around score interpretation.
+- **Getting Started** — full walkthrough from raw sequence to console report
+- **Choosing an Enzyme** — the biology behind each scoring component and a
+  worked multi-enzyme comparison
+- **Scoring Deep Dive** — weight arithmetic, boundary conditions, and how to
+  customise the score for your experiment
+- **Reference** — complete function documentation
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
+MIT — see [LICENSE.md](LICENSE.md).
 
 ---

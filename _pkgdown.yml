@@ -1,17 +1,94 @@
 template:
   bootstrap: 5
+  bootswatch: flatly
+  bslib:
+    primary: "#2C5F8A"
+    base_font: {google: "Source Sans Pro"}
+    heading_font: {google: "Source Sans Pro"}
+    code_font: {google: "JetBrains Mono"}
 
 home:
-  title: pepVet
+  title: "pepVet — Proteolytic Digest Evaluation for Proteomics"
+  description: >
+    Simulate, score, compare, and report proteolytic digests for LC-MS/MS
+    proteomics workflows. Given a protein and an enzyme, pepVet tells you
+    how suitable the resulting peptide set is for detection — and helps you
+    pick the best enzyme before you ever run a sample.
 
 url: https://langelab.github.io/pepVet/
 
 repo:
   branch: main
 
+navbar:
+  structure:
+    left: [intro, articles, reference, news]
+    right: [github]
+  components:
+    intro:
+      text: Get Started
+      href: articles/pepVet-introduction.html
+    articles:
+      text: Articles
+      menu:
+        - text: "Workflow"
+        - text: Getting Started
+          href: articles/pepVet-introduction.html
+        - text: "---"
+        - text: "Guides"
+        - text: Choosing a Proteolytic Enzyme
+          href: articles/enzyme-selection.html
+        - text: Understanding the Scoring Model
+          href: articles/scoring-model.html
+    reference:
+      text: Reference
+      href: reference/index.html
+    news:
+      text: Changelog
+      href: news/index.html
+
 reference:
-  - title: Core Functions
+  - title: "Digest simulation"
+    desc: >
+      Cleave protein sequences into peptide fragments using any of 40
+      cleaver-compatible enzyme rules.
+    contents:
+      - digest_protein
+
+  - title: "Scoring"
+    desc: >
+      Summarise a peptide set into component scores and a weighted composite
+      suitability verdict.
+    contents:
+      - score_peptides
+
+  - title: "Evaluation and comparison"
+    desc: >
+      Combine digest and scoring into a single call, compare enzymes
+      side-by-side, or get a programmatic enzyme recommendation.
+    contents:
+      - evaluate_digest
+      - compare_digests
+      - recommend_enzyme
+      - batch_evaluate
+
+  - title: "Reporting"
+    desc: >
+      Render styled, colour-coded console summaries of digest quality.
+    contents:
+      - digest_report
+
+  - title: "Reference data"
+    desc: >
+      Amino acid property table used by the scoring engine.
     contents:
       - aa_properties
-      - digest_protein
-      - score_peptides
+
+  - title: "Package"
+    contents:
+      - pepVet-package
+
+news:
+  releases:
+    - text: "pepVet 0.0.3"
+      href: news/index.html

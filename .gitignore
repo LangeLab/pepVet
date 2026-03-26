@@ -1,6 +1,9 @@
 # Project planning
 plan/
 
+# Local scratch / exploratory scripts (never part of the package)
+scratch/
+
 # R session / IDE state
 .Rhistory
 .Rapp.history

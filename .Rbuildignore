@@ -1,5 +1,7 @@
 ^plan$
 ^plan/
+^scratch$
+^scratch/
 ^\.github$
 ^\.github/
 ^\.Rprofile$

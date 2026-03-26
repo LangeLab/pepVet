@@ -4,10 +4,11 @@ Title: Evaluate Proteolytic Digests for Proteomics Workflows
 Version: 0.0.2
 Authors@R:
     person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"))
-Description: Tools for simulating proteolytic digestion and scoring
-    peptide sets for proteomics workflows. The package currently provides
-    validated digest generation, amino-acid reference data, and a core
-    scoring engine for summarizing peptide suitability at the protein level.
+Description: Tools for simulating proteolytic digestion and evaluating
+    peptide sets for proteomics workflows. The package provides validated
+    digest generation, amino-acid reference data, a core scoring engine for
+    summarizing peptide suitability at the protein level, and an evaluation
+    layer for comparing enzymes and running batch analyses.
 License: MIT + file LICENSE
 URL: https://github.com/LangeLab/pepVet, https://langelab.github.io/pepVet/
 BugReports: https://github.com/LangeLab/pepVet/issues

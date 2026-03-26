@@ -1,19 +1,12 @@
 # pepVet
 
-**pepVet** is a Bioconductor-oriented R package for simulating proteolytic
-digests and evaluating peptide sets for proteomics workflows. Given a protein
-sequence and an enzyme, pepVet tells you how suitable the resulting peptides
-are for downstream LC-MS/MS detection — and helps you pick the best enzyme
-before you ever run a gel.
+**pepVet** is a Bioconductor-oriented R package for simulating proteolytic digests and evaluating peptide sets for bottom-up proteomics. Given a protein sequence and an enzyme, pepVet scores the resulting peptides for LC-MS/MS suitability and ranks candidate enzymes so you can pick the right one before running a sample.
 
 ## What pepVet does
 
-Choosing a proteolytic enzyme is one of the earliest and most consequential
-decisions in a proteomics experiment. Cut too aggressively and you get
-thousands of tiny, undetectable fragments. Cut too conservatively and large
-peptides fail to fly or resolve on the column. pepVet quantifies this
-trade-off with five orthogonal scoring components and a weighted composite
-score that you can act on immediately.
+The choice of proteolytic enzyme shapes every downstream result in a proteomics experiment. Cut too aggressively and you get thousands of tiny fragments below the detection threshold. Cut too conservatively and overlong peptides fail to fly or resolve on the column.
+
+pepVet quantifies this trade-off with five orthogonal scoring components and a weighted composite score.
 
 ```r
 library(pepVet)
@@ -37,8 +30,7 @@ recommend_enzyme(bsa, enzymes = c("trypsin", "lysc", "glutamyl endopeptidase"))
 
 ## Installation
 
-pepVet depends on Bioconductor infrastructure. Install those first, then
-install pepVet from GitHub.
+pepVet depends on Bioconductor infrastructure. Install those first, then install pepVet from GitHub.
 
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE))
@@ -52,18 +44,16 @@ remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
 
 ## The scored workflow
 
-```
+```bash
 digest_protein()  →  score_peptides()  →  verdict
                                                │
 evaluate_digest() ─────────────────────────────┤
-compare_digests() ─── rank enzymes ─────────────┤
-recommend_enzyme()─── top pick ─────────────────┘
+compare_digests() ─── rank enzymes ────────────┤
+recommend_enzyme()─── top pick ────────────────┘
 batch_evaluate()  ─── whole proteome ──────────►  digest_report()
 ```
 
-Every function accepts the same flexible input: a raw character sequence,
-a named character vector, a `Biostrings::AAString` or `AAStringSet`, or a
-FASTA file path.
+Every function accepts the same input types: a raw character sequence, a named character vector, a `Biostrings::AAString` or `AAStringSet`, or a FASTA file path.
 
 ## Scoring components
 
@@ -76,15 +66,13 @@ FASTA file path.
 | `S_charge`   | Fraction of peptides with ≥ 1 basic residue            | Charge enables ESI ionisation                    |
 | `S_unique`   | Fraction unique within a proteome _(optional)_         | Shared peptides confound protein-level inference |
 
-The **composite score** is a weighted sum (default weights 0.25/0.25/0.20/0.15/0.15).
-Verdicts: **Good** ≥ 0.70 · **Moderate** ≥ 0.40 · **Poor** < 0.40.
+The **composite score** is a weighted sum (default weights 0.25/0.25/0.20/0.15/0.15). Verdicts: **Good** ≥ 0.70, **Moderate** ≥ 0.40, **Poor** < 0.40.
 
 ## Reference fixtures
 
-The package ships pinned FASTA fixtures in `inst/extdata/` covering a range of
-challenging proteins:
+The package ships pinned FASTA fixtures in `inst/extdata/` covering a range of challenging proteins:
 
-| File                               | Protein              | Why it's interesting                         |
+| File                               | Protein              | Why it's included                            |
 | ---------------------------------- | -------------------- | -------------------------------------------- |
 | `P02769.fasta`                     | BSA                  | Workhorse standard; trypsin scores Good      |
 | `P68431.fasta`                     | Histone H3.1         | Very basic tail; trypsin scores Poor         |
@@ -95,15 +83,11 @@ challenging proteins:
 
 ## Learn more
 
-- **Getting Started** — full walkthrough from raw sequence to console report
-- **Choosing an Enzyme** — the biology behind each scoring component and a
-  worked multi-enzyme comparison
-- **Scoring Deep Dive** — weight arithmetic, boundary conditions, and how to
-  customise the score for your experiment
-- **Reference** — complete function documentation
+- **Getting Started**: full walkthrough from raw sequence to console report
+- **Choosing an Enzyme**: the biology behind each scoring component and a worked multi-enzyme comparison
+- **Scoring Deep Dive**: weight arithmetic, boundary conditions, and how to customise the score
+- **Reference**: complete function documentation
 
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md).
-
----
+MIT. See [LICENSE.md](LICENSE.md).

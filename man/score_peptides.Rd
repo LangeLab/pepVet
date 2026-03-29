@@ -10,7 +10,8 @@ score_peptides(
   weights = NULL,
   gravy_range = c(-1, 0.6),
   length_range = c(7L, 25L),
-  enzyme = "trypsin"
+  enzyme = "trypsin",
+  include_pI = FALSE
 )
 }
 \arguments{
@@ -36,6 +37,10 @@ peptide length range used by \code{S_length}, \code{S_coverage}, \code{S_count},
 \item{enzyme}{Cleavage rule name used to choose the fallback expected peptide
 length when the digest contains fewer than three peptides. Defaults to
 \code{"trypsin"}.}
+
+\item{include_pI}{Logical flag indicating whether to append a \code{pI} list
+column containing peptide-level pI values for valid peptides. Defaults to
+\code{FALSE}.}
 }
 \value{
 A tibble with one row per \code{protein_id} and the component score
@@ -43,6 +48,9 @@ columns \code{S_length}, \code{S_coverage}, \code{S_count}, \code{S_hydro}, \cod
 optional \code{S_unique}, plus \code{composite_score}, \code{verdict}, and
 \code{median_peptide_length}. The \code{median_peptide_length} column records the
 digest-level denominator used in the enzyme-aware \code{S_count} calculation.
+When \code{include_pI = TRUE}, the output also includes a \code{pI} list column with
+one named numeric vector per protein, storing valid-peptide pI values keyed
+by peptide sequence.
 }
 \description{
 \code{score_peptides()} summarizes a pepVet digest tibble into per-protein scoring

@@ -208,10 +208,14 @@ test_that("score_peptides returns the digest-derived median peptide length", {
 test_that("preset helper returns modifiable scoring configuration lists", {
   preset <- pepvet_preset("standard")
 
-  expect_identical(names(preset), c("gravy_range", "length_range", "weights"))
+  expect_identical(
+    names(preset),
+    c("gravy_range", "length_range", "weights", "include_pI")
+  )
   expect_equal(preset$gravy_range, c(-1.0, 0.6))
   expect_equal(preset$length_range, c(7L, 25L))
   expect_true(all(c("S_length", "S_unique") %in% names(preset$weights)))
+  expect_false(preset$include_pI)
 })
 
 test_that("score_peptides respects configurable length and GRAVY ranges", {
@@ -243,6 +247,31 @@ test_that("presets can be applied directly to evaluate_digest", {
 
   expect_s3_class(standard_result$scores, "tbl_df")
   expect_identical(standard_result$scores$median_peptide_length, 7)
+  expect_false("pI" %in% names(standard_result$scores))
+})
+
+test_that("fractionated preset enables peptide pI annotation", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  result <- do.call(
+    evaluate_digest,
+    c(list(sequence = bsa_path, enzyme = "trypsin"), pepvet_preset("fractionated"))
+  )
+
+  expect_true("pI" %in% names(result$scores))
+  expect_type(result$scores$pI, "list")
+  expect_true(length(result$scores$pI[[1]]) > 0L)
+  expect_type(unname(result$scores$pI[[1]]), "double")
+})
+
+test_that("score_peptides can append peptide pI values without affecting scores", {
+  digest_result <- make_digest_result(c("PEPTIDEK", "AAAAAAAR"))
+  baseline <- score_peptides(digest_result)
+  with_pi <- score_peptides(digest_result, include_pI = TRUE)
+
+  expect_equal(with_pi$composite_score, baseline$composite_score)
+  expect_true("pI" %in% names(with_pi))
+  expect_type(with_pi$pI, "list")
+  expect_identical(names(with_pi$pI[[1]]), c("PEPTIDEK", "AAAAAAAR"))
 })
 
 test_that("score_peptides falls back to enzyme-class expected lengths", {

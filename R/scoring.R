@@ -347,12 +347,18 @@
 #' @param enzyme Cleavage rule name used to choose the fallback expected peptide
 #'   length when the digest contains fewer than three peptides. Defaults to
 #'   `"trypsin"`.
+#' @param include_pI Logical flag indicating whether to append a `pI` list
+#'   column containing peptide-level pI values for valid peptides. Defaults to
+#'   `FALSE`.
 #'
 #' @return A tibble with one row per `protein_id` and the component score
 #'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`, `S_charge`,
 #'   optional `S_unique`, plus `composite_score`, `verdict`, and
 #'   `median_peptide_length`. The `median_peptide_length` column records the
 #'   digest-level denominator used in the enzyme-aware `S_count` calculation.
+#'   When `include_pI = TRUE`, the output also includes a `pI` list column with
+#'   one named numeric vector per protein, storing valid-peptide pI values keyed
+#'   by peptide sequence.
 #'
 #' @details Valid peptides are defined as peptides with lengths between 7 and
 #'   25 residues inclusive by default, but this window can be changed with
@@ -379,13 +385,15 @@ score_peptides <- function(digest_result,
                            weights = NULL,
                            gravy_range = c(-1.0, 0.6),
                            length_range = c(7L, 25L),
-                           enzyme = "trypsin") {
+                           enzyme = "trypsin",
+                           include_pI = FALSE) {
   validated_digest <- .validate_digest_result(digest_result)
   has_proteome <- !is.null(proteome)
   proteome_index <- NULL
   normalized_enzyme <- .normalize_enzyme(enzyme)
   normalized_gravy_range <- .validate_gravy_range(gravy_range)
   normalized_length_range <- .validate_length_range(length_range)
+  normalized_include_pI <- .validate_include_pI(include_pI)
 
   if (has_proteome) {
     validated_proteome <- .validate_digest_result(
@@ -419,18 +427,28 @@ score_peptides <- function(digest_result,
         protein_digest,
         normalized_enzyme
       )
-
-      tibble::as_tibble(
-        c(
-          list(protein_id = protein_digest$protein_id[[1]]),
-          as.list(component_scores),
-          list(
-            composite_score = composite_score,
-            verdict = .classify_verdict(composite_score),
-            median_peptide_length = median_peptide_length
-          )
+      row_values <- c(
+        list(protein_id = protein_digest$protein_id[[1]]),
+        as.list(component_scores),
+        list(
+          composite_score = composite_score,
+          verdict = .classify_verdict(composite_score),
+          median_peptide_length = median_peptide_length
         )
       )
+
+      if (isTRUE(normalized_include_pI)) {
+        valid_digest <- .extract_valid_digest(protein_digest, normalized_length_range)
+        peptide_pI <- if (nrow(valid_digest) == 0L) {
+          numeric(0)
+        } else {
+          stats::setNames(calculate_pI(valid_digest$peptide), valid_digest$peptide)
+        }
+
+        row_values$pI <- list(peptide_pI)
+      }
+
+      tibble::as_tibble(row_values)
     }
   )
 

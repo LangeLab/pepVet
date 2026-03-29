@@ -11,7 +11,8 @@ pepvet_preset(type = "standard")
 \code{"targeted"}, \code{"membrane"}, \code{"ffpe_degraded"}, and \code{"fractionated"}.}
 }
 \value{
-A named list with \code{gravy_range}, \code{length_range}, and \code{weights}.
+A named list with \code{gravy_range}, \code{length_range}, \code{weights}, and
+\code{include_pI}.
 The returned object can be passed directly into \code{\link[=score_peptides]{score_peptides()}} or
 \code{\link[=evaluate_digest]{evaluate_digest()}} through \code{do.call()} or argument splicing.
 }

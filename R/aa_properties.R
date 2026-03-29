@@ -8,10 +8,12 @@
 #' values for the ionizable side chains C, D, E, H, K, R, and Y; non-ionizable
 #' residues are recorded as `NA`.
 #'
-#' @format A tibble with 20 rows and 5 variables:
+#' @format A tibble with 20 rows and 6 variables:
 #' \describe{
 #'   \item{amino_acid}{Single-letter amino acid code.}
 #'   \item{molecular_weight}{Free amino acid monoisotopic mass in daltons.}
+#'   \item{residue_monoisotopic_mass}{Residue monoisotopic mass in daltons,
+#'   equal to `molecular_weight - 18.01056`.}
 #'   \item{hydrophobicity}{Kyte-Doolittle hydrophobicity value.}
 #'   \item{pKa_side_chain}{Conventional side-chain reference pKa, or `NA` for
 #'   non-ionizable residues.}
@@ -38,4 +40,4 @@
 #' [doi:10.1074/jbc.R800080200](https://doi.org/10.1074/jbc.R800080200).
 #'
 #' @keywords datasets
-"aa_properties"
+aa_properties <- NULL

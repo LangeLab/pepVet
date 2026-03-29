@@ -5,10 +5,12 @@
 \alias{aa_properties}
 \title{Amino Acid Properties}
 \format{
-A tibble with 20 rows and 5 variables:
+A tibble with 20 rows and 6 variables:
 \describe{
 \item{amino_acid}{Single-letter amino acid code.}
 \item{molecular_weight}{Free amino acid monoisotopic mass in daltons.}
+\item{residue_monoisotopic_mass}{Residue monoisotopic mass in daltons,
+equal to \code{molecular_weight - 18.01056}.}
 \item{hydrophobicity}{Kyte-Doolittle hydrophobicity value.}
 \item{pKa_side_chain}{Conventional side-chain reference pKa, or \code{NA} for
 non-ionizable residues.}

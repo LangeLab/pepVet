@@ -29,6 +29,20 @@ aa_properties <- tibble::tibble(
   )
 )
 
+aa_properties$residue_monoisotopic_mass <-
+  aa_properties$molecular_weight - 18.01056
+
+aa_properties <- aa_properties[
+  c(
+    "amino_acid",
+    "molecular_weight",
+    "residue_monoisotopic_mass",
+    "hydrophobicity",
+    "pKa_side_chain",
+    "is_basic"
+  )
+]
+
 if (!dir.exists("data")) {
   dir.create("data", recursive = TRUE)
 }

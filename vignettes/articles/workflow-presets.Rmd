@@ -119,17 +119,15 @@ The `fractionated` preset keeps a conventional scoring profile but is useful whe
 Presets are plain R lists. The easiest way to customize them is to start with one and change the fields you need.
 
 ```{r modify-preset}
-custom_membrane <- pepvet_preset("membrane")
-custom_membrane$weights["S_coverage"] <- 0.30
-custom_membrane$weights["S_hydro"] <- 0.10
-if ("S_unique" %in% names(custom_membrane$weights)) {
-  custom_membrane$weights["S_unique"] <- 0
-}
-custom_membrane$weights <- custom_membrane$weights / sum(custom_membrane$weights)
+custom_fractionated <- pepvet_preset("fractionated")
+custom_fractionated$weights["S_coverage"] <- 0.30
+custom_fractionated$weights["S_hydro"] <- 0.10
+custom_fractionated$weights <-
+  custom_fractionated$weights / sum(custom_fractionated$weights)
 
 do.call(
   evaluate_digest,
-  c(list(sequence = bsa_path, enzyme = "chymotrypsin-high"), custom_membrane)
+  c(list(sequence = bsa_path, enzyme = "chymotrypsin-high"), custom_fractionated)
 )$scores
 ```
 

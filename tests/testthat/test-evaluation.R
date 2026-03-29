@@ -47,6 +47,14 @@ test_that("batch_evaluate threads the proteome argument to every evaluation", {
   expect_false("S_unique" %in% names(batch_no_proteome[[1]]$scores))
 })
 
+test_that("evaluate_digest passes include_pI through to score output", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  result <- evaluate_digest(bsa_path, enzyme = "trypsin", include_pI = TRUE)
+
+  expect_true("pI" %in% names(result$scores))
+  expect_type(result$scores$pI, "list")
+})
+
 # ── Comparison & recommendation ────────────────────────────────────────────
 
 test_that("compare_digests output is sorted by composite_score descending", {

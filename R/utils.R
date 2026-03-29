@@ -12,6 +12,19 @@
   }
 })
 
+.water_monoisotopic_mass <- 18.01056
+.proton_monoisotopic_mass <- 1.007276
+.terminal_pka <- c(n_term = 8.0, c_term = 3.1)
+.ionizable_side_chain_pka <- c(
+  C = 8.3,
+  D = 3.9,
+  E = 4.3,
+  H = 6.0,
+  K = 10.5,
+  R = 12.5,
+  Y = 10.1
+)
+
 .supported_digest_enzymes <- c(
   "arg-c proteinase",
   "asp-n endopeptidase",
@@ -128,32 +141,38 @@
   standard = list(
     gravy_range = c(-1.0, 0.6),
     length_range = c(7L, 25L),
-    weights = .preset_scoring_weights$standard
+    weights = .preset_scoring_weights$standard,
+    include_pI = FALSE
   ),
   dia = list(
     gravy_range = c(-1.0, 0.6),
     length_range = c(7L, 30L),
-    weights = .preset_scoring_weights$dia
+    weights = .preset_scoring_weights$dia,
+    include_pI = FALSE
   ),
   targeted = list(
     gravy_range = c(-0.8, 0.4),
     length_range = c(8L, 20L),
-    weights = .preset_scoring_weights$targeted
+    weights = .preset_scoring_weights$targeted,
+    include_pI = FALSE
   ),
   membrane = list(
     gravy_range = c(-1.0, 1.5),
     length_range = c(7L, 30L),
-    weights = .preset_scoring_weights$membrane
+    weights = .preset_scoring_weights$membrane,
+    include_pI = FALSE
   ),
   ffpe_degraded = list(
     gravy_range = c(-1.0, 0.8),
     length_range = c(6L, 30L),
-    weights = .preset_scoring_weights$ffpe_degraded
+    weights = .preset_scoring_weights$ffpe_degraded,
+    include_pI = FALSE
   ),
   fractionated = list(
     gravy_range = c(-1.0, 0.6),
     length_range = c(7L, 25L),
-    weights = .preset_scoring_weights$fractionated
+    weights = .preset_scoring_weights$fractionated,
+    include_pI = TRUE
   )
 )
 
@@ -311,7 +330,8 @@
 #' @param type Preset name. Supported values are `"standard"`, `"dia"`,
 #'   `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and `"fractionated"`.
 #'
-#' @return A named list with `gravy_range`, `length_range`, and `weights`.
+#' @return A named list with `gravy_range`, `length_range`, `weights`, and
+#'   `include_pI`.
 #'   The returned object can be passed directly into [score_peptides()] or
 #'   [evaluate_digest()] through `do.call()` or argument splicing.
 #'
@@ -342,6 +362,7 @@ pepvet_preset <- function(type = "standard") {
   preset$gravy_range <- .validate_gravy_range(preset$gravy_range)
   preset$length_range <- .validate_length_range(preset$length_range)
   preset$weights <- .normalize_weights(preset$weights, .default_scoring_weights$proteome_aware)
+  preset$include_pI <- .validate_include_pI(preset$include_pI)
   preset
 }
 
@@ -627,4 +648,238 @@ pepvet_preset <- function(type = "standard") {
   }
 
   mean(aa_properties$hydrophobicity[residue_index])
+}
+
+.normalize_peptide_sequences <- function(sequence, arg_name = "sequence") {
+  if (!is.character(sequence) || length(sequence) == 0L) {
+    cli::cli_abort(
+      paste0(
+        "{.arg ",
+        arg_name,
+        "} must be a non-empty character vector of peptide sequences."
+      ),
+      class = "pepvet_error_invalid_sequence"
+    )
+  }
+
+  sequence_names <- names(sequence)
+
+  vapply(
+    seq_along(sequence),
+    function(index) {
+      sequence_name <- if (
+        !is.null(sequence_names) &&
+          !is.na(sequence_names[[index]]) &&
+          nzchar(sequence_names[[index]])
+      ) {
+        sequence_names[[index]]
+      } else {
+        paste0(arg_name, "_", index)
+      }
+
+      .validate_sequence(sequence[[index]], sequence_name = sequence_name)
+    },
+    character(1)
+  )
+}
+
+.validate_charge <- function(charge, sequence_count) {
+  if (!is.numeric(charge) || anyNA(charge)) {
+    cli::cli_abort(
+      "{.arg charge} must be a numeric vector of non-missing integers.",
+      class = "pepvet_error_invalid_charge"
+    )
+  }
+
+  if (!length(charge) %in% c(1L, sequence_count)) {
+    cli::cli_abort(
+      "{.arg charge} must have length 1 or the same length as {.arg sequence}.",
+      class = "pepvet_error_invalid_charge"
+    )
+  }
+
+  normalized_charge <- as.integer(charge)
+
+  if (
+    any(normalized_charge < 0L) ||
+      !isTRUE(all.equal(as.numeric(charge), as.numeric(normalized_charge)))
+  ) {
+    cli::cli_abort(
+      "{.arg charge} must contain non-negative integers.",
+      class = "pepvet_error_invalid_charge"
+    )
+  }
+
+  if (length(normalized_charge) == 1L) {
+    normalized_charge <- rep(normalized_charge, sequence_count)
+  }
+
+  normalized_charge
+}
+
+.validate_include_pI <- function(include_pI) {
+  if (!is.logical(include_pI) || length(include_pI) != 1L || is.na(include_pI)) {
+    cli::cli_abort(
+      "{.arg include_pI} must be a single, non-missing logical value.",
+      class = "pepvet_error_invalid_include_pi"
+    )
+  }
+
+  include_pI
+}
+
+.ionizable_composition_matrix <- function(sequence) {
+  normalized_sequences <- .normalize_peptide_sequences(sequence)
+  ionizable_residues <- names(.ionizable_side_chain_pka)
+  composition_matrix <- matrix(
+    0,
+    nrow = length(normalized_sequences),
+    ncol = length(ionizable_residues),
+    dimnames = list(NULL, ionizable_residues)
+  )
+
+  residue_indices <- lapply(
+    strsplit(normalized_sequences, split = "", fixed = TRUE),
+    function(residues) {
+      match(residues, ionizable_residues)
+    }
+  )
+
+  for (index in seq_along(residue_indices)) {
+    matched_residues <- residue_indices[[index]]
+    matched_residues <- matched_residues[!is.na(matched_residues)]
+
+    if (length(matched_residues) > 0L) {
+      composition_matrix[index, ] <- tabulate(
+        matched_residues,
+        nbins = length(ionizable_residues)
+      )
+    }
+  }
+
+  composition_matrix
+}
+
+.net_charge_at_pH <- function(pH, composition_matrix) {
+  net_charge <-
+    1 / (1 + 10^(pH - .terminal_pka[["n_term"]])) -
+    1 / (1 + 10^(.terminal_pka[["c_term"]] - pH))
+
+  for (residue in c("H", "K", "R")) {
+    net_charge <- net_charge +
+      composition_matrix[, residue] / (1 + 10^(pH - .ionizable_side_chain_pka[[residue]]))
+  }
+
+  for (residue in c("C", "D", "E", "Y")) {
+    net_charge <- net_charge -
+      composition_matrix[, residue] / (1 + 10^(.ionizable_side_chain_pka[[residue]] - pH))
+  }
+
+  net_charge
+}
+
+#' Calculate Peptide Mass or m/z
+#'
+#' `calculate_peptide_mass()` computes the neutral monoisotopic mass of one or
+#' more unmodified peptide sequences using residue masses stored in
+#' [aa_properties]. When `charge > 0`, the function returns monoisotopic m/z
+#' values using the proton mass `1.007276` Da.
+#'
+#' @param sequence Peptide sequence supplied as a character vector. Amino-acid
+#'   codes must be one-letter uppercase or lowercase symbols from the 20
+#'   standard residues.
+#' @param charge Optional non-negative integer scalar or integer vector with
+#'   length matching `sequence`. `0L` returns neutral masses. Positive values
+#'   return m/z.
+#'
+#' @return A numeric vector of neutral masses or m/z values. Names are
+#'   preserved from `sequence` when present.
+#'
+#' @details This function computes masses for unmodified peptide sequences only.
+#'   It does not account for chemical labels such as TMT or iTRAQ, isotopic
+#'   labels such as SILAC, or post-translational modifications.
+#'
+#' @examples
+#' calculate_peptide_mass("PEPTIDE")
+#' calculate_peptide_mass(c(a = "PEPTIDE", b = "AAAAAAAR"), charge = 2L)
+#' @export
+calculate_peptide_mass <- function(sequence, charge = 0L) {
+  normalized_sequences <- .normalize_peptide_sequences(sequence)
+  normalized_charge <- .validate_charge(charge, length(normalized_sequences))
+  aa_properties <- .get_aa_properties()
+  residue_masses <- stats::setNames(
+    aa_properties$residue_monoisotopic_mass,
+    aa_properties$amino_acid
+  )
+
+  neutral_mass <- vapply(
+    strsplit(normalized_sequences, split = "", fixed = TRUE),
+    function(residues) {
+      sum(residue_masses[residues]) + .water_monoisotopic_mass
+    },
+    numeric(1)
+  )
+
+  result <- neutral_mass
+  charged <- normalized_charge > 0L
+
+  if (any(charged)) {
+    result[charged] <- (
+      neutral_mass[charged] +
+        normalized_charge[charged] * .proton_monoisotopic_mass
+    ) / normalized_charge[charged]
+  }
+
+  names(result) <- names(sequence)
+  result
+}
+
+#' Calculate Peptide Isoelectric Point
+#'
+#' `calculate_pI()` estimates peptide isoelectric points with a bisection
+#' search over the Henderson-Hasselbalch net-charge equation. The calculation
+#' uses hard-coded terminal pKa values of `8.0` for the N-terminus and `3.1`
+#' for the C-terminus, plus side-chain pKa values from [aa_properties] for `C`,
+#' `D`, `E`, `H`, `K`, `R`, and `Y`.
+#'
+#' @param sequence Peptide sequence supplied as a character vector. Amino-acid
+#'   codes must be one-letter uppercase or lowercase symbols from the 20
+#'   standard residues.
+#'
+#' @return A numeric vector of estimated peptide pI values. Names are preserved
+#'   from `sequence` when present.
+#'
+#' @examples
+#' calculate_pI("PEPTIDE")
+#' calculate_pI(c("AAAAAAAR", "ACDEFGHIKLMNPQRSTVWY"))
+#' @export
+calculate_pI <- function(sequence) {
+  normalized_sequences <- .normalize_peptide_sequences(sequence)
+
+  if (length(normalized_sequences) > 5000L) {
+    cli::cli_inform(
+      paste0(
+        "Calculating peptide pI values for ",
+        length(normalized_sequences),
+        " sequences."
+      )
+    )
+  }
+
+  composition_matrix <- .ionizable_composition_matrix(normalized_sequences)
+  lower_bound <- rep(0, length(normalized_sequences))
+  upper_bound <- rep(14, length(normalized_sequences))
+
+  for (iteration in seq_len(40L)) {
+    midpoint <- (lower_bound + upper_bound) / 2
+    midpoint_charge <- .net_charge_at_pH(midpoint, composition_matrix)
+    still_positive <- midpoint_charge > 0
+
+    lower_bound[still_positive] <- midpoint[still_positive]
+    upper_bound[!still_positive] <- midpoint[!still_positive]
+  }
+
+  result <- (lower_bound + upper_bound) / 2
+  names(result) <- names(sequence)
+  result
 }

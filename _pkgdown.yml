@@ -61,6 +61,14 @@ reference:
       - score_peptides
       - pepvet_preset
 
+  - title: "Peptide properties"
+    desc: >
+      Calculate peptide mass and isoelectric point annotations used in
+      fractionation-aware planning workflows.
+    contents:
+      - calculate_peptide_mass
+      - calculate_pI
+
   - title: "Evaluation and comparison"
     desc: >
       Combine digest and scoring into a single call, compare enzymes

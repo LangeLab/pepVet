@@ -59,6 +59,7 @@ test_that("aa_properties has the expected schema and missingness", {
     c(
       "amino_acid",
       "molecular_weight",
+      "residue_monoisotopic_mass",
       "hydrophobicity",
       "pKa_side_chain",
       "is_basic"
@@ -67,12 +68,14 @@ test_that("aa_properties has the expected schema and missingness", {
 
   expect_type(aa_properties$amino_acid, "character")
   expect_type(aa_properties$molecular_weight, "double")
+  expect_type(aa_properties$residue_monoisotopic_mass, "double")
   expect_type(aa_properties$hydrophobicity, "double")
   expect_type(aa_properties$pKa_side_chain, "double")
   expect_type(aa_properties$is_basic, "logical")
 
   expect_false(anyNA(aa_properties$amino_acid))
   expect_false(anyNA(aa_properties$molecular_weight))
+  expect_false(anyNA(aa_properties$residue_monoisotopic_mass))
   expect_false(anyNA(aa_properties$hydrophobicity))
   expect_false(anyNA(aa_properties$is_basic))
 })
@@ -104,6 +107,15 @@ test_that("aa_properties free masses are residue masses plus water", {
     rep(water_mass, length(expected_residue_mass)),
     tolerance = 1e-4
   )
+})
+
+test_that("aa_properties exposes residue monoisotopic masses directly", {
+  observed_residue_mass <- setNames(
+    aa_properties$residue_monoisotopic_mass,
+    aa_properties$amino_acid
+  )
+
+  expect_equal(observed_residue_mass, expected_residue_mass, tolerance = 1e-4)
 })
 
 test_that(
@@ -198,3 +210,46 @@ test_that(
     )
   }
 )
+
+test_that("calculate_peptide_mass returns the expected neutral mass and m/z", {
+  expect_equal(calculate_peptide_mass("PEPTIDE"), 799.35994, tolerance = 1e-3)
+  expect_equal(
+    calculate_peptide_mass("PEPTIDE", charge = 2L),
+    400.68725,
+    tolerance = 1e-3
+  )
+})
+
+test_that("calculate_peptide_mass is vectorized and validates charge", {
+  result <- calculate_peptide_mass(c(a = "PEPTIDE", b = "AAAAAAAR"), charge = c(0L, 2L))
+
+  expect_type(result, "double")
+  expect_identical(names(result), c("a", "b"))
+  expect_error(
+    calculate_peptide_mass("PEPTIDE", charge = -1L),
+    class = "pepvet_error_invalid_charge"
+  )
+  expect_error(
+    calculate_peptide_mass("PEPTIDE", charge = 1.5),
+    class = "pepvet_error_invalid_charge"
+  )
+})
+
+test_that("calculate_pI returns chemically plausible values", {
+  mixed_pi <- calculate_pI("ACDEFGHIKLMNPQRSTVWY")
+  basic_pi <- calculate_pI("AAAAAAAR")
+
+  expect_equal(mixed_pi, 7.15, tolerance = 0.1)
+  expect_equal(basic_pi, 10.25, tolerance = 0.1)
+})
+
+test_that("calculate_pI is vectorized and rejects bad peptide input", {
+  result <- calculate_pI(c(a = "PEPTIDE", b = "AAAAAAAR"))
+
+  expect_type(result, "double")
+  expect_identical(names(result), c("a", "b"))
+  expect_error(
+    calculate_pI(c("PEPTIDE", NA_character_)),
+    class = "pepvet_error_invalid_sequence"
+  )
+})

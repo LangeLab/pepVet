@@ -9,7 +9,8 @@ compare_digests(
   enzymes = c("trypsin", "lysc"),
   missed_cleavages = 0L,
   proteome = NULL,
-  weights = NULL
+  weights = NULL,
+  ...
 )
 }
 \arguments{
@@ -26,6 +27,9 @@ be one of pepVet's supported cleaver-compatible enzyme names.}
 for all enzyme evaluations.}
 
 \item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
+
+\item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
+as \code{gravy_range} and \code{length_range}.}
 }
 \value{
 A tibble with one row per enzyme and columns \code{enzyme} followed by

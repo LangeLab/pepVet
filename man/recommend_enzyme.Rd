@@ -9,7 +9,8 @@ recommend_enzyme(
   enzymes = c("trypsin", "lysc"),
   missed_cleavages = 0L,
   proteome = NULL,
-  weights = NULL
+  weights = NULL,
+  ...
 )
 }
 \arguments{
@@ -22,6 +23,9 @@ recommend_enzyme(
 \item{proteome}{Optional proteome digest tibble for uniqueness scoring.}
 
 \item{weights}{Optional scoring weight vector.}
+
+\item{...}{Additional scoring arguments passed to \code{\link[=compare_digests]{compare_digests()}} and
+ultimately to \code{\link[=score_peptides]{score_peptides()}}.}
 }
 \value{
 A character vector of one or more enzyme names. Length greater than

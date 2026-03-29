@@ -93,6 +93,12 @@ test_that("weight validation accepts named weights and reorders them", {
     pepVet:::.validate_weights(weights, has_proteome = FALSE),
     expected_protein_only_weights
   )
+
+  preset_weights <- pepvet_preset("standard")$weights
+  expect_equal(
+    pepVet:::.validate_weights(preset_weights, has_proteome = FALSE),
+    expected_protein_only_weights
+  )
 })
 
 test_that("weight validation rejects bad sums, negatives, and wrong lengths", {
@@ -110,6 +116,10 @@ test_that("weight validation rejects bad sums, negatives, and wrong lengths", {
   )
   expect_error(
     pepVet:::.validate_weights(rep(1 / 5, 5), TRUE),
+    class = "pepvet_error_invalid_weights"
+  )
+  expect_error(
+    pepVet:::.validate_weights(pepvet_preset("targeted")$weights, FALSE),
     class = "pepvet_error_invalid_weights"
   )
   expect_error(
@@ -193,6 +203,46 @@ test_that("score_peptides returns the digest-derived median peptide length", {
   result <- score_peptides(digest_result, enzyme = "trypsin")
 
   expect_identical(result$median_peptide_length, 10)
+})
+
+test_that("preset helper returns modifiable scoring configuration lists", {
+  preset <- pepvet_preset("standard")
+
+  expect_identical(names(preset), c("gravy_range", "length_range", "weights"))
+  expect_equal(preset$gravy_range, c(-1.0, 0.6))
+  expect_equal(preset$length_range, c(7L, 25L))
+  expect_true(all(c("S_length", "S_unique") %in% names(preset$weights)))
+})
+
+test_that("score_peptides respects configurable length and GRAVY ranges", {
+  digest_result <- make_digest_result(
+    c("AAAAAA", "AAAAAAAA", "AIVVWWWK"),
+    starts = c(1L, 7L, 14L)
+  )
+
+  default_length_result <- score_peptides(digest_result)
+  widened_length_result <- score_peptides(
+    digest_result,
+    length_range = c(6L, 25L)
+  )
+  widened_hydro_result <- score_peptides(
+    digest_result,
+    gravy_range = c(-1.0, 1.5)
+  )
+
+  expect_lt(default_length_result$S_length, widened_length_result$S_length)
+  expect_lt(default_length_result$S_hydro, widened_hydro_result$S_hydro)
+})
+
+test_that("presets can be applied directly to evaluate_digest", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  standard_result <- do.call(
+    evaluate_digest,
+    c(list(sequence = bsa_path, enzyme = "trypsin"), pepvet_preset("standard"))
+  )
+
+  expect_s3_class(standard_result$scores, "tbl_df")
+  expect_identical(standard_result$scores$median_peptide_length, 7)
 })
 
 test_that("score_peptides falls back to enzyme-class expected lengths", {

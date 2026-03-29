@@ -17,6 +17,8 @@
 #'   When scoring a non-tryptic digest directly, [evaluate_digest()] forwards
 #'   the selected `enzyme` so enzyme-aware S_count denominators stay aligned
 #'   with the digest.
+#' @param ... Additional scoring arguments passed to [score_peptides()], such
+#'   as `gravy_range` and `length_range`.
 #'
 #' @return A named list with three elements:
 #'   \describe{
@@ -42,7 +44,8 @@ evaluate_digest <- function(sequence,
                             enzyme = "trypsin",
                             missed_cleavages = 0L,
                             proteome = NULL,
-                            weights = NULL) {
+                            weights = NULL,
+                            ...) {
   peptides <- digest_protein(sequence,
     enzyme = enzyme,
     missed_cleavages = missed_cleavages
@@ -51,6 +54,7 @@ evaluate_digest <- function(sequence,
     peptides,
     proteome = proteome,
     weights = weights,
+    ...,
     enzyme = enzyme
   )
 
@@ -80,6 +84,8 @@ evaluate_digest <- function(sequence,
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for all enzyme evaluations.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
+#' @param ... Additional scoring arguments passed to [score_peptides()], such
+#'   as `gravy_range` and `length_range`.
 #'
 #' @return A tibble with one row per enzyme and columns `enzyme` followed by
 #'   all columns from [score_peptides()], sorted by `composite_score`
@@ -96,7 +102,8 @@ compare_digests <- function(sequence,
                             enzymes = c("trypsin", "lysc"),
                             missed_cleavages = 0L,
                             proteome = NULL,
-                            weights = NULL) {
+                            weights = NULL,
+                            ...) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
     cli::cli_abort(
       paste(
@@ -125,7 +132,8 @@ compare_digests <- function(sequence,
       enzyme = enzyme,
       missed_cleavages = missed_cleavages,
       proteome = proteome,
-      weights = weights
+      weights = weights,
+      ...
     )
     tibble::add_column(ev$scores, enzyme = ev$params$enzyme, .before = 1L)
   })
@@ -146,6 +154,8 @@ compare_digests <- function(sequence,
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `0L`.
 #' @param proteome Optional proteome digest tibble for uniqueness scoring.
 #' @param weights Optional scoring weight vector.
+#' @param ... Additional scoring arguments passed to [compare_digests()] and
+#'   ultimately to [score_peptides()].
 #'
 #' @return A character vector of one or more enzyme names. Length greater than
 #'   one only when top scores are tied within floating-point tolerance.
@@ -161,13 +171,15 @@ recommend_enzyme <- function(sequence,
                              enzymes = c("trypsin", "lysc"),
                              missed_cleavages = 0L,
                              proteome = NULL,
-                             weights = NULL) {
+                             weights = NULL,
+                             ...) {
   comparison <- compare_digests(
     sequence,
     enzymes = enzymes,
     missed_cleavages = missed_cleavages,
     proteome = proteome,
-    weights = weights
+    weights = weights,
+    ...
   )
 
   top_score <- max(comparison$composite_score)
@@ -193,6 +205,8 @@ recommend_enzyme <- function(sequence,
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for every protein evaluation.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
+#' @param ... Additional scoring arguments passed to [score_peptides()], such
+#'   as `gravy_range` and `length_range`.
 #'
 #' @return A named list where each element is the result of [evaluate_digest()]
 #'   for the corresponding protein. Names match the `protein_id` values from
@@ -214,7 +228,8 @@ batch_evaluate <- function(sequences,
                            enzyme = "trypsin",
                            missed_cleavages = 0L,
                            proteome = NULL,
-                           weights = NULL) {
+                           weights = NULL,
+                           ...) {
   normalized_input <- .read_input(sequences)
 
   results <- lapply(seq_along(normalized_input), function(index) {
@@ -223,7 +238,8 @@ batch_evaluate <- function(sequences,
       enzyme = enzyme,
       missed_cleavages = missed_cleavages,
       proteome = proteome,
-      weights = weights
+      weights = weights,
+      ...
     )
   })
 

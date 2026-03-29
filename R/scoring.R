@@ -130,12 +130,13 @@
   tibble::as_tibble(digest_result)
 }
 
-.valid_length_mask <- function(protein_digest) {
-  protein_digest$length >= 7L & protein_digest$length <= 25L
+.valid_length_mask <- function(protein_digest, length_range = c(7L, 25L)) {
+  protein_digest$length >= length_range[[1]] &
+    protein_digest$length <= length_range[[2]]
 }
 
-.extract_valid_digest <- function(protein_digest) {
-  protein_digest[.valid_length_mask(protein_digest), , drop = FALSE]
+.extract_valid_digest <- function(protein_digest, length_range = c(7L, 25L)) {
+  protein_digest[.valid_length_mask(protein_digest, length_range), , drop = FALSE]
 }
 
 .fallback_expected_peptide_length <- function(enzyme = "trypsin") {
@@ -171,12 +172,12 @@
     protein_digest$end[[1]] == max(protein_digest$end)
 }
 
-.score_length <- function(protein_digest) {
-  sum(.valid_length_mask(protein_digest)) / nrow(protein_digest)
+.score_length <- function(protein_digest, length_range = c(7L, 25L)) {
+  sum(.valid_length_mask(protein_digest, length_range)) / nrow(protein_digest)
 }
 
-.score_coverage <- function(protein_digest) {
-  valid_digest <- .extract_valid_digest(protein_digest)
+.score_coverage <- function(protein_digest, length_range = c(7L, 25L)) {
+  valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -190,7 +191,9 @@
   sum(IRanges::width(covered_ranges)) / protein_length
 }
 
-.score_count <- function(protein_digest, enzyme = "trypsin") {
+.score_count <- function(protein_digest,
+                         enzyme = "trypsin",
+                         length_range = c(7L, 25L)) {
   if (.has_no_cleavage_sites(protein_digest)) {
     cli::cli_warn(
       "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage sites for {.val {enzyme}}. S_count set to 0."
@@ -199,15 +202,17 @@
     return(0)
   }
 
-  valid_count <- nrow(.extract_valid_digest(protein_digest))
+  valid_count <- nrow(.extract_valid_digest(protein_digest, length_range))
   protein_length <- max(protein_digest$end)
   expected_count <- protein_length / .expected_peptide_length(protein_digest, enzyme)
 
   min(valid_count / expected_count, 1)
 }
 
-.score_hydro <- function(protein_digest) {
-  valid_digest <- .extract_valid_digest(protein_digest)
+.score_hydro <- function(protein_digest,
+                         gravy_range = c(-1.0, 0.6),
+                         length_range = c(7L, 25L)) {
+  valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -217,13 +222,13 @@
   tolerance <- sqrt(.Machine$double.eps)
 
   mean(
-    gravy_values >= (-1.0 - tolerance) &
-      gravy_values <= (0.6 + tolerance)
+    gravy_values >= (gravy_range[[1]] - tolerance) &
+      gravy_values <= (gravy_range[[2]] + tolerance)
   )
 }
 
-.score_charge <- function(protein_digest) {
-  valid_digest <- .extract_valid_digest(protein_digest)
+.score_charge <- function(protein_digest, length_range = c(7L, 25L)) {
+  valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -246,8 +251,10 @@
   mean(chargeable)
 }
 
-.score_unique <- function(protein_digest, proteome_index) {
-  valid_digest <- .extract_valid_digest(protein_digest)
+.score_unique <- function(protein_digest,
+                          proteome_index,
+                          length_range = c(7L, 25L)) {
+  valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -293,19 +300,21 @@
 
 .score_components <- function(protein_digest,
                               proteome_index = NULL,
-                              enzyme = "trypsin") {
+                              enzyme = "trypsin",
+                              length_range = c(7L, 25L),
+                              gravy_range = c(-1.0, 0.6)) {
   component_scores <- c(
-    S_length = .score_length(protein_digest),
-    S_coverage = .score_coverage(protein_digest),
-    S_count = .score_count(protein_digest, enzyme = enzyme),
-    S_hydro = .score_hydro(protein_digest),
-    S_charge = .score_charge(protein_digest)
+    S_length = .score_length(protein_digest, length_range),
+    S_coverage = .score_coverage(protein_digest, length_range),
+    S_count = .score_count(protein_digest, enzyme = enzyme, length_range = length_range),
+    S_hydro = .score_hydro(protein_digest, gravy_range, length_range),
+    S_charge = .score_charge(protein_digest, length_range)
   )
 
   if (!is.null(proteome_index)) {
     component_scores <- c(
       component_scores,
-      S_unique = .score_unique(protein_digest, proteome_index)
+      S_unique = .score_unique(protein_digest, proteome_index, length_range)
     )
   }
 
@@ -328,6 +337,11 @@
 #'   S_hydro = 0.15, S_charge = 0.15)`. In proteome-aware mode the default
 #'   weights are `c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15,
 #'   S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)`.
+#' @param gravy_range Numeric vector of length 2 defining the inclusive GRAVY
+#'   range used by `S_hydro`. Defaults to `c(-1.0, 0.6)`.
+#' @param length_range Integer vector of length 2 defining the inclusive valid
+#'   peptide length range used by `S_length`, `S_coverage`, `S_count`,
+#'   `S_hydro`, `S_charge`, and `S_unique`. Defaults to `c(7L, 25L)`.
 #' @param enzyme Cleavage rule name used to choose the fallback expected peptide
 #'   length when the digest contains fewer than three peptides. Defaults to
 #'   `"trypsin"`.
@@ -358,11 +372,15 @@
 score_peptides <- function(digest_result,
                            proteome = NULL,
                            weights = NULL,
+                           gravy_range = c(-1.0, 0.6),
+                           length_range = c(7L, 25L),
                            enzyme = "trypsin") {
   validated_digest <- .validate_digest_result(digest_result)
   has_proteome <- !is.null(proteome)
   proteome_index <- NULL
   normalized_enzyme <- .normalize_enzyme(enzyme)
+  normalized_gravy_range <- .validate_gravy_range(gravy_range)
+  normalized_length_range <- .validate_length_range(length_range)
 
   if (has_proteome) {
     validated_proteome <- .validate_digest_result(
@@ -386,7 +404,9 @@ score_peptides <- function(digest_result,
       component_scores <- .score_components(
         protein_digest,
         proteome_index,
-        enzyme = normalized_enzyme
+        enzyme = normalized_enzyme,
+        length_range = normalized_length_range,
+        gravy_range = normalized_gravy_range
       )
       weighted_components <- component_scores[names(normalized_weights)]
       composite_score <- sum(weighted_components * normalized_weights)

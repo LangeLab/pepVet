@@ -8,6 +8,8 @@ score_peptides(
   digest_result,
   proteome = NULL,
   weights = NULL,
+  gravy_range = c(-1, 0.6),
+  length_range = c(7L, 25L),
   enzyme = "trypsin"
 )
 }
@@ -23,6 +25,13 @@ and protein-only default weights are used.}
 \item{weights}{Optional numeric weight vector. In protein-only mode the
 default weights are \code{c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20, S_hydro = 0.15, S_charge = 0.15)}. In proteome-aware mode the default
 weights are \code{c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15, S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)}.}
+
+\item{gravy_range}{Numeric vector of length 2 defining the inclusive GRAVY
+range used by \code{S_hydro}. Defaults to \code{c(-1.0, 0.6)}.}
+
+\item{length_range}{Integer vector of length 2 defining the inclusive valid
+peptide length range used by \code{S_length}, \code{S_coverage}, \code{S_count},
+\code{S_hydro}, \code{S_charge}, and \code{S_unique}. Defaults to \code{c(7L, 25L)}.}
 
 \item{enzyme}{Cleavage rule name used to choose the fallback expected peptide
 length when the digest contains fewer than three peptides. Defaults to

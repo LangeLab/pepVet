@@ -73,6 +73,174 @@
   )
 )
 
+.preset_scoring_weights <- list(
+  standard = c(
+    S_length = 0.25,
+    S_coverage = 0.25,
+    S_count = 0.20,
+    S_hydro = 0.15,
+    S_charge = 0.15,
+    S_unique = 0.00
+  ),
+  dia = c(
+    S_length = 0.20,
+    S_coverage = 0.30,
+    S_count = 0.20,
+    S_hydro = 0.10,
+    S_charge = 0.10,
+    S_unique = 0.10
+  ),
+  targeted = c(
+    S_length = 0.15,
+    S_coverage = 0.10,
+    S_count = 0.15,
+    S_hydro = 0.15,
+    S_charge = 0.15,
+    S_unique = 0.30
+  ),
+  membrane = c(
+    S_length = 0.25,
+    S_coverage = 0.25,
+    S_count = 0.20,
+    S_hydro = 0.05,
+    S_charge = 0.15,
+    S_unique = 0.10
+  ),
+  ffpe_degraded = c(
+    S_length = 0.20,
+    S_coverage = 0.20,
+    S_count = 0.30,
+    S_hydro = 0.10,
+    S_charge = 0.10,
+    S_unique = 0.10
+  ),
+  fractionated = c(
+    S_length = 0.25,
+    S_coverage = 0.25,
+    S_count = 0.20,
+    S_hydro = 0.15,
+    S_charge = 0.15,
+    S_unique = 0.00
+  )
+)
+
+.pepvet_presets <- list(
+  standard = list(
+    gravy_range = c(-1.0, 0.6),
+    length_range = c(7L, 25L),
+    weights = .preset_scoring_weights$standard
+  ),
+  dia = list(
+    gravy_range = c(-1.0, 0.6),
+    length_range = c(7L, 30L),
+    weights = .preset_scoring_weights$dia
+  ),
+  targeted = list(
+    gravy_range = c(-0.8, 0.4),
+    length_range = c(8L, 20L),
+    weights = .preset_scoring_weights$targeted
+  ),
+  membrane = list(
+    gravy_range = c(-1.0, 1.5),
+    length_range = c(7L, 30L),
+    weights = .preset_scoring_weights$membrane
+  ),
+  ffpe_degraded = list(
+    gravy_range = c(-1.0, 0.8),
+    length_range = c(6L, 30L),
+    weights = .preset_scoring_weights$ffpe_degraded
+  ),
+  fractionated = list(
+    gravy_range = c(-1.0, 0.6),
+    length_range = c(7L, 25L),
+    weights = .preset_scoring_weights$fractionated
+  )
+)
+
+.validate_gravy_range <- function(gravy_range) {
+  if (!is.numeric(gravy_range) || length(gravy_range) != 2L || anyNA(gravy_range)) {
+    cli::cli_abort(
+      "{.arg gravy_range} must be a numeric vector of length 2 with no missing values.",
+      class = "pepvet_error_invalid_gravy_range"
+    )
+  }
+
+  normalized_range <- as.numeric(gravy_range)
+
+  if (!all(is.finite(normalized_range)) || normalized_range[[1]] > normalized_range[[2]]) {
+    cli::cli_abort(
+      "{.arg gravy_range} must contain finite values in ascending order.",
+      class = "pepvet_error_invalid_gravy_range"
+    )
+  }
+
+  normalized_range
+}
+
+.validate_length_range <- function(length_range) {
+  if (!is.numeric(length_range) || length(length_range) != 2L || anyNA(length_range)) {
+    cli::cli_abort(
+      "{.arg length_range} must be a numeric vector of length 2 with no missing values.",
+      class = "pepvet_error_invalid_length_range"
+    )
+  }
+
+  normalized_range <- as.integer(length_range)
+
+  if (
+    any(normalized_range < 1L) ||
+      normalized_range[[1]] > normalized_range[[2]] ||
+      !isTRUE(all.equal(as.numeric(length_range), as.numeric(normalized_range)))
+  ) {
+    cli::cli_abort(
+      "{.arg length_range} must contain positive integers in ascending order.",
+      class = "pepvet_error_invalid_length_range"
+    )
+  }
+
+  normalized_range
+}
+
+.normalize_weights <- function(weights, defaults) {
+  if (!is.numeric(weights) || anyNA(weights)) {
+    cli::cli_abort(
+      "{.arg weights} must be a numeric vector with no missing values.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  expected_names <- names(defaults)
+
+  if (is.null(names(weights))) {
+    normalized_weights <- as.numeric(weights)
+    names(normalized_weights) <- expected_names
+    return(normalized_weights)
+  }
+
+  observed_names <- trimws(names(weights))
+
+  if (anyNA(observed_names) || any(!nzchar(observed_names))) {
+    cli::cli_abort(
+      "Named {.arg weights} entries must all have non-empty names.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  if (!setequal(observed_names, expected_names)) {
+    cli::cli_abort(
+      c(
+        "Named {.arg weights} must match the scoring component names.",
+        "i" = paste("Expected names:", paste(expected_names, collapse = ", "))
+      ),
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  normalized_weights <- as.numeric(weights[match(expected_names, observed_names)])
+  names(normalized_weights) <- expected_names
+  normalized_weights
+}
+
 .validate_weights <- function(weights, has_proteome) {
   defaults <- if (isTRUE(has_proteome)) {
     .default_scoring_weights$proteome_aware
@@ -84,53 +252,34 @@
     return(defaults)
   }
 
-  if (!is.numeric(weights) || anyNA(weights)) {
-    cli::cli_abort(
-      "{.arg weights} must be a numeric vector with no missing values.",
-      class = "pepvet_error_invalid_weights"
-    )
-  }
-
-  if (length(weights) != length(defaults)) {
+  expected_lengths <- if (isTRUE(has_proteome)) c(6L) else c(5L, 6L)
+  if (!length(weights) %in% expected_lengths) {
     cli::cli_abort(
       paste0(
         "{.arg weights} must contain exactly ",
-        length(defaults),
+        paste(expected_lengths, collapse = " or "),
         " value(s) in this scoring mode."
       ),
       class = "pepvet_error_invalid_weights"
     )
   }
 
-  expected_names <- names(defaults)
+  if (!isTRUE(has_proteome) && length(weights) == 6L) {
+    normalized_weights <- .normalize_weights(weights, .default_scoring_weights$proteome_aware)
 
-  if (is.null(names(weights))) {
-    normalized_weights <- as.numeric(weights)
-    names(normalized_weights) <- expected_names
-  } else {
-    observed_names <- trimws(names(weights))
-
-    if (anyNA(observed_names) || any(!nzchar(observed_names))) {
-      cli::cli_abort(
-        "Named {.arg weights} entries must all have non-empty names.",
-        class = "pepvet_error_invalid_weights"
-      )
-    }
-
-    if (!setequal(observed_names, expected_names)) {
+    if (normalized_weights[["S_unique"]] > 0) {
       cli::cli_abort(
         c(
-          "Named {.arg weights} must match the scoring component names.",
-          "i" = paste("Expected names:", paste(expected_names, collapse = ", "))
+          "{.arg weights} assigns a non-zero value to {.field S_unique} but no {.arg proteome} was supplied.",
+          "i" = "Provide a proteome digest for uniqueness scoring or set S_unique to 0."
         ),
         class = "pepvet_error_invalid_weights"
       )
     }
 
-    normalized_weights <- as.numeric(
-      weights[match(expected_names, observed_names)]
-    )
-    names(normalized_weights) <- expected_names
+    normalized_weights <- normalized_weights[names(defaults)]
+  } else {
+    normalized_weights <- .normalize_weights(weights, defaults)
   }
 
   if (any(normalized_weights < 0)) {
@@ -148,6 +297,49 @@
   }
 
   normalized_weights
+}
+
+#' Return a Named Scoring Preset
+#'
+#' `pepvet_preset()` returns a named list containing a GRAVY range, peptide
+#' length range, and scoring weights for a supported proteomics workflow.
+#'
+#' Presets with non-zero `S_unique` weights require a comparison proteome at
+#' scoring time so uniqueness can be measured honestly.
+#'
+#' @param type Preset name. Supported values are `"standard"`, `"dia"`,
+#'   `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and `"fractionated"`.
+#'
+#' @return A named list with `gravy_range`, `length_range`, and `weights`.
+#'
+#' @examples
+#' pepvet_preset("standard")
+#' @export
+pepvet_preset <- function(type = "standard") {
+  if (!is.character(type) || length(type) != 1L || is.na(type)) {
+    cli::cli_abort(
+      "{.arg type} must be a single, non-missing character string.",
+      class = "pepvet_error_invalid_preset"
+    )
+  }
+
+  normalized_type <- tolower(trimws(type))
+
+  if (!normalized_type %in% names(.pepvet_presets)) {
+    cli::cli_abort(
+      c(
+        "{.arg type} must be one of pepVet's supported preset names.",
+        "i" = paste("Supported presets:", paste(names(.pepvet_presets), collapse = ", "))
+      ),
+      class = "pepvet_error_invalid_preset"
+    )
+  }
+
+  preset <- .pepvet_presets[[normalized_type]]
+  preset$gravy_range <- .validate_gravy_range(preset$gravy_range)
+  preset$length_range <- .validate_length_range(preset$length_range)
+  preset$weights <- .normalize_weights(preset$weights, .default_scoring_weights$proteome_aware)
+  preset
 }
 
 .build_proteome_index <- function(proteome_digests) {

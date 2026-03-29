@@ -9,7 +9,8 @@ evaluate_digest(
   enzyme = "trypsin",
   missed_cleavages = 0L,
   proteome = NULL,
-  weights = NULL
+  weights = NULL,
+  ...
 )
 }
 \arguments{
@@ -30,6 +31,9 @@ for peptide uniqueness scoring.}
 When scoring a non-tryptic digest directly, \code{\link[=evaluate_digest]{evaluate_digest()}} forwards
 the selected \code{enzyme} so enzyme-aware S_count denominators stay aligned
 with the digest.}
+
+\item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
+as \code{gravy_range} and \code{length_range}.}
 }
 \value{
 A named list with three elements:

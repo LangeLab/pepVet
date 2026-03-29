@@ -9,7 +9,8 @@ batch_evaluate(
   enzyme = "trypsin",
   missed_cleavages = 0L,
   proteome = NULL,
-  weights = NULL
+  weights = NULL,
+  ...
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ batch_evaluate(
 for every protein evaluation.}
 
 \item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
+
+\item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
+as \code{gravy_range} and \code{length_range}.}
 }
 \value{
 A named list where each element is the result of \code{\link[=evaluate_digest]{evaluate_digest()}}

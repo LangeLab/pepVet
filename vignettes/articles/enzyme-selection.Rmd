@@ -63,7 +63,7 @@ The comparison table is compact, but it exposes the scoring logic.
 - `S_length` shows how much of the digest lands inside the active peptide-length window.
 - `S_coverage` shows how much of the parent protein is covered by valid peptides.
 - `S_count` uses an enzyme-aware expected peptide length, so trypsin and GluC are not forced into the same denominator.
-- `S_hydro` and `S_charge` show whether the surviving peptides are plausible LC-MS candidates.
+- `S_hydro` and `S_charge` show whether the surviving peptides stay in the LC window and retain extra internal basic-residue richness for stronger multi-charge fragmentation.
 
 When two enzymes are close on the composite score, inspect the components before deciding. One enzyme may win on coverage while another wins on peptide quality. That difference matters when the experiment is targeted or proteome-aware.
 

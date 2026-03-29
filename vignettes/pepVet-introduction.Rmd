@@ -120,7 +120,7 @@ The five standard components:
 | `S_coverage` | Non-overlapping valid residues / protein length | Higher → less dark proteome |
 | `S_count` | Soft-normalised valid peptide count | Higher → more IDs per protein |
 | `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 → balanced retention |
-| `S_charge` | Valid peptides with ≥ 1 K/R/H / total valid | Higher → better ESI ionisation |
+| `S_charge` | Valid peptides with ≥ 1 non-terminal K/R/H / total valid | Higher → more multi-charge potential and richer fragment series |
 
 `v0.0.4` also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
 
@@ -293,7 +293,7 @@ The package ships `aa_properties`, a 20-row tibble with physical and chemical pr
 aa_properties
 ```
 
-The `kyte_doolittle` column contains the Kyte-Doolittle (1982) hydrophobicity scale used in `S_hydro`. The `pKa_side_chain` column holds reference pKa values for the seven ionisable residues (C, D, E, H, K, R, Y) and is used in `S_charge` classification.
+The `kyte_doolittle` column contains the Kyte-Doolittle (1982) hydrophobicity scale used in `S_hydro`. The `is_basic` flag supports `S_charge`, and the `pKa_side_chain` column holds reference pKa values for the seven ionisable residues (C, D, E, H, K, R, Y) used in `calculate_pI()`.
 
 ## How pepVet differs from common tools
 

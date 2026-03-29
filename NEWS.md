@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD025 -->
+<!-- markdownlint-disable MD025 MD024 -->
 
 # pepVet 0.0.4
 
@@ -8,6 +8,7 @@
 * Added `median_peptide_length` to scoring output so enzyme comparisons show the denominator behind `S_count`.
 * Added configurable `gravy_range` and `length_range` arguments across the scoring and evaluation helpers.
 * Added `pepvet_preset()` with presets for standard DDA, DIA, targeted assays, membrane proteomics, FFPE-style degraded samples, and fractionated workflows.
+* Clarified that `S_charge` tracks extra internal basic-residue richness, not baseline peptide ionizability.
 
 ## Documentation
 

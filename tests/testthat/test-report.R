@@ -32,6 +32,13 @@ test_that("proteome-aware report includes S_unique bar", {
   expect_true(any(grepl("S_unique", output)))
 })
 
+test_that("report output uses the short S_charge label with clarified meaning", {
+  ev <- evaluate_digest(reference_fasta("P02769.fasta"), enzyme = "trypsin")
+  output <- capture.output(digest_report(ev))
+
+  expect_true(any(grepl("^  S_charge\\s", output)))
+})
+
 # ── Multi-enzyme comparison reports ───────────────────────────────────────────
 
 test_that("multi-enzyme comparison report matches snapshot", {

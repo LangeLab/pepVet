@@ -104,13 +104,13 @@ The default range is `-1.0` to `0.6`. The `membrane` preset widens that range be
 
 ### S_charge
 
-`S_charge` is the fraction of valid peptides that retain at least one internal basic residue.
+`S_charge` is the fraction of valid peptides that retain at least one non-terminal basic residue.
 
 $$
-S_{charge} = \frac{N_{basic}}{N_{valid}}
+S_{\mathrm{charge\,richness}} = \frac{N_{basic}}{N_{valid}}
 $$
 
-The implementation checks internal residues instead of the terminal residue. That avoids inflating the score just because the cleavage rule leaves a basic residue at the peptide edge.
+This score is not a claim about whether a peptide can ionize. Tryptic peptides already retain a free N-terminus and frequently a terminal Lys or Arg, so baseline ionizability is still present when `S_charge = 0`. The implementation focuses on non-terminal basic residues because those additional charge sites are what tend to support higher charge states and richer b/y ion series.
 
 ### S_unique
 

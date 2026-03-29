@@ -236,7 +236,7 @@
 
   aa_properties <- .get_aa_properties()
   basic_residues <- aa_properties$amino_acid[aa_properties$is_basic]
-  chargeable <- vapply(
+  charge_rich <- vapply(
     valid_digest$peptide,
     function(peptide) {
       internal_residues <- substr(peptide, 1L, nchar(peptide) - 1L)
@@ -248,7 +248,7 @@
     logical(1)
   )
 
-  mean(chargeable)
+  mean(charge_rich)
 }
 
 .score_unique <- function(protein_digest,
@@ -336,7 +336,7 @@
 #'   and protein-only default weights are used.
 #' @param weights Optional numeric weight vector. In protein-only mode the
 #'   default weights are `c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20,
-#'   S_hydro = 0.15, S_charge = 0.15)`. In proteome-aware mode the default
+#'   S_hydro = 0.15, S_charge = 0.15)`. In proteome-aware mode the
 #'   weights are `c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15,
 #'   S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)`.
 #' @param gravy_range Numeric vector of length 2 defining the inclusive GRAVY
@@ -352,7 +352,8 @@
 #'   `FALSE`.
 #'
 #' @return A tibble with one row per `protein_id` and the component score
-#'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`, `S_charge`,
+#'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`,
+#'   `S_charge`,
 #'   optional `S_unique`, plus `composite_score`, `verdict`, and
 #'   `median_peptide_length`. The `median_peptide_length` column records the
 #'   digest-level denominator used in the enzyme-aware `S_count` calculation.
@@ -365,8 +366,11 @@
 #'   `length_range`. Coverage is computed from valid peptide coordinates with
 #'   overlapping intervals reduced before coverage is summed. `S_hydro` uses
 #'   the inclusive `gravy_range`, and `S_unique` is only computed when a
-#'   proteome digest is supplied. Composite verdicts are classified as `Good`
-#'   for scores >= 0.7, `Moderate` for scores >= 0.4, and `Poor` otherwise.
+#'   proteome digest is supplied. `S_charge` measures the fraction of
+#'   valid peptides that contain at least one non-terminal basic residue,
+#'   capturing extra charge-state richness rather than baseline ionizability.
+#'   Composite verdicts are classified as `Good` for scores >= 0.7,
+#'   `Moderate` for scores >= 0.4, and `Poor` otherwise.
 #'
 #' @examples
 #' digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")

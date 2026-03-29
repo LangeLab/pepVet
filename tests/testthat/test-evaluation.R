@@ -67,7 +67,8 @@ test_that("compare_digests output has enzyme column plus all score columns", {
   expect_identical(names(result)[[1L]], "enzyme")
   expected_score_cols <- c(
     "protein_id", "S_length", "S_coverage", "S_count",
-    "S_hydro", "S_charge", "composite_score", "verdict"
+    "S_hydro", "S_charge", "composite_score", "verdict",
+    "median_peptide_length"
   )
   expect_true(all(expected_score_cols %in% names(result)))
   expect_identical(nrow(result), 2L)
@@ -107,7 +108,9 @@ test_that("recommend_enzyme returns all tied enzymes in alphabetical order", {
   # A poly-alanine sequence has no trypsin or lysc cut sites; both return an
   # identical single-peptide digest and receive the same composite score.
   poly_ala <- strrep("A", 20L)
-  result <- recommend_enzyme(poly_ala, enzymes = c("trypsin", "lysc"))
+  result <- suppressWarnings(
+    recommend_enzyme(poly_ala, enzymes = c("trypsin", "lysc"))
+  )
 
   expect_type(result, "character")
   expect_identical(result, c("lysc", "trypsin"))

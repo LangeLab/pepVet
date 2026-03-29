@@ -4,7 +4,12 @@
 \alias{score_peptides}
 \title{Score Digested Peptides for Proteomics Suitability}
 \usage{
-score_peptides(digest_result, proteome = NULL, weights = NULL)
+score_peptides(
+  digest_result,
+  proteome = NULL,
+  weights = NULL,
+  enzyme = "trypsin"
+)
 }
 \arguments{
 \item{digest_result}{A digest tibble produced by \code{\link[=digest_protein]{digest_protein()}} or an
@@ -18,11 +23,16 @@ and protein-only default weights are used.}
 \item{weights}{Optional numeric weight vector. In protein-only mode the
 default weights are \code{c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20, S_hydro = 0.15, S_charge = 0.15)}. In proteome-aware mode the default
 weights are \code{c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15, S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)}.}
+
+\item{enzyme}{Cleavage rule name used to choose the fallback expected peptide
+length when the digest contains fewer than three peptides. Defaults to
+\code{"trypsin"}.}
 }
 \value{
 A tibble with one row per \code{protein_id} and the component score
 columns \code{S_length}, \code{S_coverage}, \code{S_count}, \code{S_hydro}, \code{S_charge},
-optional \code{S_unique}, plus \code{composite_score} and \code{verdict}.
+optional \code{S_unique}, plus \code{composite_score}, \code{verdict}, and
+\code{median_peptide_length}.
 }
 \description{
 \code{score_peptides()} summarizes a pepVet digest tibble into per-protein scoring

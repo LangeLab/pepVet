@@ -26,7 +26,10 @@ a character sequence, named character vector, \code{Biostrings::AAString},
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
 for peptide uniqueness scoring.}
 
-\item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
+\item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.
+When scoring a non-tryptic digest directly, \code{\link[=evaluate_digest]{evaluate_digest()}} forwards
+the selected \code{enzyme} so enzyme-aware S_count denominators stay aligned
+with the digest.}
 }
 \value{
 A named list with three elements:

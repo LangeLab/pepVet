@@ -14,6 +14,9 @@
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for peptide uniqueness scoring.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
+#'   When scoring a non-tryptic digest directly, [evaluate_digest()] forwards
+#'   the selected `enzyme` so enzyme-aware S_count denominators stay aligned
+#'   with the digest.
 #'
 #' @return A named list with three elements:
 #'   \describe{
@@ -44,7 +47,12 @@ evaluate_digest <- function(sequence,
     enzyme = enzyme,
     missed_cleavages = missed_cleavages
   )
-  scores <- score_peptides(peptides, proteome = proteome, weights = weights)
+  scores <- score_peptides(
+    peptides,
+    proteome = proteome,
+    weights = weights,
+    enzyme = enzyme
+  )
 
   list(
     scores = scores,

@@ -139,7 +139,8 @@ test_that("score_peptides returns the documented schema without proteome", {
       "S_hydro",
       "S_charge",
       "composite_score",
-      "verdict"
+      "verdict",
+      "median_peptide_length"
     )
   )
   expect_type(result$protein_id, "character")
@@ -150,6 +151,7 @@ test_that("score_peptides returns the documented schema without proteome", {
   expect_type(result$S_charge, "double")
   expect_type(result$composite_score, "double")
   expect_type(result$verdict, "character")
+  expect_type(result$median_peptide_length, "double")
   expect_false(anyNA(result))
 })
 
@@ -175,10 +177,47 @@ test_that("score_peptides includes S_unique in proteome-aware mode", {
       "S_charge",
       "S_unique",
       "composite_score",
-      "verdict"
+      "verdict",
+      "median_peptide_length"
     )
   )
   expect_identical(result$S_unique, 0.5)
+})
+
+test_that("score_peptides returns the digest-derived median peptide length", {
+  digest_result <- make_digest_result(
+    c(rep("AAAAAAAAAA", 5), strrep("A", 70)),
+    starts = c(1L, 11L, 21L, 31L, 41L, 51L)
+  )
+
+  result <- score_peptides(digest_result, enzyme = "trypsin")
+
+  expect_identical(result$median_peptide_length, 10)
+})
+
+test_that("score_peptides falls back to enzyme-class expected lengths", {
+  digest_result <- make_digest_result(
+    c(strrep("A", 20), strrep("A", 24)),
+    starts = c(1L, 21L)
+  )
+
+  lysc_result <- score_peptides(digest_result, enzyme = "lysc")
+  trypsin_result <- score_peptides(digest_result, enzyme = "trypsin")
+
+  expect_identical(lysc_result$median_peptide_length, 24)
+  expect_identical(trypsin_result$median_peptide_length, 12)
+})
+
+test_that("score_peptides warns and zeros S_count for no-cleavage digests", {
+  digest_result <- digest_protein(strrep("A", 20L), enzyme = "trypsin")
+
+  expect_warning(
+    result <- score_peptides(digest_result, enzyme = "trypsin"),
+    "has no cleavage sites"
+  )
+
+  expect_identical(result$S_count, 0)
+  expect_identical(result$median_peptide_length, 12)
 })
 
 test_that("score_peptides rejects invalid digest and proteome inputs", {
@@ -200,10 +239,10 @@ test_that("component scores stay bounded on the reference grid", {
 
     for (enzyme in reference_enzymes) {
       digest_result <- digest_protein(fasta_path, enzyme = enzyme)
-      score_result <- score_peptides(digest_result)
+      score_result <- score_peptides(digest_result, enzyme = enzyme)
       numeric_columns <- setdiff(
         names(score_result),
-        c("protein_id", "verdict")
+        c("protein_id", "verdict", "median_peptide_length")
       )
       numeric_scores <- unlist(score_result[numeric_columns])
 
@@ -338,9 +377,12 @@ test_that("count scoring handles caps, ratios, and edge protein sizes", {
   short_protein <- make_digest_result("AAAAAAA")
 
   expect_identical(pepVet:::.score_count(capped), 1)
-  expect_identical(pepVet:::.score_count(exact_ratio), 0.5)
+  expect_equal(pepVet:::.score_count(exact_ratio), 5 / 12)
   expect_identical(pepVet:::.score_count(zero_valid), 0)
-  expect_identical(pepVet:::.score_count(short_protein), 1)
+  expect_warning(
+    expect_identical(pepVet:::.score_count(short_protein), 0),
+    "has no cleavage sites"
+  )
 })
 
 test_that("hydrophobicity scoring respects thresholds and zero-valid cases", {

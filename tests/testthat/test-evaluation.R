@@ -10,6 +10,13 @@ test_that("evaluate_digest gives the same result as manual pipeline", {
 
   manual_peptides <- digest_protein(bsa_path, enzyme = "trypsin")
   manual_scores <- score_peptides(manual_peptides)
+  manual_annotations <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+  manual_scores <- tibble::add_column(
+    manual_scores,
+    n_high_efficiency_sites = sum(manual_annotations$efficiency == "high"),
+    n_low_efficiency_sites = sum(manual_annotations$efficiency == "low"),
+    .after = "preset_used"
+  )
 
   expect_identical(result$peptides, manual_peptides)
   expect_identical(result$scores, manual_scores)
@@ -55,6 +62,17 @@ test_that("evaluate_digest passes include_pI through to score output", {
   expect_type(result$scores$pI, "list")
 })
 
+test_that("evaluate_digest can append peptide-level cleavage efficiency", {
+  result <- evaluate_digest(
+    "AKRTPK",
+    enzyme = "trypsin",
+    include_cleavage_efficiency = TRUE
+  )
+
+  expect_true("cleavage_efficiency" %in% names(result$peptides))
+  expect_identical(result$peptides$cleavage_efficiency, c("medium", "medium", "high"))
+})
+
 # ── Comparison & recommendation ────────────────────────────────────────────
 
 test_that("compare_digests output is sorted by composite_score descending", {
@@ -76,7 +94,8 @@ test_that("compare_digests output has enzyme column plus all score columns", {
   expected_score_cols <- c(
     "protein_id", "S_length", "S_coverage", "S_count",
     "S_hydro", "S_charge", "composite_score", "verdict",
-    "median_peptide_length", "preset_used"
+    "median_peptide_length", "preset_used", "n_high_efficiency_sites",
+    "n_low_efficiency_sites"
   )
   expect_true(all(expected_score_cols %in% names(result)))
   expect_identical(nrow(result), 2L)
@@ -140,6 +159,28 @@ test_that("evaluate_digest returns named list with scores, peptides, params", {
     c("enzyme", "missed_cleavages", "protein_ids", "preset_used")
   )
   expect_identical(result$params$preset_used, "standard")
+})
+
+test_that("evaluate_digest records cleavage-site counts for trypsin-family digests", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  result <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  annotations <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+
+  expect_identical(
+    result$scores$n_high_efficiency_sites,
+    sum(annotations$efficiency == "high")
+  )
+  expect_identical(
+    result$scores$n_low_efficiency_sites,
+    sum(annotations$efficiency == "low")
+  )
+})
+
+test_that("unsupported enzymes get NA cleavage-site counts", {
+  result <- evaluate_digest("AKRTPK", enzyme = "lysc")
+
+  expect_true(all(is.na(result$scores$n_high_efficiency_sites)))
+  expect_true(all(is.na(result$scores$n_low_efficiency_sites)))
 })
 
 test_that("params reflects the resolved enzyme name and missed_cleavages", {

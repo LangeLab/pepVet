@@ -22,7 +22,7 @@ h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 
 ## Overview
 
-`score_peptides()` reduces a digest tibble to one row per protein. That row contains component scores, a composite score, a verdict, and in `v0.0.4` the digest-level `median_peptide_length` used to interpret peptide density.
+`score_peptides()` reduces a digest tibble to one row per protein. That row contains component scores, a composite score, a verdict, and the digest-level `median_peptide_length` used to interpret peptide density.
 
 The model is intentionally simple. It is designed to expose why a digest looks promising or weak, not to hide the reasoning inside a single opaque number.
 
@@ -80,7 +80,7 @@ pepVet merges overlapping valid peptide intervals before summing widths. A resid
 
 `S_count` is a normalized peptide-density score.
 
-In `v0.0.4`, the expected peptide density is enzyme-aware. For digests with at least three peptide rows, pepVet uses the observed digest median length. For sparse digests, it falls back to enzyme-class expectations.
+In the current release, the expected peptide density is enzyme-aware. For digests with at least three peptide rows, pepVet uses the observed digest median length. For sparse digests, it falls back to enzyme-class expectations.
 
 $$
 N_{expected} = \frac{L}{M}

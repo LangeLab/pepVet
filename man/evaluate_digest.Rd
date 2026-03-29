@@ -8,6 +8,7 @@ evaluate_digest(
   sequence,
   enzyme = "trypsin",
   missed_cleavages = 0L,
+  include_cleavage_efficiency = FALSE,
   proteome = NULL,
   weights = NULL,
   ...
@@ -23,6 +24,10 @@ a character sequence, named character vector, \code{Biostrings::AAString},
 
 \item{missed_cleavages}{Maximum missed cleavages passed to
 \code{\link[=digest_protein]{digest_protein()}}. Defaults to \code{0L}.}
+
+\item{include_cleavage_efficiency}{Logical flag passed to \code{\link[=digest_protein]{digest_protein()}}.
+When \code{TRUE}, the returned peptide table gains a \code{cleavage_efficiency}
+column. This does not affect the score components.}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
 for peptide uniqueness scoring.}
@@ -41,7 +46,8 @@ as \code{gravy_range} and \code{length_range}. This makes workflow presets from
 A named list with three elements:
 \describe{
 \item{\code{scores}}{A tibble from \code{\link[=score_peptides]{score_peptides()}} with one row per
-protein.}
+protein, plus the informational columns \code{n_high_efficiency_sites} and
+\code{n_low_efficiency_sites}.}
 \item{\code{peptides}}{A tibble from \code{\link[=digest_protein]{digest_protein()}} with one row per
 peptide.}
 \item{\code{params}}{A list recording the resolved \code{enzyme} name,
@@ -61,7 +67,9 @@ lower-level functions together.
 returned object can be interpreted honestly outside the immediate scoring
 call. In particular, \code{params$preset_used} records whether the resolved
 scoring configuration matches one of pepVet's named presets or should be
-treated as \code{"custom"}.
+treated as \code{"custom"}. The cleavage-efficiency counts summarize annotated
+trypsin-family cleavage sites only; unsupported enzymes currently receive
+\code{NA} in these informational fields.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

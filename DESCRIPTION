@@ -1,15 +1,16 @@
 Package: pepVet
 Type: Package
 Title: Evaluate Proteolytic Digests for Proteomics Workflows
-Version: 0.0.4
+Version: 0.1.0
 Authors@R:
     person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"))
 Description: Simulates proteolytic digestion, scores the resulting peptides
     for LC-MS/MS suitability, compares candidate enzymes, and reports digest
     quality at the protein level. Includes validated cleavage rules for 40
-    enzymes, configurable workflow presets, five orthogonal scoring
-    components, proteome-aware uniqueness scoring, batch evaluation across
-    multi-FASTA files, and styled console reporting.
+    enzymes, workflow presets, peptide mass and pI utilities, sequence-local
+    cleavage-efficiency annotations for trypsin-family digests,
+    proteome-aware uniqueness scoring, batch evaluation across multi-FASTA
+    files, and styled console reporting.
 License: MIT + file LICENSE
 URL: https://github.com/LangeLab/pepVet, https://langelab.github.io/pepVet/
 BugReports: https://github.com/LangeLab/pepVet/issues

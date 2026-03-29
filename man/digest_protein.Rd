@@ -4,7 +4,12 @@
 \alias{digest_protein}
 \title{Simulate a Proteolytic Digest}
 \usage{
-digest_protein(sequence, enzyme = "trypsin", missed_cleavages = 0L)
+digest_protein(
+  sequence,
+  enzyme = "trypsin",
+  missed_cleavages = 0L,
+  include_cleavage_efficiency = FALSE
+)
 }
 \arguments{
 \item{sequence}{Protein input supplied as a single sequence, a named
@@ -19,12 +24,19 @@ hard-coded registry of cleaver-compatible enzyme names, including
 \code{chymotrypsin-high}, and \code{thermolysin}.}
 
 \item{missed_cleavages}{Maximum number of missed cleavages to include.}
+
+\item{include_cleavage_efficiency}{Logical flag indicating whether to append
+a \code{cleavage_efficiency} column to the peptide output. Trypsin-family
+digests receive sequence-local high/medium/low annotations; unsupported
+enzymes currently return \code{NA} in this optional column.}
 }
 \value{
 A tibble with one row per peptide and the columns \code{protein_id},
 \code{peptide}, \code{start}, \code{end}, \code{length}, and \code{missed_cleavages}. Each row
 represents one observed cleavage product for one protein under the
-selected enzyme rule and missed-cleavage allowance.
+selected enzyme rule and missed-cleavage allowance. When
+\code{include_cleavage_efficiency = TRUE}, the output also includes a
+\code{cleavage_efficiency} column.
 }
 \description{
 \code{digest_protein()} normalizes protein-like input, validates the amino-acid
@@ -42,8 +54,15 @@ expands missed cleavages itself so repeated peptides and overlapping ranges
 retain exact start and end coordinates. Peptides are returned whether or
 not they later count as valid in the pepVet scoring model. Validity is a
 separate decision controlled by \code{score_peptides()} through \code{length_range}.
+
+When cleavage-efficiency annotations are requested, pepVet records the
+weakest annotated efficiency class across cleavage sites that delimit or
+fall within a peptide. These annotations reflect local P1-P1' sequence
+context only. They do not model extended subsite preferences, structural
+protection, or PTMs that alter cleavage behavior.
 }
 \examples{
 digest_protein("MKWVTFISLLFLFSSAYSR")
 digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"))
+digest_protein("AKRTPK", include_cleavage_efficiency = TRUE)
 }

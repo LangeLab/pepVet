@@ -496,6 +496,21 @@ pepvet_preset <- function(type = "standard") {
   missed_cleavages_int
 }
 
+.validate_include_cleavage_efficiency <- function(include_cleavage_efficiency) {
+  if (
+    !is.logical(include_cleavage_efficiency) ||
+      length(include_cleavage_efficiency) != 1L ||
+      is.na(include_cleavage_efficiency)
+  ) {
+    cli::cli_abort(
+      "{.arg include_cleavage_efficiency} must be a single, non-missing logical value.",
+      class = "pepvet_error_invalid_include_cleavage_efficiency"
+    )
+  }
+
+  include_cleavage_efficiency
+}
+
 .looks_like_path <- function(path) {
   grepl("[/\\\\]", path) || grepl("[.][A-Za-z0-9]+$", basename(path))
 }

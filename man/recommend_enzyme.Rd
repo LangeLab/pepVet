@@ -25,7 +25,7 @@ recommend_enzyme(
 \item{weights}{Optional scoring weight vector.}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=compare_digests]{compare_digests()}} and
-ultimately to \code{\link[=score_peptides]{score_peptides()}}.}
+ultimately to \code{\link[=evaluate_digest]{evaluate_digest()}} and \code{\link[=score_peptides]{score_peptides()}}.}
 }
 \value{
 A character vector of one or more enzyme names. Length greater than

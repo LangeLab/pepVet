@@ -75,7 +75,20 @@ BSA is a stable positive-control protein. It is useful because most common enzym
 comp_bsa[, c("enzyme", "S_length", "S_coverage", "S_count", "composite_score", "verdict")]
 ```
 
-The main readout on BSA is not that one enzyme is universally correct. The main readout is that enzyme choice changes both the density and the detectability of the peptide set. `v0.0.4` makes that clearer because `S_count` is now tied to the observed digest structure instead of a fixed tryptic expectation.
+The main readout on BSA is not that one enzyme is universally correct. The main readout is that enzyme choice changes both the density and the detectability of the peptide set. The current release makes that clearer because `S_count` is tied to the observed digest structure instead of a fixed tryptic expectation.
+
+### Cleavage efficiency is not uniform
+
+pepVet `0.1.0` also exposes a second question that matters in practice: not every theoretical cleavage site is equally likely to cut cleanly.
+
+```{r bsa-cleavage-efficiency}
+bsa_sites <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+bsa_sites[bsa_sites$position %in% c(140L, 155L, 167L), ]
+```
+
+On the shipped BSA fixture, pepVet flags low-efficiency proline-blocked sites such as the KP motif at position 140, and medium-efficiency adjacent-basic sites such as KK at 155 and RR at 167. That does not mean those cuts fail completely. It means they are more likely to contribute to missed-cleavage products than an isolated high-efficiency tryptic site.
+
+Use these annotations to explain digest behavior, not to replace the score. The current rules are deliberately narrow: local P1-P1' sequence context only, with no structural accessibility or PTM modeling.
 
 ### Missed cleavages change the ranking
 

@@ -52,6 +52,7 @@ reference:
       Cleave protein sequences into peptide fragments using any of 40
       cleaver-compatible enzyme rules.
     contents:
+      - annotate_cleavage_sites
       - digest_protein
 
   - title: "Scoring"
@@ -97,5 +98,5 @@ reference:
 
 news:
   releases:
-    - text: "pepVet 0.0.4"
+    - text: "pepVet 0.1.0"
       href: news/index.html

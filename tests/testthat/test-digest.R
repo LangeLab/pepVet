@@ -70,6 +70,40 @@ test_that("digest_protein returns the documented schema and column types", {
   expect_false(anyNA(result))
 })
 
+test_that("annotate_cleavage_sites classifies tryptic motifs correctly", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  annotations <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+
+  expect_s3_class(annotations, "tbl_df")
+  expect_identical(
+    names(annotations),
+    c("position", "residue", "flanking_context", "efficiency", "rule_applied")
+  )
+
+  kp_site <- annotations[annotations$position == 140L, , drop = FALSE]
+  kk_site <- annotations[annotations$position == 155L, , drop = FALSE]
+  default_site <- annotations[annotations$position == 2L, , drop = FALSE]
+
+  expect_identical(kp_site$residue, "K")
+  expect_identical(kp_site$efficiency, "low")
+  expect_identical(kp_site$rule_applied, "proline_block")
+
+  expect_identical(kk_site$residue, "K")
+  expect_identical(kk_site$efficiency, "medium")
+  expect_identical(kk_site$rule_applied, "adjacent_basic_residues")
+
+  expect_identical(default_site$residue, "K")
+  expect_identical(default_site$efficiency, "high")
+  expect_identical(default_site$rule_applied, "default_trypsin_site")
+})
+
+test_that("annotate_cleavage_sites rejects unsupported annotation enzymes", {
+  expect_error(
+    annotate_cleavage_sites("MKWVTFISLLFLFSSAYSR", enzyme = "lysc"),
+    class = "pepvet_error_unsupported_cleavage_annotation"
+  )
+})
+
 test_that("single protein digestion roundtrips and preserves positions", {
   fasta <- Biostrings::readAAStringSet(reference_fasta("P02769.fasta"))
   sequence <- as.character(fasta[[1]])
@@ -253,6 +287,34 @@ test_that(
   }
 )
 
+test_that("digest_protein can append peptide-level cleavage efficiency", {
+  result <- digest_protein(
+    "AKRTPK",
+    enzyme = "trypsin",
+    include_cleavage_efficiency = TRUE
+  )
+
+  expect_identical(
+    names(result),
+    c(
+      "protein_id", "peptide", "start", "end", "length", "missed_cleavages",
+      "cleavage_efficiency"
+    )
+  )
+  expect_identical(result$cleavage_efficiency, c("medium", "medium", "high"))
+})
+
+test_that("unsupported enzymes get NA peptide-level cleavage efficiency", {
+  result <- digest_protein(
+    "AKRTPK",
+    enzyme = "lysc",
+    include_cleavage_efficiency = TRUE
+  )
+
+  expect_true("cleavage_efficiency" %in% names(result))
+  expect_true(all(is.na(result$cleavage_efficiency)))
+})
+
 test_that("missing and invalid FASTA paths raise a classed file error", {
   expect_error(
     digest_protein("missing_fixture.fasta"),
@@ -299,6 +361,13 @@ test_that("invalid input types and missed cleavage values are rejected", {
   expect_error(
     digest_protein("MKWVTFISLLFLFSSAYSR", missed_cleavages = 1.5),
     class = "pepvet_error_invalid_missed_cleavages"
+  )
+  expect_error(
+    digest_protein(
+      "MKWVTFISLLFLFSSAYSR",
+      include_cleavage_efficiency = 1
+    ),
+    class = "pepvet_error_invalid_include_cleavage_efficiency"
   )
 })
 

@@ -13,6 +13,9 @@
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages passed to
 #'   [digest_protein()]. Defaults to `0L`.
+#' @param include_cleavage_efficiency Logical flag passed to [digest_protein()].
+#'   When `TRUE`, the returned peptide table gains a `cleavage_efficiency`
+#'   column. This does not affect the score components.
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for peptide uniqueness scoring.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
@@ -27,7 +30,8 @@
 #' @return A named list with three elements:
 #'   \describe{
 #'     \item{`scores`}{A tibble from [score_peptides()] with one row per
-#'       protein.}
+#'       protein, plus the informational columns `n_high_efficiency_sites` and
+#'       `n_low_efficiency_sites`.}
 #'     \item{`peptides`}{A tibble from [digest_protein()] with one row per
 #'       peptide.}
 #'     \item{`params`}{A list recording the resolved `enzyme` name,
@@ -39,7 +43,9 @@
 #' returned object can be interpreted honestly outside the immediate scoring
 #' call. In particular, `params$preset_used` records whether the resolved
 #' scoring configuration matches one of pepVet's named presets or should be
-#' treated as `"custom"`.
+#' treated as `"custom"`. The cleavage-efficiency counts summarize annotated
+#' trypsin-family cleavage sites only; unsupported enzymes currently receive
+#' `NA` in these informational fields.
 #'
 #' @seealso [digest_protein()], [score_peptides()], [compare_digests()],
 #'   [batch_evaluate()]
@@ -55,12 +61,16 @@
 evaluate_digest <- function(sequence,
                             enzyme = "trypsin",
                             missed_cleavages = 0L,
+                            include_cleavage_efficiency = FALSE,
                             proteome = NULL,
                             weights = NULL,
                             ...) {
-  peptides <- digest_protein(sequence,
+  normalized_input <- .read_input(sequence)
+
+  peptides <- digest_protein(normalized_input,
     enzyme = enzyme,
-    missed_cleavages = missed_cleavages
+    missed_cleavages = missed_cleavages,
+    include_cleavage_efficiency = include_cleavage_efficiency
   )
   scores <- score_peptides(
     peptides,
@@ -69,12 +79,36 @@ evaluate_digest <- function(sequence,
     ...,
     enzyme = enzyme
   )
+  normalized_enzyme <- .normalize_enzyme(enzyme)
+  cleavage_counts <- lapply(
+    seq_along(normalized_input),
+    function(index) {
+      counts <- .cleavage_efficiency_summary(
+        as.character(normalized_input[[index]]),
+        normalized_enzyme
+      )
+
+      tibble::tibble(
+        protein_id = names(normalized_input)[[index]],
+        n_high_efficiency_sites = counts$n_high_efficiency_sites,
+        n_low_efficiency_sites = counts$n_low_efficiency_sites
+      )
+    }
+  )
+  cleavage_counts <- tibble::as_tibble(do.call(rbind, cleavage_counts))
+  score_index <- match(scores$protein_id, cleavage_counts$protein_id)
+  scores <- tibble::add_column(
+    scores,
+    n_high_efficiency_sites = cleavage_counts$n_high_efficiency_sites[score_index],
+    n_low_efficiency_sites = cleavage_counts$n_low_efficiency_sites[score_index],
+    .after = "preset_used"
+  )
 
   list(
     scores = scores,
     peptides = peptides,
     params = list(
-      enzyme = .normalize_enzyme(enzyme),
+      enzyme = normalized_enzyme,
       missed_cleavages = as.integer(missed_cleavages),
       protein_ids = unique(peptides$protein_id),
       preset_used = scores$preset_used[[1L]]
@@ -98,12 +132,14 @@ evaluate_digest <- function(sequence,
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for all enzyme evaluations.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
-#' @param ... Additional scoring arguments passed to [score_peptides()], such
-#'   as `gravy_range` and `length_range`.
+#' @param ... Additional arguments passed to [evaluate_digest()]. This includes
+#'   scoring arguments such as `gravy_range`, `length_range`, and
+#'   `include_pI`, plus `include_cleavage_efficiency` when peptide-level
+#'   cleavage annotations are requested during comparison.
 #'
 #' @return A tibble with one row per enzyme and columns `enzyme` followed by
-#'   all columns from [score_peptides()], sorted by `composite_score`
-#'   descending.
+#'   the score columns returned by [evaluate_digest()], sorted by
+#'   `composite_score` descending.
 #'
 #' @seealso [evaluate_digest()], [recommend_enzyme()]
 #'
@@ -171,7 +207,7 @@ compare_digests <- function(sequence,
 #' @param proteome Optional proteome digest tibble for uniqueness scoring.
 #' @param weights Optional scoring weight vector.
 #' @param ... Additional scoring arguments passed to [compare_digests()] and
-#'   ultimately to [score_peptides()].
+#'   ultimately to [evaluate_digest()] and [score_peptides()].
 #'
 #' @return A character vector of one or more enzyme names. Length greater than
 #'   one only when top scores are tied within floating-point tolerance.
@@ -219,6 +255,9 @@ recommend_enzyme <- function(sequence,
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `0L`.
+#' @param include_cleavage_efficiency Logical flag passed to
+#'   [evaluate_digest()] and ultimately [digest_protein()]. When `TRUE`, each
+#'   per-protein peptide table includes a `cleavage_efficiency` column.
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for every protein evaluation.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
@@ -244,6 +283,7 @@ recommend_enzyme <- function(sequence,
 batch_evaluate <- function(sequences,
                            enzyme = "trypsin",
                            missed_cleavages = 0L,
+                           include_cleavage_efficiency = FALSE,
                            proteome = NULL,
                            weights = NULL,
                            ...) {
@@ -254,6 +294,7 @@ batch_evaluate <- function(sequences,
       normalized_input[index],
       enzyme = enzyme,
       missed_cleavages = missed_cleavages,
+      include_cleavage_efficiency = include_cleavage_efficiency,
       proteome = proteome,
       weights = weights,
       ...

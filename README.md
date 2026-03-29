@@ -8,12 +8,14 @@ The choice of proteolytic enzyme shapes every downstream result in a proteomics 
 
 pepVet quantifies this trade-off with five orthogonal scoring components and a weighted composite score.
 
-## Version 0.0.4
+## Version 0.1.0
 
-Version 0.0.4 changes two parts of the scoring model.
+Version 0.1.0 completes the current Phase 2 model pass and turns pepVet into a more usable planning tool.
 
-- `S_count` now uses an enzyme-aware expected peptide length instead of a fixed trypsin-derived denominator.
-- Workflow presets now configure peptide-length windows, GRAVY windows, and weights for common experiment types.
+- `S_count` uses an enzyme-aware expected peptide length instead of a fixed trypsin-derived denominator.
+- Workflow presets configure peptide-length windows, GRAVY windows, weights, and preset tracking for common experiment types.
+- `calculate_peptide_mass()` and `calculate_pI()` provide peptide-level mass and pI utilities for fractionation-aware planning.
+- `annotate_cleavage_sites()` and optional digest-level `cleavage_efficiency` flags expose sequence-local missed-cleavage risk for trypsin-family digests.
 
 ## Installation
 
@@ -55,9 +57,29 @@ recommend_enzyme(bsa, enzymes = c("trypsin", "lysc", "glutamyl endopeptidase"))
 
 `digest_protein()` returns a tibble with one row per peptide. `score_peptides()` returns a tibble with one row per protein. `compare_digests()` returns a tibble with one row per enzyme. `evaluate_digest()` returns a named list with `scores`, `peptides`, and `params`.
 
+## Cleavage efficiency annotations
+
+pepVet now distinguishes between cleavage-site location and cleavage-site confidence for trypsin-family digests. `annotate_cleavage_sites()` classifies each candidate K/R site as `high`, `medium`, or `low` efficiency using local P1-P1' sequence context.
+
+```r
+annotate_cleavage_sites(bsa, enzyme = "trypsin")
+
+ev_eff <- evaluate_digest(
+  bsa,
+  enzyme = "trypsin",
+  missed_cleavages = 1L,
+  include_cleavage_efficiency = TRUE
+)
+
+ev_eff$peptides
+ev_eff$scores[, c("protein_id", "n_high_efficiency_sites", "n_low_efficiency_sites")]
+```
+
+These annotations are informational. They are not score components, and they are intentionally limited to local sequence context. pepVet does not yet model structural accessibility, PTMs, or extended subsite preferences.
+
 ## Workflow presets
 
-Preset support is part of `v0.0.4`. Each preset returns a named list with `gravy_range`, `length_range`, and `weights`, so you can pass it straight into `evaluate_digest()` or `score_peptides()`.
+Each preset returns a named list with `gravy_range`, `length_range`, and `weights`, so you can pass it straight into `evaluate_digest()` or `score_peptides()`.
 
 ```r
 pepvet_preset("standard")
@@ -86,14 +108,14 @@ Presets with non-zero `S_unique` weights require a proteome digest. pepVet rejec
 
 pepVet scores each digest with five core components and one optional proteome-aware component.
 
-| Score        | What it measures                                                       | Why it matters                                                               |
-| ------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `S_length`   | Fraction of peptides inside the active peptide-length window           | Very short and very long peptides lower identification rates                 |
-| `S_coverage` | Fraction of the parent protein covered by valid peptides               | Dark regions weaken protein-level interpretation                             |
-| `S_count`    | Valid peptide count relative to the enzyme-aware expected density      | Too few peptides weaken evidence. Too many reflect over-digestion            |
-| `S_hydro`    | Fraction of valid peptides inside the active GRAVY window              | Extreme hydrophobicity or hydrophilicity hurts LC behavior                   |
+| Score        | What it measures                                                        | Why it matters                                                                                   |
+| ------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `S_length`   | Fraction of peptides inside the active peptide-length window            | Very short and very long peptides lower identification rates                                     |
+| `S_coverage` | Fraction of the parent protein covered by valid peptides                | Dark regions weaken protein-level interpretation                                                 |
+| `S_count`    | Valid peptide count relative to the enzyme-aware expected density       | Too few peptides weaken evidence. Too many reflect over-digestion                                |
+| `S_hydro`    | Fraction of valid peptides inside the active GRAVY window               | Extreme hydrophobicity or hydrophilicity hurts LC behavior                                       |
 | `S_charge`   | Fraction of valid peptides with at least one non-terminal basic residue | Higher values indicate more opportunities for multi-charge states and richer fragment ion series |
-| `S_unique`   | Fraction of valid peptides unique in a supplied proteome               | Shared peptides weaken protein-level attribution                             |
+| `S_unique`   | Fraction of valid peptides unique in a supplied proteome                | Shared peptides weaken protein-level attribution                                                 |
 
 `S_charge` does not mean a peptide can or cannot ionize. Tryptic peptides still carry the free N-terminus and often a terminal Lys or Arg. The score is meant to distinguish baseline ionizability from extra internal basic-residue richness, which tends to support higher charge states and richer b/y ion series.
 

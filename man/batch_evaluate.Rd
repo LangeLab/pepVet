@@ -8,6 +8,7 @@ batch_evaluate(
   sequences,
   enzyme = "trypsin",
   missed_cleavages = 0L,
+  include_cleavage_efficiency = FALSE,
   proteome = NULL,
   weights = NULL,
   ...
@@ -21,6 +22,10 @@ batch_evaluate(
 \code{"trypsin"}.}
 
 \item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{0L}.}
+
+\item{include_cleavage_efficiency}{Logical flag passed to
+\code{\link[=evaluate_digest]{evaluate_digest()}} and ultimately \code{\link[=digest_protein]{digest_protein()}}. When \code{TRUE}, each
+per-protein peptide table includes a \code{cleavage_efficiency} column.}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
 for every protein evaluation.}

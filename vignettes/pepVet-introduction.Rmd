@@ -100,6 +100,22 @@ digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 1L)
 
 Enzyme names are validated against a registry of 40 cleaver-compatible rules. Common examples: `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n endopeptidase`, `chymotrypsin-high`, `thermolysin`. The validation layer normalises case and trims whitespace, so `" Trypsin "` is accepted.
 
+## Step 1a: Inspect cleavage efficiency
+
+`annotate_cleavage_sites()` adds a second layer for trypsin-family workflows: not just where cleavage can happen, but which local motifs are more likely to resist full digestion.
+
+```{r cleavage-annotations}
+annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+```
+
+pepVet currently labels tryptic sites as:
+
+- `low` for proline-blocked (`KP` / `RP`) and acidic P1' (`KD`, `KE`, `RD`, `RE`) motifs
+- `medium` for adjacent-basic sites such as `KK`, `KR`, and `RR`
+- `high` for other tryptic sites
+
+These labels are sequence-local only. They do not model structure, PTMs, or extended subsite preferences, so they should be read as digestion-risk annotations rather than abundance predictions.
+
 ## Step 2: Score the peptide set
 
 `score_peptides()` summarises a digest tibble into per-protein component scores and a weighted composite verdict.
@@ -122,7 +138,7 @@ The five standard components:
 | `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 → balanced retention |
 | `S_charge` | Valid peptides with ≥ 1 non-terminal K/R/H / total valid | Higher → more multi-charge potential and richer fragment series |
 
-`v0.0.4` also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
+pepVet also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
 
 Composite score verdict thresholds are `Good` at `>= 0.70`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
 
@@ -231,6 +247,22 @@ ev$params
 
 The `$params` element records the resolved enzyme name, missed cleavages, and the full protein IDs found in the input.
 It also records `preset_used`, which is the simplest guard against comparing scores that came from different workflow assumptions.
+
+When you need peptide-level cleavage-risk context, request it explicitly:
+
+```{r evaluate-cleavage-efficiency}
+ev_eff <- evaluate_digest(
+  bsa_path,
+  enzyme = "trypsin",
+  missed_cleavages = 1L,
+  include_cleavage_efficiency = TRUE
+)
+
+ev_eff$peptides
+ev_eff$scores[, c("protein_id", "n_high_efficiency_sites", "n_low_efficiency_sites")]
+```
+
+The protein-level counts are informational. They are not score components, but they help flag proteins where missed cleavages are likely to remain prominent even before you inspect individual peptides.
 
 ## Step 4: Compare enzymes
 

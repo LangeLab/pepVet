@@ -1,5 +1,22 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
+# pepVet 0.1.0
+
+## Digestion and annotations
+
+* Added `annotate_cleavage_sites()` for sequence-local cleavage-efficiency annotation of trypsin-family digestion sites.
+* Added optional `cleavage_efficiency` output in `digest_protein()` so peptide tables can carry high/medium/low cleavage-risk context without changing the default schema.
+* Added `n_high_efficiency_sites` and `n_low_efficiency_sites` to `evaluate_digest()` output as informational protein-level summaries.
+
+## Scoring and utilities
+
+* Added peptide mass and pI utilities plus residue-level monoisotopic mass data for fractionation-aware planning workflows.
+* Retained preset tracking through `preset_used` so score tables can distinguish shipped workflows from custom configurations.
+
+## Documentation
+
+* Reworked the README and core articles for the `0.1.0` release so digestion, scoring, presets, and cleavage annotations are explained as one coherent planning workflow.
+
 # pepVet 0.0.4
 
 ## Scoring

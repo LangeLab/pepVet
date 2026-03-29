@@ -28,13 +28,15 @@ for all enzyme evaluations.}
 
 \item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
 
-\item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
-as \code{gravy_range} and \code{length_range}.}
+\item{...}{Additional arguments passed to \code{\link[=evaluate_digest]{evaluate_digest()}}. This includes
+scoring arguments such as \code{gravy_range}, \code{length_range}, and
+\code{include_pI}, plus \code{include_cleavage_efficiency} when peptide-level
+cleavage annotations are requested during comparison.}
 }
 \value{
 A tibble with one row per enzyme and columns \code{enzyme} followed by
-all columns from \code{\link[=score_peptides]{score_peptides()}}, sorted by \code{composite_score}
-descending.
+the score columns returned by \code{\link[=evaluate_digest]{evaluate_digest()}}, sorted by
+\code{composite_score} descending.
 }
 \description{
 \code{compare_digests()} runs \code{\link[=evaluate_digest]{evaluate_digest()}} for each enzyme in \code{enzymes}

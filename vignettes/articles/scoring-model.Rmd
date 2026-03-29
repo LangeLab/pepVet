@@ -1,9 +1,8 @@
 ---
 title: "Understanding the pepVet Scoring Model"
 description: >
-  A deep dive into the five scoring components, their mathematical definitions,
-  default weight sets, verdict thresholds, and how to tune them for your
-  experimental context.
+  A detailed guide to pepVet score components, weight handling, preset logic,
+  verdict thresholds, and the practical limits of the current model.
 output:
   rmarkdown::html_document:
     toc: true
@@ -18,254 +17,175 @@ knitr::opts_chunk$set(
 )
 library(pepVet)
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 ```
 
 ## Overview
 
-`score_peptides()` compresses a digest tibble into a single summary row per protein. That row contains five (or six) component scores between 0 and 1, a weighted composite score, and a categorical verdict. Understanding what each component measures and how they combine helps you interpret results correctly and adapt the model when the defaults do not fit your experiment.
+`score_peptides()` reduces a digest tibble to one row per protein. That row contains component scores, a composite score, a verdict, and in `v0.0.4` the digest-level `median_peptide_length` used to interpret peptide density.
 
-## The detection window
+The model is intentionally simple. It is designed to expose why a digest looks promising or weak, not to hide the reasoning inside a single opaque number.
 
-All scoring components except `S_hydro` and `S_charge` operate on **valid peptides** only. A peptide is valid if its length falls between **7 and 25 residues** (inclusive).
+## Valid peptides
 
-This window reflects the practical limits of standard reversed-phase LC-MS/MS:
+Most pepVet components operate on valid peptides. A peptide is valid if its length falls inside the active `length_range`.
 
-- **< 7 residues:** too short to produce reliable b/y ion series; lost in column void volume; retention time is irreproducible.
-- **> 25 residues:** precursor charge states reach 4+ or higher under standard ESI conditions; fragmentation spectra become complex and hard to interpret; mass accuracy requirements are strict.
+The default window is 7 to 25 residues.
 
-Peptides outside this window appear in the `digest_protein()` output (they are real cleavage products) but do not contribute to S_length, S_coverage, or S_count. The model measures how many peptides you can detect, not how many exist.
+$$
+v(p) = \mathbf{1}\{7 \le |p| \le 25\}
+$$
 
-```{r window-demo}
-# "AAAAAAAR" = 8 residues — valid
-# "AAAAAAK" = 7 residues — valid (boundary included)
-# "AAAAAAR" followed immediately by another cut = 6 residues — invalid
-short_seq <- "AKAKAKAKAKAKAKAKAKAKAKAKAKAKAKAKAK"  # polyAK: many 1-2 aa fragments
-ev_short <- evaluate_digest(short_seq, enzyme = "trypsin")
-ev_short$scores
+Peptides outside that window still appear in `digest_protein()` output. They are real cleavage products. They are excluded because routine reversed-phase LC-MS/MS usually performs poorly at the extremes. [REF]
+
+```{r boundary-demo}
+short_seq <- "AKAKAKAKAKAKAKAKAKAKAKAKAKAKAKAKAK"
+evaluate_digest(short_seq, enzyme = "trypsin")$scores
 ```
 
-## Component definitions
+## Component scores
 
-### S_length: peptide length distribution
+### S_length
 
-**What it measures:** The fraction of cleaved peptides that fall within the 7-25 residue detection window.
+`S_length` is the fraction of peptides that are valid.
 
-$$S_{\text{length}} = \frac{|\{p \in \text{peptides} : 7 \leq |p| \leq 25\}|}{|\text{peptides}|}$$
+$$
+S_{length} = \frac{N_{valid}}{N_{total}}
+$$
 
-**Interpretation:**
+Low `S_length` usually means the enzyme is cutting too aggressively or too sparsely for the target sequence.
 
-- 1.0: every fragment is detectable. Ideal but rare.
-- 0.5: half the peptides are invisible. Borderline.
-- < 0.3: the enzyme over-digests or under-digests badly. Expect poor identification rates.
+### S_coverage
 
-**What drives it down:**
+`S_coverage` is the fraction of the protein sequence covered by at least one valid peptide.
 
-- Trypsin on highly basic sequences (consecutive K/R residues produce many 1-3 aa fragments).
-- Under-digesting enzymes on very large proteins (rare cuts produce fragments above 25 aa).
+$$
+S_{coverage} = \frac{R_{covered}}{L}
+$$
 
-```{r s-length}
-# BSA trypsin mc=1 — high S_length because most peptides land in window
+pepVet merges overlapping valid peptide intervals before summing widths. A residue covered twice still counts once.
+
+### S_count
+
+`S_count` is a normalized peptide-density score.
+
+In `v0.0.4`, the expected peptide density is enzyme-aware. For digests with at least three peptide rows, pepVet uses the observed digest median length. For sparse digests, it falls back to enzyme-class expectations.
+
+$$
+N_{expected} = \frac{L}{M}
+$$
+
+$$
+S_{count} = \min\left(\frac{N_{valid}}{N_{expected}}, 1\right)
+$$
+
+This is a bounded heuristic, not a mechanistic cleavage model. The change matters because a tryptic digest and a GluC digest should not be judged against the same peptide-density prior.
+
+```{r count-demo}
 ev_bsa <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
-ev_bsa$scores[, c("S_length", "S_coverage", "S_count")]
+ev_bsa$scores[, c("S_count", "median_peptide_length", "composite_score")]
 ```
 
-### S_coverage: sequence coverage
+When there are no cleavage sites for the selected enzyme, pepVet warns and sets `S_count` to `0`.
 
-**What it measures:** The fraction of the total protein sequence covered by at least one valid peptide. Overlapping intervals are merged before summing, so a residue covered by two overlapping peptides is counted once.
+### S_hydro
 
-$$S_\text{coverage} = \frac{\text{non-overlapping residues in valid peptides}}{\text{protein length}}$$
+`S_hydro` is the fraction of valid peptides with GRAVY values inside the active `gravy_range`.
 
-**Interpretation:**
+$$
+G(p) = \frac{1}{|p|}\sum_i KD_i
+$$
 
-- 1.0: every residue is covered by at least one detectable peptide.
-- 0.8+: strong coverage. Standard for well-digested, soluble proteins.
-- < 0.5: large dark regions in the protein. Quantification will be incomplete.
+$$
+S_{hydro} = \frac{N_{window}}{N_{valid}}
+$$
 
-**What drives it down:**
+The default range is `-1.0` to `0.6`. The `membrane` preset widens that range because transmembrane peptides are expected to be more hydrophobic.
 
-- Long stretches with no cleavage sites (e.g. transmembrane helices for trypsin).
-- Regions generating only too-short or too-long fragments.
-- Protein termini that produce single sub-threshold fragments.
+### S_charge
 
-### S_count: peptide count (soft-normalised)
+`S_charge` is the fraction of valid peptides that retain at least one internal basic residue.
 
-**What it measures:** A normalised measure of how many valid peptides arise from the digest. It penalises both extremes: too few peptides (fragile identification, single-peptide proteins) and too many (redundant coverage, wasted MS time).
+$$
+S_{charge} = \frac{N_{basic}}{N_{valid}}
+$$
 
-The implementation uses a soft sigmoid normalisation over the expected peptide count range for the input protein length. The score approaches 1.0 for counts near the ideal density and falls toward 0 at both extremes.
+The implementation checks internal residues instead of the terminal residue. That avoids inflating the score just because the cleavage rule leaves a basic residue at the peptide edge.
 
-**Interpretation:**
+### S_unique
 
-- High scores indicate a peptide count density appropriate for reliable protein-level identification and quantification.
-- Very low scores on long proteins indicate under-digestion.
-- Very low scores on short proteins (< 100 aa) reflect the inherent limit of the protein size, not a problem with the enzyme.
+`S_unique` is optional. It is available only when a proteome digest is supplied.
 
-```{r s-count}
-# Ubiquitin (76 aa) — very small protein, count naturally low
-ubiq_path <- system.file("extdata", "P0CG48.fasta", package = "pepVet")
-ev_ubiq <- evaluate_digest(ubiq_path, enzyme = "trypsin")
-ev_ubiq$scores[, c("S_length", "S_coverage", "S_count", "composite_score")]
-```
+$$
+S_{unique} = \frac{N_{unique}}{N_{valid}}
+$$
 
-### S_hydro: hydrophobicity balance
+This score is useful for isoforms, paralogs, and family-level ambiguity. It is meaningless without a relevant proteome background, so pepVet does not invent it when `proteome` is missing.
 
-**What it measures:** A score derived from the mean GRAVY (Grand Average of Hydropathicity) of valid peptides, penalising values far from zero in either direction.
+## Weights and presets
 
-The GRAVY score for each peptide is the mean of the per-residue Kyte-Doolittle hydrophobicity values (stored in `aa_properties$kyte_doolittle`). A GRAVY near zero indicates a balanced mix of hydrophilic and hydrophobic residues, which is optimal for reversed-phase LC.
+The composite score is a weighted sum.
 
-$$\text{GRAVY}(p) = \frac{1}{|p|} \sum_{i} \text{KD}(aa_i)$$
+$$
+C = \sum_i w_i S_i, \qquad \sum_i w_i = 1
+$$
 
-$$S_\text{hydro} = 1 - \frac{|\overline{\text{GRAVY}} - \text{target}|}{\text{scale}}$$
+Default weights depend on whether `S_unique` is in play.
 
-**Interpretation:**
-
-- Score near 1.0: mean GRAVY near 0. Good reversed-phase behaviour expected.
-- Scores below 0.5: the peptide pool is either very hydrophilic (bad retention, poor separation) or very hydrophobic (sticking, losses).
-
-**What drives it down:**
-
-- Membrane proteins with many hydrophobic transmembrane peptides push GRAVY very positive.
-- Highly acidic or intrinsically disordered proteins with low hydrophobicity push GRAVY negative.
-
-### S_charge: ionisability
-
-**What it measures:** The fraction of valid peptides that contain at least one basic residue (K, R, or H). Basic residues carry positive charges under standard ESI conditions, enabling peptide detection in positive mode.
-
-$$S_{\text{charge}} = \frac{N_{\text{ionisable}}}{N_{\text{valid}}}$$
-
-where $N_{\text{ionisable}}$ is the count of valid peptides containing at least one K, R, or H residue and $N_{\text{valid}}$ is the total count of valid peptides.
-
-**Interpretation:**
-
-- 1.0: all detectable peptides contain at least one basic residue. Ideal.
-- < 0.8: a meaningful fraction of peptides lack charge (C-terminal peptides, peptides from acidic regions). Expect lower signal intensity for these peptides.
-
-**Note on terminal peptides:** The C-terminal peptide of a trypsin digest ends with K or R by definition of the cut rule. The N-terminal peptide, however, may lack K/R if the protein starts with methionine or other non-basic residues. This depresses S_charge slightly for trypsin on many proteins.
-
-### S_unique: proteome uniqueness (optional)
-
-**What it measures:** The fraction of valid peptides that are unique to a single protein in a supplied proteome digest. Shared peptides (those found in more than one `protein_id` in the proteome tibble) do not contribute to unique identification.
-
-$$S_{\text{unique}} = \frac{N_{\text{unique}}}{N_{\text{valid}}}$$
-
-where $N_{\text{unique}}$ is the count of valid peptides that appear in exactly one `protein_id` in the proteome and $N_{\text{valid}}$ is the total count of valid peptides.
-
-This component is computed only when you supply a `proteome` argument to `score_peptides()` or `evaluate_digest()`.
-
-**Interpretation:**
-
-- 1.0: every peptide uniquely identifies the target protein.
-- < 0.7: many peptides are shared with other proteins. Protein-level inference will rely on a subset of peptides.
-- Very low values (< 0.3): the protein is highly homologous to others in the proteome (paralogs, isoforms, repeated domain families). Consider reporting at the protein group level.
-
-```{r s-unique}
-# Alpha-synuclein isoforms — many shared peptides across the three isoforms
-syn_path <- system.file("extdata", "P37840_isoforms.fasta", package = "pepVet")
-proteome <- digest_protein(syn_path, enzyme = "trypsin")
-
-# Evaluate isoform 1 against all three as background
-ev_syn1 <- evaluate_digest(syn_path, enzyme = "trypsin",
-                           proteome = proteome)
-ev_syn1$scores
-```
-
-## Composite score and weights
-
-The composite score is a weighted sum of the component scores:
-
-$$\text{composite} = \sum_i w_i S_i, \qquad \text{where} \quad \sum_i w_i = 1$$
-
-### Default weights — protein-only mode
-
-When no `proteome` is supplied:
-
-| Component | Default weight | Rationale |
-|---|---|---|
-| `S_length` | 0.25 | Primary filter. Useless peptides cost everything downstream |
-| `S_coverage` | 0.25 | Sequence coverage is the top-line quality metric in proteomics |
-| `S_count` | 0.20 | More peptides = more identification evidence |
-| `S_hydro` | 0.15 | Important but acceptable across a moderate range |
-| `S_charge` | 0.15 | High priority, though most tryptic digests score well here |
-
-### Default weights — proteome-aware mode
-
-When a `proteome` is supplied, `S_unique` is added and the weights are rebalanced to give uniqueness a meaningful share without dominating:
-
-| Component | Default weight |
+| Mode | Weight vector |
 |---|---|
-| `S_length` | 0.20 |
-| `S_coverage` | 0.20 |
-| `S_count` | 0.15 |
-| `S_hydro` | 0.15 |
-| `S_charge` | 0.10 |
-| `S_unique` | 0.20 |
+| Protein-only | `c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20, S_hydro = 0.15, S_charge = 0.15)` |
+| Proteome-aware | `c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15, S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)` |
 
-### Customising weights
+`pepvet_preset()` exposes curated starting points for common workflows.
 
-You can supply your own weight vector via the `weights` argument. The vector must be named with the component names you want to weight. pepVet normalises weights to sum to 1 automatically.
-
-```{r custom-weights}
-# Downweight hydrophobicity (your column does well with everything)
-# and upweight coverage (your protein has known dark regions)
-custom_weights <- c(
-  S_length   = 0.25,
-  S_coverage = 0.35,
-  S_count    = 0.20,
-  S_hydro    = 0.05,
-  S_charge   = 0.15
-)
-
-digest_result <- digest_protein(bsa_path, enzyme = "trypsin",
-                                missed_cleavages = 1L)
-score_peptides(digest_result, weights = custom_weights)
+```{r preset-demo}
+pepvet_preset("dia")
+pepvet_preset("membrane")
 ```
 
-**When to customise weights:**
+These presets modify three things together.
 
-- **Targeted quantification (SRM/PRM):** `S_coverage` matters less (you already know which peptides to target); `S_charge` and `S_hydro` matter more.
-- **Isoform discrimination:** give `S_unique` a higher weight (0.30-0.40) when allele or isoform resolution is the primary goal.
-- **DIA-based label-free quantification:** `S_count` can be weighted more because more peptides per protein improves library matching confidence.
-- **Membrane proteomics:** downweight `S_hydro` (you expect hydrophobic peptides) and focus on `S_length` and `S_coverage`.
+- `length_range`
+- `gravy_range`
+- `weights`
+
+That is deliberate. Changing weights alone often hides the fact that the peptide window itself should also change.
 
 ## Verdict thresholds
 
-Verdicts map the continuous composite score to three categories:
+pepVet maps the composite score to three labels.
 
-| Verdict | Threshold | Practical meaning |
-|---|---|---|
-| **Good** | composite ≥ 0.70 | Expect reliable identification and quantification with standard methods |
-| **Moderate** | composite ≥ 0.40 | Expect partial coverage; identification is possible but not robust |
-| **Poor** | composite < 0.40 | Unreliable; consider a different enzyme, sample prep strategy, or fractional digestion |
+| Verdict | Threshold |
+|---|---|
+| `Good` | `>= 0.70` |
+| `Moderate` | `>= 0.40` |
+| `Poor` | `< 0.40` |
 
-These thresholds are heuristic defaults tuned against manually reviewed proteomics datasets. They are not calibrated against a specific FDR or identification rate model. See `plan/research.md` for the empirical validation status and the roadmap for calibrating against PeptideAtlas data (planned for Commit 16).
+These thresholds are heuristic defaults. They are not calibrated to an identification probability, a false discovery rate, or a fixed instrument platform. [REF]
 
-A Good verdict does not guarantee identification. It indicates that the peptide set properties are consistent with well-characterised Good proteins. Sample quality, instrument settings, search parameters, and protein abundance all affect the final result independently of digest quality.
+## Inspecting real outputs
 
-## Inspecting component scores interactively
-
-`digest_report()` renders the component scores as a horizontal bar chart. You see at a glance which component is dragging the composite down.
-
-```{r report-bsa}
-ev_bsa <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
-digest_report(ev_bsa)
+```{r bsa-report}
+digest_report(evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L))
 ```
 
-```{r report-h3}
-ev_h3 <- evaluate_digest(h3_path, enzyme = "trypsin")
-digest_report(ev_h3)
+```{r h3-report}
+digest_report(evaluate_digest(h3_path, enzyme = "trypsin"))
 ```
 
-On H3.1, `S_length` and `S_coverage` are both very low while `S_hydro` is near-perfect. The problem is clear: trypsin over-digests the protein, producing many correctly hydrophilic fragments that are too short to detect. The enzyme is the problem, and switching to LysC directly addresses it.
+The BSA example usually shows a balanced score pattern. The H3.1 example often exposes the classic trypsin failure mode: many peptides, weak valid-length yield, and poor usable coverage.
 
-## Edge cases and known limitations
+## Limitations
 
-**Very short proteins (< 50 aa):** S_count will be low because there are not enough residues to generate many valid peptides. This is not a digest quality problem. Ubiquitin (76 aa) scores Moderate with any enzyme.
+The current model has several limits.
 
-**Repeated sequence proteins:** Proteins with large internal repeats (ankyrin domains, WD40 repeats, collagen repeats) produce many highly similar peptides. S_unique will be low when scored against a proteome containing the same repeat family. This is a genuine proteomics challenge, not a scoring artefact.
+- It does not model post-translational modifications directly.
+- It does not model chromatographic gradients, charge-state envelopes, or instrument-specific fragmentation methods.
+- It uses heuristic windows and thresholds rather than empirically calibrated identification probabilities.
+- It assumes the supplied proteome digest is the relevant comparison space for uniqueness.
 
-**PTM-blind scoring:** The model scores the unmodified primary sequence. Phosphorylation, acetylation, methylation, or other PTMs that alter cleavage efficiency (e.g. missed cleavages near phosphoserine) are not modelled. This is documented in `plan/research.md` and targeted in Commit 17.
-
-**S_count normalisation is protein-length relative:** The soft-sigmoid normalisation uses the input protein length to set the expected peptide density. Very long proteins (titin, 34,350 aa) and very short proteins (ubiquitin, 76 aa) are both normalised relative to their own length, so cross-protein comparisons of S_count alone are not meaningful in absolute terms. Use the composite score for cross-protein comparison.
+Those limits do not make the score useless. They define what the score is for: digest planning, enzyme ranking, and transparent pre-acquisition triage.
 
 ```{r session-info}
 sessionInfo()

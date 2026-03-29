@@ -22,12 +22,16 @@ hard-coded registry of cleaver-compatible enzyme names, including
 }
 \value{
 A tibble with one row per peptide and the columns \code{protein_id},
-\code{peptide}, \code{start}, \code{end}, \code{length}, and \code{missed_cleavages}.
+\code{peptide}, \code{start}, \code{end}, \code{length}, and \code{missed_cleavages}. Each row
+represents one observed cleavage product for one protein under the
+selected enzyme rule and missed-cleavage allowance.
 }
 \description{
 \code{digest_protein()} normalizes protein-like input, validates the amino-acid
 alphabet, applies a cleaver-compatible enzyme rule, and returns peptide
-coordinates in a tidy tibble.
+coordinates in a tidy tibble. It is the entry point for all higher-level
+pepVet workflows, including scoring, enzyme comparison, and batch
+evaluation.
 }
 \details{
 FASTA record names are preserved as \code{protein_id} values when they
@@ -35,7 +39,9 @@ are present, including irregular headers that do not use UniProt pipe
 formatting. Unnamed input sequences receive generated \verb{sequence_<n>} IDs.
 pepVet uses cleaver-compatible cleavage rules for the strict cut sites and
 expands missed cleavages itself so repeated peptides and overlapping ranges
-retain exact start and end coordinates.
+retain exact start and end coordinates. Peptides are returned whether or
+not they later count as valid in the pepVet scoring model. Validity is a
+separate decision controlled by \code{score_peptides()} through \code{length_range}.
 }
 \examples{
 digest_protein("MKWVTFISLLFLFSSAYSR")

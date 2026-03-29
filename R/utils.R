@@ -303,6 +303,7 @@
 #'
 #' `pepvet_preset()` returns a named list containing a GRAVY range, peptide
 #' length range, and scoring weights for a supported proteomics workflow.
+#' Presets are intended as editable starting points rather than hard rules.
 #'
 #' Presets with non-zero `S_unique` weights require a comparison proteome at
 #' scoring time so uniqueness can be measured honestly.
@@ -311,6 +312,8 @@
 #'   `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and `"fractionated"`.
 #'
 #' @return A named list with `gravy_range`, `length_range`, and `weights`.
+#'   The returned object can be passed directly into [score_peptides()] or
+#'   [evaluate_digest()] through `do.call()` or argument splicing.
 #'
 #' @examples
 #' pepvet_preset("standard")

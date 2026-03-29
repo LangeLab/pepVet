@@ -34,7 +34,9 @@ one only when top scores are tied within floating-point tolerance.
 \description{
 \code{recommend_enzyme()} calls \code{\link[=compare_digests]{compare_digests()}} and returns the name of the
 enzyme with the highest composite score. When two or more enzymes are tied,
-all tied enzyme names are returned in alphabetical order.
+all tied enzyme names are returned in alphabetical order. This function is
+useful in scripted triage pipelines where you need a compact recommendation
+but still want ranking logic that stays aligned with \code{\link[=compare_digests]{compare_digests()}}.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

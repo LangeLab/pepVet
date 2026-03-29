@@ -39,7 +39,8 @@ the input.
 \code{batch_evaluate()} calls \code{\link[=evaluate_digest]{evaluate_digest()}} independently for each protein
 in \code{sequences} and returns a named list of results. The output for each
 protein is bit-identical to calling \code{\link[=evaluate_digest]{evaluate_digest()}} on that protein
-individually.
+individually. Use it for small proteomes, panels, or fixture-level quality
+assessment before moving to a larger parallel workflow.
 }
 \examples{
 small_proteome <- system.file(

@@ -41,18 +41,23 @@ length when the digest contains fewer than three peptides. Defaults to
 A tibble with one row per \code{protein_id} and the component score
 columns \code{S_length}, \code{S_coverage}, \code{S_count}, \code{S_hydro}, \code{S_charge},
 optional \code{S_unique}, plus \code{composite_score}, \code{verdict}, and
-\code{median_peptide_length}.
+\code{median_peptide_length}. The \code{median_peptide_length} column records the
+digest-level denominator used in the enzyme-aware \code{S_count} calculation.
 }
 \description{
 \code{score_peptides()} summarizes a pepVet digest tibble into per-protein scoring
-components and a weighted composite suitability score.
+components and a weighted composite suitability score. The scoring model is
+designed for digest planning and enzyme comparison, not for post-search
+peptide detectability prediction.
 }
 \details{
 Valid peptides are defined as peptides with lengths between 7 and
-25 residues inclusive. Coverage is computed from valid peptide coordinates
-with overlapping intervals reduced before coverage is summed. Composite
-verdicts are classified as \code{Good} for scores >= 0.7, \code{Moderate} for
-scores >= 0.4, and \code{Poor} otherwise.
+25 residues inclusive by default, but this window can be changed with
+\code{length_range}. Coverage is computed from valid peptide coordinates with
+overlapping intervals reduced before coverage is summed. \code{S_hydro} uses
+the inclusive \code{gravy_range}, and \code{S_unique} is only computed when a
+proteome digest is supplied. Composite verdicts are classified as \code{Good}
+for scores >= 0.7, \code{Moderate} for scores >= 0.4, and \code{Poor} otherwise.
 }
 \examples{
 digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")

@@ -1,0 +1,154 @@
+---
+title: "Workflow Presets in pepVet"
+description: >
+  A practical guide to pepVet presets for standard DDA, DIA, targeted assays,
+  membrane proteins, degraded material, and fractionated workflows.
+output:
+  rmarkdown::html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pepVet)
+bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+syn_path <- system.file("extdata", "P37840_isoforms.fasta", package = "pepVet")
+```
+
+## Why presets exist
+
+Most digest-scoring tools expose a fixed set of assumptions. Real experiments do not. A targeted assay, a membrane-protein workflow, and an FFPE rescue experiment do not value the same peptide properties to the same degree.
+
+`pepvet_preset()` packages three related decisions into one object.
+
+- the valid peptide-length window
+- the acceptable GRAVY window
+- the component weight vector
+
+That keeps the scoring logic explicit and easy to modify.
+
+## Available presets
+
+```{r list-standard}
+pepvet_preset("standard")
+```
+
+| Preset | Intended use | Main change |
+|---|---|---|
+| `standard` | Routine DDA | Package defaults |
+| `dia` | DIA and SWATH | Higher coverage weight |
+| `targeted` | SRM, PRM, MRM | Higher uniqueness weight |
+| `membrane` | Hydrophobic proteins | Wider GRAVY window |
+| `ffpe_degraded` | Degraded or fragmented material | Wider length window |
+| `fractionated` | Offline fractionation planning | Standard weights with fractionation-oriented interpretation |
+
+## Standard workflow
+
+The `standard` preset is a clear baseline for routine peptide-centric proteomics.
+
+```{r standard-example}
+standard <- pepvet_preset("standard")
+
+do.call(
+  evaluate_digest,
+  c(list(sequence = bsa_path, enzyme = "trypsin", missed_cleavages = 1L), standard)
+)$scores
+```
+
+## DIA workflow
+
+DIA benefits from broad peptide support across the protein because identification is not driven by one selected precursor at a time. The `dia` preset shifts weight toward coverage while preserving the same basic peptide-quality checks. [REF]
+
+```{r dia-example}
+syn_proteome <- digest_protein(syn_path, enzyme = "trypsin")
+dia <- pepvet_preset("dia")
+
+do.call(
+  evaluate_digest,
+  c(list(sequence = syn_path, enzyme = "trypsin", proteome = syn_proteome), dia)
+)$scores
+```
+
+## Targeted workflow
+
+Targeted assays care about a smaller set of peptides, but those peptides need to be stable and specific. The `targeted` preset pushes more weight onto `S_unique` and expects a relevant comparison proteome.
+
+```{r targeted-example}
+proteome <- digest_protein(syn_path, enzyme = "trypsin")
+targeted <- pepvet_preset("targeted")
+
+do.call(
+  evaluate_digest,
+  c(list(sequence = syn_path, enzyme = "trypsin", proteome = proteome), targeted)
+)$scores
+```
+
+Without a proteome digest, a non-zero uniqueness weight is not valid. pepVet raises an error instead of pretending the score can be computed.
+
+## Membrane workflow
+
+Membrane proteins are a common reason to reject default hydrophobicity assumptions. The `membrane` preset widens the GRAVY window so that hydrophobic peptides are treated as expected rather than automatically penalized.
+
+```{r membrane-example}
+pepvet_preset("membrane")
+```
+
+This does not guarantee a membrane digest is good. It only stops the scoring model from treating all hydrophobic peptides as implausible by default.
+
+## Degraded samples
+
+The `ffpe_degraded` preset broadens the peptide-length window because degraded material can yield shorter but still informative peptides. That can be useful for FFPE recovery workflows and heavily processed archival material. [REF]
+
+```{r ffpe-example}
+pepvet_preset("ffpe_degraded")
+```
+
+Use this preset only when the sample context justifies it. A wider window changes the meaning of `S_length`, `S_coverage`, and `S_count`.
+
+## Fractionated workflows
+
+The `fractionated` preset keeps a conventional scoring profile but is useful when planning offline fractionation. The digest still needs strong peptides, but you may tolerate a broader peptide inventory because the acquisition strategy is designed to spread complexity over several runs.
+
+## Editing a preset
+
+Presets are plain R lists. The easiest way to customize them is to start with one and change the fields you need.
+
+```{r modify-preset}
+custom_membrane <- pepvet_preset("membrane")
+custom_membrane$weights["S_coverage"] <- 0.30
+custom_membrane$weights["S_hydro"] <- 0.10
+if ("S_unique" %in% names(custom_membrane$weights)) {
+  custom_membrane$weights["S_unique"] <- 0
+}
+custom_membrane$weights <- custom_membrane$weights / sum(custom_membrane$weights)
+
+do.call(
+  evaluate_digest,
+  c(list(sequence = bsa_path, enzyme = "chymotrypsin-high"), custom_membrane)
+)$scores
+```
+
+This is deliberate API design. Presets are data, not hidden state. You can inspect them, store them, version them, and adapt them to local methods without rewriting package internals.
+
+## Real workflow examples
+
+The presets are most useful in three situations.
+
+- You need a defensible starting point for a new assay.
+- You want comparisons to stay consistent across a panel of proteins.
+- You need to explain why a score changed when the workflow changed.
+
+That third case matters in practice. If a membrane target improves only after widening the GRAVY window, the result is interpretable. The score changed because the workflow assumptions changed, not because the package silently drifted.
+
+## Summary
+
+Use presets as starting points, not as immutable truth. They are there to make workflow assumptions explicit, reproducible, and easy to modify.
+
+```{r session-info}
+sessionInfo()
+```

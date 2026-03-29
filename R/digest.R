@@ -4,7 +4,9 @@
 #'
 #' `digest_protein()` normalizes protein-like input, validates the amino-acid
 #' alphabet, applies a cleaver-compatible enzyme rule, and returns peptide
-#' coordinates in a tidy tibble.
+#' coordinates in a tidy tibble. It is the entry point for all higher-level
+#' pepVet workflows, including scoring, enzyme comparison, and batch
+#' evaluation.
 #'
 #' @param sequence Protein input supplied as a single sequence, a named
 #'   character vector of sequences, a `Biostrings::AAString`, a
@@ -19,14 +21,18 @@
 #' @import cleaver
 #'
 #' @return A tibble with one row per peptide and the columns `protein_id`,
-#'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`.
+#'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`. Each row
+#'   represents one observed cleavage product for one protein under the
+#'   selected enzyme rule and missed-cleavage allowance.
 #'
 #' @details FASTA record names are preserved as `protein_id` values when they
 #'   are present, including irregular headers that do not use UniProt pipe
 #'   formatting. Unnamed input sequences receive generated `sequence_<n>` IDs.
 #'   pepVet uses cleaver-compatible cleavage rules for the strict cut sites and
 #'   expands missed cleavages itself so repeated peptides and overlapping ranges
-#'   retain exact start and end coordinates.
+#'   retain exact start and end coordinates. Peptides are returned whether or
+#'   not they later count as valid in the pepVet scoring model. Validity is a
+#'   separate decision controlled by `score_peptides()` through `length_range`.
 #' @examples
 #' digest_protein("MKWVTFISLLFLFSSAYSR")
 #' digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"))

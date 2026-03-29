@@ -109,7 +109,9 @@
 #'
 #' `digest_report()` formats the output of [evaluate_digest()] or
 #' [compare_digests()] as a human-readable styled console summary. The
-#' function returns its input invisibly so it can be used in pipelines.
+#' function returns its input invisibly so it can be used in pipelines. Use it
+#' when you want a compact review of component scores during interactive enzyme
+#' selection or package-level demonstrations.
 #'
 #' @param x The object to report on. Accepts:
 #'   \describe{

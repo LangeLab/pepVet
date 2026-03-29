@@ -2,7 +2,9 @@
 #'
 #' `evaluate_digest()` combines [digest_protein()] and [score_peptides()] into
 #' a single call and returns a named list containing the peptide table, the
-#' score table, and the resolved input parameters.
+#' score table, and the resolved input parameters. Use it when you want a full
+#' digest object for one protein and one enzyme without manually wiring the two
+#' lower-level functions together.
 #'
 #' @param sequence Protein input. Accepts the same forms as [digest_protein()]:
 #'   a character sequence, named character vector, `Biostrings::AAString`,
@@ -18,7 +20,9 @@
 #'   the selected `enzyme` so enzyme-aware S_count denominators stay aligned
 #'   with the digest.
 #' @param ... Additional scoring arguments passed to [score_peptides()], such
-#'   as `gravy_range` and `length_range`.
+#'   as `gravy_range` and `length_range`. This makes workflow presets from
+#'   [pepvet_preset()] directly compatible with [evaluate_digest()] through
+#'   `do.call()` or argument splicing.
 #'
 #' @return A named list with three elements:
 #'   \describe{
@@ -73,7 +77,8 @@ evaluate_digest <- function(sequence,
 #' Compare Multiple Enzymes on a Single Protein
 #'
 #' `compare_digests()` runs [evaluate_digest()] for each enzyme in `enzymes`
-#' and returns a tibble of scores sorted by `composite_score` descending.
+#' and returns a tibble of scores sorted by `composite_score` descending. It is
+#' the main ranking function for pre-experimental enzyme selection.
 #'
 #' @param sequence A single-protein input. Accepts the same forms as
 #'   [digest_protein()] but must resolve to exactly one protein.
@@ -147,7 +152,9 @@ compare_digests <- function(sequence,
 #'
 #' `recommend_enzyme()` calls [compare_digests()] and returns the name of the
 #' enzyme with the highest composite score. When two or more enzymes are tied,
-#' all tied enzyme names are returned in alphabetical order.
+#' all tied enzyme names are returned in alphabetical order. This function is
+#' useful in scripted triage pipelines where you need a compact recommendation
+#' but still want ranking logic that stays aligned with [compare_digests()].
 #'
 #' @param sequence A single-protein input passed to [compare_digests()].
 #' @param enzymes Character vector of enzyme names to compare.
@@ -195,7 +202,8 @@ recommend_enzyme <- function(sequence,
 #' `batch_evaluate()` calls [evaluate_digest()] independently for each protein
 #' in `sequences` and returns a named list of results. The output for each
 #' protein is bit-identical to calling [evaluate_digest()] on that protein
-#' individually.
+#' individually. Use it for small proteomes, panels, or fixture-level quality
+#' assessment before moving to a larger parallel workflow.
 #'
 #' @param sequences Multi-protein input. Accepts the same forms as
 #'   [digest_protein()]. Must resolve to at least one protein.

@@ -38,7 +38,8 @@ descending.
 }
 \description{
 \code{compare_digests()} runs \code{\link[=evaluate_digest]{evaluate_digest()}} for each enzyme in \code{enzymes}
-and returns a tibble of scores sorted by \code{composite_score} descending.
+and returns a tibble of scores sorted by \code{composite_score} descending. It is
+the main ranking function for pre-experimental enzyme selection.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

@@ -19,34 +19,36 @@ library(pepVet)
 data("aa_properties", package = "pepVet")
 ```
 
-pepVet evaluates proteolytic digests before you spend time at the bench. Given a protein sequence and an enzyme, it scores the resulting peptides for LC-MS/MS suitability. The package walks a single pipeline from raw sequence to ranked enzyme recommendation, and every step is individually accessible.
+pepVet evaluates proteolytic digests before bench work begins. Give it a protein sequence and an enzyme. It returns peptide coordinates, score components, a composite verdict, and workflow-aware parameters that let you inspect the result instead of treating it as a black box.
 
 ## The core pipeline
 
 ```
 Protein sequence
       │
-      ▼
-digest_protein()    →  tibble of peptides (one row per peptide)
+      v
+    digest_protein()    ->  tibble of peptides (one row per peptide)
       │
-      ▼
-score_peptides()    →  one-row tibble of component scores + verdict
+      v
+    score_peptides()    ->  one-row tibble of component scores + verdict
       │
-      ▼
-evaluate_digest()   →  convenience wrapper: digest + score + params in one call
+      v
+    evaluate_digest()   ->  convenience wrapper: digest + score + params in one call
       │
-      ▼
-compare_digests()   →  run evaluate_digest across N enzymes, rank by composite
+      v
+    compare_digests()   ->  run evaluate_digest across N enzymes, rank by composite
       │
-      ▼
-recommend_enzyme()  →  return the name of the top-ranked enzyme
+      v
+    recommend_enzyme()  ->  return the name of the top-ranked enzyme
       │
-      ▼
-batch_evaluate()    →  run evaluate_digest across all proteins in a FASTA
+      v
+    batch_evaluate()    ->  run evaluate_digest across all proteins in a FASTA
       │
-      ▼
-digest_report()     →  styled console output for any of the above
+      v
+    digest_report()     ->  styled console output for any of the above
 ```
+
+Every output is programmatic. `digest_protein()` returns a tibble with one row per peptide. `score_peptides()` returns a tibble with one row per protein. `compare_digests()` returns a tibble with one row per enzyme. `evaluate_digest()` returns a named list with the score tibble, the peptide tibble, and the resolved parameters.
 
 ## Protein input
 
@@ -108,7 +110,7 @@ digest_result <- digest_protein(bsa_path, enzyme = "trypsin",
 score_peptides(digest_result)
 ```
 
-**What counts as a "valid" peptide?** Only peptides between 7 and 25 residues are counted for detection-window scoring (S_length, S_coverage, S_count). Fragments outside that window still appear in the digest tibble but are excluded from the numerator of those components.
+Only peptides inside the active `length_range` count as valid. The default window is 7 to 25 residues. Fragments outside that window still appear in the digest tibble, but they do not contribute to the component numerators.
 
 The five standard components:
 
@@ -120,7 +122,39 @@ The five standard components:
 | `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 → balanced retention |
 | `S_charge` | Valid peptides with ≥ 1 K/R/H / total valid | Higher → better ESI ionisation |
 
-Composite score verdict thresholds: **Good** ≥ 0.70, **Moderate** ≥ 0.40, **Poor** < 0.40.
+`v0.0.4` also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
+
+Composite score verdict thresholds are `Good` at `>= 0.70`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
+
+## Step 2a: Apply a workflow preset
+
+Workflow presets give you a starting parameter set for common experiment types. Each preset returns a list with `gravy_range`, `length_range`, and `weights`, so you can pass the result into `evaluate_digest()` or `score_peptides()` directly.
+
+```{r preset-standard}
+pepvet_preset("standard")
+```
+
+```{r preset-evaluate}
+syn_path <- system.file("extdata", "P37840_isoforms.fasta", package = "pepVet")
+syn_proteome <- digest_protein(syn_path, enzyme = "trypsin")
+targeted_preset <- pepvet_preset("targeted")
+
+do.call(
+  evaluate_digest,
+  c(list(sequence = syn_path, enzyme = "trypsin", proteome = syn_proteome), targeted_preset)
+)$scores
+```
+
+| Preset | Best fit | Main scoring shift |
+|---|---|---|
+| `standard` | Routine DDA | Package defaults |
+| `dia` | DIA and SWATH | Higher coverage weight |
+| `targeted` | SRM, PRM, MRM | Higher uniqueness weight |
+| `membrane` | Hydrophobic proteins | Wider GRAVY window |
+| `ffpe_degraded` | Degraded material | Wider peptide-length window |
+| `fractionated` | SCX or high-pH RP planning | Standard score with fractionation-oriented interpretation |
+
+Presets with non-zero `S_unique` weights require a proteome digest. pepVet rejects those presets when `proteome` is missing because the uniqueness term would otherwise be invented.
 
 ### Proteome-aware uniqueness scoring
 
@@ -202,6 +236,14 @@ batch[[1]]$scores
 
 Each protein is evaluated independently. Wrap in `BiocParallel::bplapply()` if you are processing thousands of proteins.
 
+The setup is short when you want a proteome-aware workflow.
+
+```{r proteome-onboarding, eval=FALSE}
+proteome_digest <- digest_protein(proteome_path, enzyme = "trypsin")
+batch <- batch_evaluate(proteome_path, enzyme = "trypsin", proteome = proteome_digest)
+compare_digests(bsa_path, enzymes = c("trypsin", "lysc"), proteome = proteome_digest)
+```
+
 ## Step 7: Report to the console
 
 `digest_report()` produces a styled, colour-coded summary for either an `evaluate_digest()` result (single protein, bar-chart style) or a `compare_digests()` tibble (ranked table style). It returns its input invisibly so pipeline chains continue uninterrupted.
@@ -252,6 +294,17 @@ aa_properties
 ```
 
 The `kyte_doolittle` column contains the Kyte-Doolittle (1982) hydrophobicity scale used in `S_hydro`. The `pKa_side_chain` column holds reference pKa values for the seven ionisable residues (C, D, E, H, K, R, Y) and is used in `S_charge` classification.
+
+## How pepVet differs from common tools
+
+pepVet fills a narrow part of the workflow. It is not a spectral library builder and it is not a peptide detectability predictor. It is a decision-support layer for enzyme choice and digest quality before acquisition. [REF]
+
+| Tool | Form | API | Multi-enzyme ranking | Proteome-aware uniqueness |
+|---|---|---|---|---|
+| Protein Prospector | Web app | No | Manual | No |
+| Skyline | Desktop GUI | Limited scripting | Limited | Library-driven |
+| cleaver | R package | Yes | No | No |
+| pepVet | R package | Yes | Yes | Yes |
 
 ## Session info
 

@@ -324,7 +324,9 @@
 #' Score Digested Peptides for Proteomics Suitability
 #'
 #' `score_peptides()` summarizes a pepVet digest tibble into per-protein scoring
-#' components and a weighted composite suitability score.
+#' components and a weighted composite suitability score. The scoring model is
+#' designed for digest planning and enzyme comparison, not for post-search
+#' peptide detectability prediction.
 #'
 #' @param digest_result A digest tibble produced by [digest_protein()] or an
 #'   equivalent table containing the columns `protein_id`, `peptide`, `start`,
@@ -349,13 +351,16 @@
 #' @return A tibble with one row per `protein_id` and the component score
 #'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`, `S_charge`,
 #'   optional `S_unique`, plus `composite_score`, `verdict`, and
-#'   `median_peptide_length`.
+#'   `median_peptide_length`. The `median_peptide_length` column records the
+#'   digest-level denominator used in the enzyme-aware `S_count` calculation.
 #'
 #' @details Valid peptides are defined as peptides with lengths between 7 and
-#'   25 residues inclusive. Coverage is computed from valid peptide coordinates
-#'   with overlapping intervals reduced before coverage is summed. Composite
-#'   verdicts are classified as `Good` for scores >= 0.7, `Moderate` for
-#'   scores >= 0.4, and `Poor` otherwise.
+#'   25 residues inclusive by default, but this window can be changed with
+#'   `length_range`. Coverage is computed from valid peptide coordinates with
+#'   overlapping intervals reduced before coverage is summed. `S_hydro` uses
+#'   the inclusive `gravy_range`, and `S_unique` is only computed when a
+#'   proteome digest is supplied. Composite verdicts are classified as `Good`
+#'   for scores >= 0.7, `Moderate` for scores >= 0.4, and `Poor` otherwise.
 #'
 #' @examples
 #' digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")

@@ -33,7 +33,9 @@ the selected \code{enzyme} so enzyme-aware S_count denominators stay aligned
 with the digest.}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
-as \code{gravy_range} and \code{length_range}.}
+as \code{gravy_range} and \code{length_range}. This makes workflow presets from
+\code{\link[=pepvet_preset]{pepvet_preset()}} directly compatible with \code{\link[=evaluate_digest]{evaluate_digest()}} through
+\code{do.call()} or argument splicing.}
 }
 \value{
 A named list with three elements:
@@ -49,7 +51,9 @@ peptide.}
 \description{
 \code{evaluate_digest()} combines \code{\link[=digest_protein]{digest_protein()}} and \code{\link[=score_peptides]{score_peptides()}} into
 a single call and returns a named list containing the peptide table, the
-score table, and the resolved input parameters.
+score table, and the resolved input parameters. Use it when you want a full
+digest object for one protein and one enzyme without manually wiring the two
+lower-level functions together.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

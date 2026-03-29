@@ -12,10 +12,13 @@ pepvet_preset(type = "standard")
 }
 \value{
 A named list with \code{gravy_range}, \code{length_range}, and \code{weights}.
+The returned object can be passed directly into \code{\link[=score_peptides]{score_peptides()}} or
+\code{\link[=evaluate_digest]{evaluate_digest()}} through \code{do.call()} or argument splicing.
 }
 \description{
 \code{pepvet_preset()} returns a named list containing a GRAVY range, peptide
 length range, and scoring weights for a supported proteomics workflow.
+Presets are intended as editable starting points rather than hard rules.
 }
 \details{
 Presets with non-zero \code{S_unique} weights require a comparison proteome at

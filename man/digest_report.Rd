@@ -24,7 +24,9 @@ the report. When \code{NULL} (default), the protein ID is used as the header.}
 \description{
 \code{digest_report()} formats the output of \code{\link[=evaluate_digest]{evaluate_digest()}} or
 \code{\link[=compare_digests]{compare_digests()}} as a human-readable styled console summary. The
-function returns its input invisibly so it can be used in pipelines.
+function returns its input invisibly so it can be used in pipelines. Use it
+when you want a compact review of component scores during interactive enzyme
+selection or package-level demonstrations.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

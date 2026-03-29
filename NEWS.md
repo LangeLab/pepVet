@@ -1,5 +1,23 @@
 <!-- markdownlint-disable MD025 -->
 
+# pepVet 0.0.4
+
+## Scoring
+
+* Reworked `S_count` to use an enzyme-aware expected peptide length instead of a fixed trypsin-derived constant.
+* Added `median_peptide_length` to scoring output so enzyme comparisons show the denominator behind `S_count`.
+* Added configurable `gravy_range` and `length_range` arguments across the scoring and evaluation helpers.
+* Added `pepvet_preset()` with presets for standard DDA, DIA, targeted assays, membrane proteomics, FFPE-style degraded samples, and fractionated workflows.
+
+## Documentation
+
+* Rewrote the package website copy, docstrings, README, and articles for `v0.0.4` with detailed workflow guidance and preset-specific examples.
+* Added a dedicated article on workflow presets, including practical examples and use-case notes for each preset.
+
+## Site
+
+* Updated pkgdown navigation to surface the preset guide alongside the core workflow articles.
+
 # pepVet 0.0.3
 
 ## New functions

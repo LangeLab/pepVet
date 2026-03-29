@@ -76,7 +76,7 @@ test_that("compare_digests output has enzyme column plus all score columns", {
   expected_score_cols <- c(
     "protein_id", "S_length", "S_coverage", "S_count",
     "S_hydro", "S_charge", "composite_score", "verdict",
-    "median_peptide_length"
+    "median_peptide_length", "preset_used"
   )
   expect_true(all(expected_score_cols %in% names(result)))
   expect_identical(nrow(result), 2L)
@@ -137,8 +137,9 @@ test_that("evaluate_digest returns named list with scores, peptides, params", {
   expect_type(result$params, "list")
   expect_identical(
     names(result$params),
-    c("enzyme", "missed_cleavages", "protein_ids")
+    c("enzyme", "missed_cleavages", "protein_ids", "preset_used")
   )
+  expect_identical(result$params$preset_used, "standard")
 })
 
 test_that("params reflects the resolved enzyme name and missed_cleavages", {
@@ -148,6 +149,17 @@ test_that("params reflects the resolved enzyme name and missed_cleavages", {
   expect_identical(result$params$enzyme, "trypsin")
   expect_identical(result$params$missed_cleavages, 1L)
   expect_type(result$params$protein_ids, "character")
+  expect_identical(result$params$preset_used, "standard")
+})
+
+test_that("evaluate_digest records preset_used in params for named presets", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  result <- do.call(
+    evaluate_digest,
+    c(list(sequence = bsa_path, enzyme = "trypsin"), pepvet_preset("fractionated"))
+  )
+
+  expect_identical(result$params$preset_used, "fractionated")
 })
 
 test_that("evaluate_digest peptides matches direct digest_protein output", {

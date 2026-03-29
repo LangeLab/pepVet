@@ -150,7 +150,8 @@ test_that("score_peptides returns the documented schema without proteome", {
       "S_charge",
       "composite_score",
       "verdict",
-      "median_peptide_length"
+      "median_peptide_length",
+      "preset_used"
     )
   )
   expect_type(result$protein_id, "character")
@@ -162,7 +163,9 @@ test_that("score_peptides returns the documented schema without proteome", {
   expect_type(result$composite_score, "double")
   expect_type(result$verdict, "character")
   expect_type(result$median_peptide_length, "double")
+  expect_type(result$preset_used, "character")
   expect_false(anyNA(result))
+  expect_identical(result$preset_used, "standard")
 })
 
 test_that("score_peptides includes S_unique in proteome-aware mode", {
@@ -188,10 +191,12 @@ test_that("score_peptides includes S_unique in proteome-aware mode", {
       "S_unique",
       "composite_score",
       "verdict",
-      "median_peptide_length"
+      "median_peptide_length",
+      "preset_used"
     )
   )
   expect_identical(result$S_unique, 0.5)
+  expect_identical(result$preset_used, "custom")
 })
 
 test_that("score_peptides returns the digest-derived median peptide length", {
@@ -247,6 +252,7 @@ test_that("presets can be applied directly to evaluate_digest", {
 
   expect_s3_class(standard_result$scores, "tbl_df")
   expect_identical(standard_result$scores$median_peptide_length, 7)
+  expect_identical(standard_result$scores$preset_used, "standard")
   expect_false("pI" %in% names(standard_result$scores))
 })
 
@@ -261,6 +267,7 @@ test_that("fractionated preset enables peptide pI annotation", {
   expect_type(result$scores$pI, "list")
   expect_true(length(result$scores$pI[[1]]) > 0L)
   expect_type(unname(result$scores$pI[[1]]), "double")
+  expect_identical(result$scores$preset_used, "fractionated")
 })
 
 test_that("score_peptides can append peptide pI values without affecting scores", {
@@ -272,6 +279,17 @@ test_that("score_peptides can append peptide pI values without affecting scores"
   expect_true("pI" %in% names(with_pi))
   expect_type(with_pi$pI, "list")
   expect_identical(names(with_pi$pI[[1]]), c("PEPTIDEK", "AAAAAAAR"))
+  expect_identical(with_pi$preset_used, "fractionated")
+})
+
+test_that("preset_used falls back to custom when weights do not match a named preset", {
+  digest_result <- make_digest_result(c("PEPTIDEK", "AAAAAAAR"))
+  custom_result <- score_peptides(
+    digest_result,
+    weights = c(S_length = 0.30, S_coverage = 0.20, S_count = 0.20, S_hydro = 0.15, S_charge = 0.15)
+  )
+
+  expect_identical(custom_result$preset_used, "custom")
 })
 
 test_that("score_peptides falls back to enzyme-class expected lengths", {
@@ -321,7 +339,7 @@ test_that("component scores stay bounded on the reference grid", {
       score_result <- score_peptides(digest_result, enzyme = enzyme)
       numeric_columns <- setdiff(
         names(score_result),
-        c("protein_id", "verdict", "median_peptide_length")
+        c("protein_id", "verdict", "median_peptide_length", "preset_used")
       )
       numeric_scores <- unlist(score_result[numeric_columns])
 

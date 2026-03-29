@@ -366,6 +366,49 @@ pepvet_preset <- function(type = "standard") {
   preset
 }
 
+.same_numeric_values <- function(x, y, tolerance = 1e-8) {
+  isTRUE(all.equal(as.numeric(x), as.numeric(y), tolerance = tolerance))
+}
+
+.same_named_weights <- function(x, y, tolerance = 1e-8) {
+  identical(names(x), names(y)) && .same_numeric_values(x, y, tolerance = tolerance)
+}
+
+.identify_preset_used <- function(gravy_range,
+                                  length_range,
+                                  weights,
+                                  include_pI,
+                                  has_proteome) {
+  matched_presets <- vapply(
+    names(.pepvet_presets),
+    function(preset_name) {
+      preset <- .pepvet_presets[[preset_name]]
+      effective_weights <- tryCatch(
+        .validate_weights(preset$weights, has_proteome),
+        pepvet_error_invalid_weights = function(error) NULL
+      )
+
+      if (is.null(effective_weights)) {
+        return(FALSE)
+      }
+
+      identical(.validate_length_range(preset$length_range), length_range) &&
+        .same_numeric_values(.validate_gravy_range(preset$gravy_range), gravy_range) &&
+        .same_named_weights(effective_weights, weights) &&
+        identical(.validate_include_pI(preset$include_pI), include_pI)
+    },
+    logical(1)
+  )
+
+  matches <- names(.pepvet_presets)[matched_presets]
+
+  if (length(matches) == 1L) {
+    return(matches)
+  }
+
+  "custom"
+}
+
 .build_proteome_index <- function(proteome_digests) {
   index <- new.env(hash = TRUE, parent = emptyenv())
 

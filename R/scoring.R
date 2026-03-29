@@ -355,11 +355,13 @@
 #'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`,
 #'   `S_charge`,
 #'   optional `S_unique`, plus `composite_score`, `verdict`, and
-#'   `median_peptide_length`. The `median_peptide_length` column records the
-#'   digest-level denominator used in the enzyme-aware `S_count` calculation.
-#'   When `include_pI = TRUE`, the output also includes a `pI` list column with
-#'   one named numeric vector per protein, storing valid-peptide pI values keyed
-#'   by peptide sequence.
+#'   `median_peptide_length`, and `preset_used`. The
+#'   `median_peptide_length` column records the digest-level denominator used in
+#'   the enzyme-aware `S_count` calculation. The `preset_used` column records
+#'   the named preset whose resolved scoring configuration exactly matches the
+#'   current call, or `"custom"` otherwise. When `include_pI = TRUE`, the
+#'   output also includes a `pI` list column with one named numeric vector per
+#'   protein, storing valid-peptide pI values keyed by peptide sequence.
 #'
 #' @details Valid peptides are defined as peptides with lengths between 7 and
 #'   25 residues inclusive by default, but this window can be changed with
@@ -371,6 +373,18 @@
 #'   capturing extra charge-state richness rather than baseline ionizability.
 #'   Composite verdicts are classified as `Good` for scores >= 0.7,
 #'   `Moderate` for scores >= 0.4, and `Poor` otherwise.
+#'
+#' @section Limitations:
+#' pepVet is a rule-based digest-ranking model, not a peptide detectability
+#' predictor. The verdict thresholds are heuristic, the default and preset
+#' weights are expert priors rather than empirically fit coefficients, and the
+#' scoring windows assume conventional C18 reversed-phase LC with ESI. pepVet
+#' does not model PTMs, chemical labels, chromatographic gradients, or
+#' instrument-specific fragmentation behavior. Composite scores are
+#' interpretable rankings with no physical unit; they are not calibrated
+#' probabilities. Cross-workflow comparisons are only meaningful when the
+#' resolved scoring configuration matches, which is why `preset_used` is
+#' recorded in the output.
 #'
 #' @examples
 #' digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")
@@ -408,6 +422,13 @@ score_peptides <- function(digest_result,
   }
 
   normalized_weights <- .validate_weights(weights, has_proteome)
+  preset_used <- .identify_preset_used(
+    gravy_range = normalized_gravy_range,
+    length_range = normalized_length_range,
+    weights = normalized_weights,
+    include_pI = normalized_include_pI,
+    has_proteome = has_proteome
+  )
   protein_levels <- unique(validated_digest$protein_id)
   protein_groups <- split(
     seq_len(nrow(validated_digest)),
@@ -437,7 +458,8 @@ score_peptides <- function(digest_result,
         list(
           composite_score = composite_score,
           verdict = .classify_verdict(composite_score),
-          median_peptide_length = median_peptide_length
+          median_peptide_length = median_peptide_length,
+          preset_used = preset_used
         )
       )
 

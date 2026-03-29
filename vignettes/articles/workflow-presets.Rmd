@@ -32,6 +32,8 @@ Most digest-scoring tools expose a fixed set of assumptions. Real experiments do
 
 That keeps the scoring logic explicit and easy to modify.
 
+`score_peptides()` records the resolved workflow label in `preset_used`. When a call exactly matches one of pepVet's shipped presets, that preset name is reported. Otherwise the call is marked `"custom"`.
+
 ## Available presets
 
 ```{r list-standard}
@@ -142,6 +144,12 @@ The presets are most useful in three situations.
 - You need to explain why a score changed when the workflow changed.
 
 That third case matters in practice. If a membrane target improves only after widening the GRAVY window, the result is interpretable. The score changed because the workflow assumptions changed, not because the package silently drifted.
+
+## Cross-preset interpretation
+
+Do not compare composite scores across different presets as if they were on one universal scale. A `standard` score and a `targeted` score can differ because the weight vector, peptide-length window, and GRAVY window changed, not because the protein became intrinsically better or worse.
+
+Use `preset_used` as a guardrail when you save or compare results. Scores are directly comparable only when the resolved scoring configuration matches.
 
 ## Summary
 

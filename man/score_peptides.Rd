@@ -47,11 +47,13 @@ A tibble with one row per \code{protein_id} and the component score
 columns \code{S_length}, \code{S_coverage}, \code{S_count}, \code{S_hydro},
 \code{S_charge},
 optional \code{S_unique}, plus \code{composite_score}, \code{verdict}, and
-\code{median_peptide_length}. The \code{median_peptide_length} column records the
-digest-level denominator used in the enzyme-aware \code{S_count} calculation.
-When \code{include_pI = TRUE}, the output also includes a \code{pI} list column with
-one named numeric vector per protein, storing valid-peptide pI values keyed
-by peptide sequence.
+\code{median_peptide_length}, and \code{preset_used}. The
+\code{median_peptide_length} column records the digest-level denominator used in
+the enzyme-aware \code{S_count} calculation. The \code{preset_used} column records
+the named preset whose resolved scoring configuration exactly matches the
+current call, or \code{"custom"} otherwise. When \code{include_pI = TRUE}, the
+output also includes a \code{pI} list column with one named numeric vector per
+protein, storing valid-peptide pI values keyed by peptide sequence.
 }
 \description{
 \code{score_peptides()} summarizes a pepVet digest tibble into per-protein scoring
@@ -71,6 +73,20 @@ capturing extra charge-state richness rather than baseline ionizability.
 Composite verdicts are classified as \code{Good} for scores >= 0.7,
 \code{Moderate} for scores >= 0.4, and \code{Poor} otherwise.
 }
+\section{Limitations}{
+
+pepVet is a rule-based digest-ranking model, not a peptide detectability
+predictor. The verdict thresholds are heuristic, the default and preset
+weights are expert priors rather than empirically fit coefficients, and the
+scoring windows assume conventional C18 reversed-phase LC with ESI. pepVet
+does not model PTMs, chemical labels, chromatographic gradients, or
+instrument-specific fragmentation behavior. Composite scores are
+interpretable rankings with no physical unit; they are not calibrated
+probabilities. Cross-workflow comparisons are only meaningful when the
+resolved scoring configuration matches, which is why \code{preset_used} is
+recorded in the output.
+}
+
 \examples{
 digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")
 score_peptides(digest_result)

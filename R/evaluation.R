@@ -31,8 +31,15 @@
 #'     \item{`peptides`}{A tibble from [digest_protein()] with one row per
 #'       peptide.}
 #'     \item{`params`}{A list recording the resolved `enzyme` name,
-#'       `missed_cleavages` count, and `protein_ids` found in the input.}
+#'       `missed_cleavages` count, `protein_ids` found in the input, and the
+#'       resolved `preset_used` label from [score_peptides()].}
 #'   }
+#'
+#' @details `evaluate_digest()` preserves pepVet's scoring metadata so the
+#' returned object can be interpreted honestly outside the immediate scoring
+#' call. In particular, `params$preset_used` records whether the resolved
+#' scoring configuration matches one of pepVet's named presets or should be
+#' treated as `"custom"`.
 #'
 #' @seealso [digest_protein()], [score_peptides()], [compare_digests()],
 #'   [batch_evaluate()]
@@ -42,6 +49,7 @@
 #' result <- evaluate_digest(bsa_path, enzyme = "trypsin")
 #' result$scores
 #' result$params$enzyme
+#' result$params$preset_used
 #' @export
 # nolint start: object_usage_linter.
 evaluate_digest <- function(sequence,
@@ -68,7 +76,8 @@ evaluate_digest <- function(sequence,
     params = list(
       enzyme = .normalize_enzyme(enzyme),
       missed_cleavages = as.integer(missed_cleavages),
-      protein_ids = unique(peptides$protein_id)
+      protein_ids = unique(peptides$protein_id),
+      preset_used = scores$preset_used[[1L]]
     )
   )
 }

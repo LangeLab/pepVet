@@ -9,11 +9,13 @@
 * Added configurable `gravy_range` and `length_range` arguments across the scoring and evaluation helpers.
 * Added `pepvet_preset()` with presets for standard DDA, DIA, targeted assays, membrane proteomics, FFPE-style degraded samples, and fractionated workflows.
 * Clarified that `S_charge` tracks extra internal basic-residue richness, not baseline peptide ionizability.
+* Added `preset_used` metadata to scoring output and `evaluate_digest()` params so named presets and custom scoring configurations can be distinguished explicitly.
 
 ## Documentation
 
 * Rewrote the package website copy, docstrings, README, and articles for `v0.0.4` with detailed workflow guidance and preset-specific examples.
 * Added a dedicated article on workflow presets, including practical examples and use-case notes for each preset.
+* Added scoring-model positioning, evidence-basis, scope, and known-limitations guidance so heuristic and literature-backed assumptions are documented in-package.
 
 ## Site
 

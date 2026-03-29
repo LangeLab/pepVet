@@ -26,6 +26,17 @@ h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 
 The model is intentionally simple. It is designed to expose why a digest looks promising or weak, not to hide the reasoning inside a single opaque number.
 
+## Positioning
+
+pepVet is not a peptide detectability predictor. It does not try to estimate whether a specific peptide will be identified from empirical MS training data. Instead, it ranks the overall suitability of a protein digest for a chosen enzyme-workflow combination.
+
+- ML detectability models learn nonlinear interactions from observed peptide detections.
+- pepVet uses a rule-based multi-criteria decision analysis with explicit, linear weights.
+- ML detectability models output per-peptide probabilities.
+- pepVet outputs per-protein digest-quality rankings.
+
+That means pepVet should be interpreted as a transparent decision-support model for pre-acquisition planning, not as a substitute for peptide-level detectability predictors.
+
 ## Valid peptides
 
 Most pepVet components operate on valid peptides. A peptide is valid if its length falls inside the active `length_range`.
@@ -152,6 +163,8 @@ These presets modify three things together.
 
 That is deliberate. Changing weights alone often hides the fact that the peptide window itself should also change.
 
+`score_peptides()` records the resolved configuration in `preset_used`. When the active GRAVY range, peptide-length range, weights, and pI flag exactly match a shipped preset, the preset name is reported. Otherwise the call is marked `"custom"`. This is a lightweight guard against comparing scores that were generated under different workflow assumptions.
+
 ## Verdict thresholds
 
 pepVet maps the composite score to three labels.
@@ -184,8 +197,16 @@ The current model has several limits.
 - It does not model chromatographic gradients, charge-state envelopes, or instrument-specific fragmentation methods.
 - It uses heuristic windows and thresholds rather than empirically calibrated identification probabilities.
 - It assumes the supplied proteome digest is the relevant comparison space for uniqueness.
+- It assumes the active GRAVY and length windows describe a conventional C18 reversed-phase LC with ESI unless a different preset or custom configuration is supplied.
+- It treats the weight vectors as expert priors, not validated coefficients.
 
 Those limits do not make the score useless. They define what the score is for: digest planning, enzyme ranking, and transparent pre-acquisition triage.
+
+## Scope
+
+pepVet scores are interpretable rankings, not calibrated probabilities. The composite score has no unit. It is most honest when used to rank proteins within one enzyme-workflow configuration.
+
+Cross-preset comparisons are not valid just because the numeric scale looks the same. A `standard` score of `0.75` and a `targeted` score of `0.60` reflect different weight vectors and can answer different questions.
 
 ```{r session-info}
 sessionInfo()

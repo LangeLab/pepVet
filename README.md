@@ -86,18 +86,28 @@ Presets with non-zero `S_unique` weights require a proteome digest. pepVet rejec
 
 pepVet scores each digest with five core components and one optional proteome-aware component.
 
-| Score        | What it measures                                                  | Why it matters                                                               |
-| ------------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `S_length`   | Fraction of peptides inside the active peptide-length window      | Very short and very long peptides lower identification rates                 |
-| `S_coverage` | Fraction of the parent protein covered by valid peptides          | Dark regions weaken protein-level interpretation                             |
-| `S_count`    | Valid peptide count relative to the enzyme-aware expected density | Too few peptides weaken evidence. Too many reflect over-digestion            |
-| `S_hydro`    | Fraction of valid peptides inside the active GRAVY window         | Extreme hydrophobicity or hydrophilicity hurts LC behavior                   |
+| Score        | What it measures                                                       | Why it matters                                                               |
+| ------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `S_length`   | Fraction of peptides inside the active peptide-length window           | Very short and very long peptides lower identification rates                 |
+| `S_coverage` | Fraction of the parent protein covered by valid peptides               | Dark regions weaken protein-level interpretation                             |
+| `S_count`    | Valid peptide count relative to the enzyme-aware expected density      | Too few peptides weaken evidence. Too many reflect over-digestion            |
+| `S_hydro`    | Fraction of valid peptides inside the active GRAVY window              | Extreme hydrophobicity or hydrophilicity hurts LC behavior                   |
 | `S_charge`   | Fraction of valid peptides with at least one non-terminal basic residue | Higher values indicate more opportunities for multi-charge states and richer fragment ion series |
-| `S_unique`   | Fraction of valid peptides unique in a supplied proteome          | Shared peptides weaken protein-level attribution                             |
+| `S_unique`   | Fraction of valid peptides unique in a supplied proteome               | Shared peptides weaken protein-level attribution                             |
 
 `S_charge` does not mean a peptide can or cannot ionize. Tryptic peptides still carry the free N-terminus and often a terminal Lys or Arg. The score is meant to distinguish baseline ionizability from extra internal basic-residue richness, which tends to support higher charge states and richer b/y ion series.
 
 The composite score is a weighted sum. Verdict thresholds remain `Good` at `>= 0.70`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
+
+## Positioning and scope
+
+pepVet is not a peptide detectability predictor. It is a rule-based, multi-criteria digest-ranking model for pre-acquisition planning.
+
+- ML detectability tools estimate per-peptide detection from experimental training data.
+- pepVet ranks per-protein digest quality from an in silico digest and explicit workflow assumptions.
+- pepVet scores are interpretable rankings, not calibrated probabilities.
+
+Cross-workflow comparisons are only meaningful when the resolved scoring configuration matches. `score_peptides()` records this in the `preset_used` column, and `evaluate_digest()` carries the same label in `params$preset_used` so downstream reporting can distinguish named presets from custom scoring setups.
 
 ## Fixtures
 

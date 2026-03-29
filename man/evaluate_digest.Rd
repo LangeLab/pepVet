@@ -45,7 +45,8 @@ protein.}
 \item{\code{peptides}}{A tibble from \code{\link[=digest_protein]{digest_protein()}} with one row per
 peptide.}
 \item{\code{params}}{A list recording the resolved \code{enzyme} name,
-\code{missed_cleavages} count, and \code{protein_ids} found in the input.}
+\code{missed_cleavages} count, \code{protein_ids} found in the input, and the
+resolved \code{preset_used} label from \code{\link[=score_peptides]{score_peptides()}}.}
 }
 }
 \description{
@@ -55,11 +56,19 @@ score table, and the resolved input parameters. Use it when you want a full
 digest object for one protein and one enzyme without manually wiring the two
 lower-level functions together.
 }
+\details{
+\code{evaluate_digest()} preserves pepVet's scoring metadata so the
+returned object can be interpreted honestly outside the immediate scoring
+call. In particular, \code{params$preset_used} records whether the resolved
+scoring configuration matches one of pepVet's named presets or should be
+treated as \code{"custom"}.
+}
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 result <- evaluate_digest(bsa_path, enzyme = "trypsin")
 result$scores
 result$params$enzyme
+result$params$preset_used
 }
 \seealso{
 \code{\link[=digest_protein]{digest_protein()}}, \code{\link[=score_peptides]{score_peptides()}}, \code{\link[=compare_digests]{compare_digests()}},

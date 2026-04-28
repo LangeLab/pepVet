@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support and usage questions
+    url: https://github.com/LangeLab/pepVet/blob/main/SUPPORT.md
+    about: Start here for usage help and where to file different types of requests.
+  - name: Security policy
+    url: https://github.com/LangeLab/pepVet/blob/main/SECURITY.md
+    about: Use the private reporting path for vulnerabilities.

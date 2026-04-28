@@ -1,5 +1,10 @@
 # pepVet
 
+[![R-CMD-check](https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://github.com/LangeLab/pepVet/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/LangeLab/pepVet/actions/workflows/pkgdown.yaml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
+[![Documentation](https://img.shields.io/badge/docs-pkgdown-2C5F8A.svg)](https://langelab.github.io/pepVet/)
+
 pepVet is an R package for proteolytic digest simulation, peptide-set scoring, enzyme comparison, and workflow preset selection for bottom-up proteomics. Give it a protein sequence and an enzyme. It returns peptide coordinates, score components, a ranked comparison, and enough detail to explain why one enzyme is a better starting point than another.
 
 ## What pepVet does
@@ -34,6 +39,18 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 
 remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
 ```
+
+## Documentation and support
+
+- Website: [langelab.github.io/pepVet](https://langelab.github.io/pepVet/)
+- Reference index: [langelab.github.io/pepVet/reference](https://langelab.github.io/pepVet/reference/index.html)
+- Changelog: [NEWS.md](NEWS.md)
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Support policy: [SUPPORT.md](SUPPORT.md)
+
+## Citation
+
+If pepVet contributes to published work, cite the software release metadata in [CITATION.cff](CITATION.cff). GitHub will also surface this citation information automatically in the repository sidebar and citation dialog.
 
 ## Core workflow
 
@@ -157,3 +174,7 @@ The pkgdown site now covers four entry points.
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
+
+## Contributing
+
+Pull requests, bug reports, and documentation fixes are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup and review expectations, and use [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) as the project interaction standard.

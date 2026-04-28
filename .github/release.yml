@@ -1,0 +1,25 @@
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: Digestion and Annotation
+      labels:
+        - digestion
+        - annotations
+        - enzymes
+    - title: Scoring and Evaluation
+      labels:
+        - scoring
+        - evaluation
+        - presets
+    - title: Documentation and Site
+      labels:
+        - documentation
+        - pkgdown
+        - readme
+    - title: Maintenance
+      labels:
+        - maintenance
+        - ci
+        - dependencies

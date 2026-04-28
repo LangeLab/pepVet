@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use pepVet in research, please cite the software using this metadata."
+title: "pepVet"
+version: "0.1.0"
+date-released: 2026-04-28
+type: software
+license: MIT
+url: "https://github.com/LangeLab/pepVet"
+repository-code: "https://github.com/LangeLab/pepVet"
+repository-artifact: "https://github.com/LangeLab/pepVet/releases"
+abstract: "An R package for proteolytic digest simulation, digest scoring, enzyme comparison, and workflow-aware planning in bottom-up proteomics."
+keywords:
+  - proteomics
+  - mass spectrometry
+  - digestion
+  - bioinformatics
+  - R
+authors:
+  - family-names: "Ergin"
+    given-names: "Enes K."
+    email: "eneskemalergin@gmail.com"
+    orcid: "https://orcid.org/0000-0001-9810-7399"

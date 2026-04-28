@@ -8,24 +8,17 @@ pepVet is an R package for proteolytic digest evaluation in proteomics workflows
 
 - Search existing issues and pull requests first.
 - Use the issue templates when they fit.
-- For user questions or setup help, start with [SUPPORT.md](SUPPORT.md).
-- For security-sensitive reports, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+- For security-sensitive reports, contact [eneskemalergin@gmail.com](mailto:eneskemalergin@gmail.com) privately instead of opening a public issue.
 
 ## Development setup
 
-pepVet depends on Bioconductor packages and uses standard R package tooling.
+pepVet depends on Bioconductor packages and uses standard R package tooling. See the README installation section, then install the dev tools:
 
 ```r
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-
-BiocManager::install(c("Biostrings", "IRanges", "S4Vectors", "cleaver"))
-
 install.packages(c("devtools", "roxygen2", "testthat", "pkgdown", "lintr"))
 ```
 
-Then clone the repository and install the package locally.
+Clone the repository and load it locally:
 
 ```r
 devtools::load_all()

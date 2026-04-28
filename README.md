@@ -43,14 +43,16 @@ remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
 ## Documentation and support
 
 - Website: [langelab.github.io/pepVet](https://langelab.github.io/pepVet/)
-- Reference index: [langelab.github.io/pepVet/reference](https://langelab.github.io/pepVet/reference/index.html)
 - Changelog: [NEWS.md](NEWS.md)
-- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Support policy: [SUPPORT.md](SUPPORT.md)
+- Bug reports and questions: [GitHub Issues](https://github.com/LangeLab/pepVet/issues)
 
 ## Citation
 
-If pepVet contributes to published work, cite the software release metadata in [CITATION.cff](CITATION.cff). GitHub will also surface this citation information automatically in the repository sidebar and citation dialog.
+If pepVet contributes to published work, cite the software:
+
+```r
+citation("pepVet")
+```
 
 ## Core workflow
 
@@ -162,19 +164,10 @@ The package ships pinned FASTA fixtures in `inst/extdata/` for regression tests 
 | `P37840_isoforms.fasta`            | Alpha-synuclein isoforms | Proteome-aware uniqueness example                 |
 | `small_proteome_50_proteins.fasta` | 50-protein set           | Batch workflow fixture                            |
 
-## Website content
-
-The pkgdown site now covers four entry points.
-
-- Getting started: the end-to-end pipeline and return shapes
-- Enzyme selection: worked comparisons on real proteins
-- Workflow presets: when to use each preset and how to modify it
-- Scoring model: equations, thresholds, and current limits
-
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
 
 ## Contributing
 
-Pull requests, bug reports, and documentation fixes are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup and review expectations, and use [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) as the project interaction standard.
+Pull requests, bug reports, and documentation fixes are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the review workflow and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.

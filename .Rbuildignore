@@ -23,11 +23,8 @@
 ^\.git/
 ^README\.Rmd$
 ^LICENSE\.md$
-^CITATION\.cff$
 ^CODE_OF_CONDUCT\.md$
 ^CONTRIBUTING\.md$
-^SECURITY\.md$
-^SUPPORT\.md$
 ^data-raw$
 ^data-raw/
 ^_pkgdown\.yml$

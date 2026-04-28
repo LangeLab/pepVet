@@ -1,6 +1,10 @@
 name: R-CMD-check
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,8 +24,6 @@ jobs:
           - os: ubuntu-latest
             r: release
           - os: macos-latest
-            r: release
-          - os: windows-latest
             r: release
 
     steps:

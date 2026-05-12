@@ -130,3 +130,120 @@ test_that("plot_digest_profile errors on missing required columns", {
     class = "pepvet_error_invalid_digest_result"
   )
 })
+
+# ── plot_coverage_map ─────────────────────────────────────────────────────────
+
+# Shared fixture helpers
+.bsa_cs <- function() {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+}
+
+.h3_cs <- function() {
+  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  annotate_cleavage_sites(h3_path, enzyme = "trypsin")
+}
+
+test_that("plot_coverage_map returns a ggplot for BSA / trypsin MC=0", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  p   <- plot_coverage_map(res)
+  expect_s3_class(p, "gg")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_coverage_map returns a ggplot for MC=1 (multi-lane + packing)", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result(mc = 1L)
+  p   <- plot_coverage_map(res)
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_coverage_map: color_by = 'length_class' renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result(mc = 2L)
+  expect_no_error(plot_coverage_map(res, color_by = "length_class"))
+})
+
+test_that("plot_coverage_map: color_by = 'hydrophobicity' renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result(mc = 1L)
+  expect_no_error(plot_coverage_map(res, color_by = "hydrophobicity"))
+})
+
+test_that("plot_coverage_map: cleavage_sites overlay renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result(mc = 1L)
+  cs  <- .bsa_cs()
+  expect_no_error(plot_coverage_map(res, cleavage_sites = cs))
+})
+
+test_that("plot_coverage_map: domains overlay renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  res     <- .bsa_result()
+  domains <- data.frame(
+    name  = c("Domain A", "Domain B"),
+    start = c(1L, 200L),
+    end   = c(150L, 400L),
+    stringsAsFactors = FALSE
+  )
+  expect_no_error(plot_coverage_map(res, domains = domains))
+})
+
+test_that("plot_coverage_map: custom title is accepted", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  p   <- plot_coverage_map(res, title = "My custom title")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_coverage_map: H3.1 short protein renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .h3_result()
+  cs  <- .h3_cs()
+  expect_no_error(plot_coverage_map(res, cleavage_sites = cs))
+})
+
+test_that("plot_coverage_map errors on non-list input", {
+  skip_if_not_installed("ggplot2")
+
+  expect_error(
+    plot_coverage_map("not a list"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_coverage_map errors on multi-protein result", {
+  skip_if_not_installed("ggplot2")
+
+  res   <- .bsa_result()
+  extra <- res$peptides
+  extra$protein_id <- "fake|P99999|FAKE_PROTEIN"
+  res$peptides <- rbind(res$peptides, extra)
+
+  expect_error(
+    plot_coverage_map(res),
+    class = "pepvet_error_multi_protein"
+  )
+})
+
+test_that("plot_coverage_map snapshot: BSA / trypsin MC=1 with cleavage sites", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("vdiffr")
+
+  res <- .bsa_result(mc = 1L)
+  cs  <- .bsa_cs()
+  vdiffr::expect_doppelganger(
+    "coverage_map_bsa_trypsin_mc1",
+    plot_coverage_map(res, cleavage_sites = cs,
+                      title = "BSA – trypsin – MC=1")
+  )
+})

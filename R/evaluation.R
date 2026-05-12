@@ -245,14 +245,11 @@ recommend_enzyme <- function(sequence,
 #' Batch-Evaluate Multiple Proteins
 #'
 #' `batch_evaluate()` calls [evaluate_digest()] independently for each protein
-#' in `sequences` and returns a named list of results. The output for each
-#' protein is bit-identical to calling [evaluate_digest()] on that protein
-#' individually. Use it for small proteomes, panels, or fixture-level quality
-#' assessment before moving to a larger parallel workflow.
-#'
-#' Pass the returned list to [summarize_batch()] for aggregate statistics or
-#' to [triage_proteins()] for a flat per-protein tibble with action
-#' recommendations.
+#' in `sequences` and returns a flat tibble with one row per protein. Columns
+#' include `protein_id`, `protein_length`, all component scores, `composite_score`,
+#' `verdict`, `n_peptides`, `n_valid_peptides`, `median_peptide_length`, and four
+#' sequence-level difficulty flags. Pass the result to [summarize_batch()] for
+#' aggregate statistics or to [triage_proteins()] for action recommendations.
 #'
 #' @param sequences Multi-protein input. Accepts the same forms as
 #'   [digest_protein()]. Must resolve to at least one protein.
@@ -261,16 +258,22 @@ recommend_enzyme <- function(sequence,
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `0L`.
 #' @param include_cleavage_efficiency Logical flag passed to
 #'   [evaluate_digest()] and ultimately [digest_protein()]. When `TRUE`, each
-#'   per-protein peptide table includes a `cleavage_efficiency` column.
+#'   per-protein peptide table includes a `cleavage_efficiency` column (does
+#'   not affect the flat batch tibble columns).
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
-#'   for every protein evaluation.
+#'   for every protein evaluation. When supplied, an `S_unique` column appears
+#'   in the returned tibble.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
 #' @param ... Additional scoring arguments passed to [score_peptides()], such
 #'   as `gravy_range` and `length_range`.
 #'
-#' @return A named list where each element is the result of [evaluate_digest()]
-#'   for the corresponding protein. Names match the `protein_id` values from
-#'   the input.
+#' @return A tibble with one row per protein. Fixed columns:
+#'   `protein_id`, `protein_length`, `n_peptides`, `n_valid_peptides`,
+#'   all available component scores (`S_length`, `S_coverage`, `S_count`,
+#'   `S_hydro`, `S_charge`; `S_unique` when proteome is provided),
+#'   `composite_score`, `verdict`, `median_peptide_length`,
+#'   `flag_short_protein`, `flag_hydrophobic`, `flag_low_complexity`,
+#'   `flag_no_valid_peptides`.
 #'
 #' @seealso [evaluate_digest()], [compare_digests()], [summarize_batch()],
 #'   [triage_proteins()]
@@ -280,9 +283,9 @@ recommend_enzyme <- function(sequence,
 #'   "extdata", "small_proteome_50_proteins.fasta",
 #'   package = "pepVet"
 #' )
-#' results <- batch_evaluate(small_proteome, enzyme = "trypsin")
-#' length(results)
-#' results[[1]]$scores
+#' batch <- batch_evaluate(small_proteome, enzyme = "trypsin")
+#' nrow(batch)
+#' batch[, c("protein_id", "composite_score", "verdict")]
 #' @export
 # nolint start: object_usage_linter.
 batch_evaluate <- function(sequences,
@@ -294,8 +297,8 @@ batch_evaluate <- function(sequences,
                            ...) {
   normalized_input <- .read_input(sequences)
 
-  results <- lapply(seq_along(normalized_input), function(index) {
-    evaluate_digest(
+  rows <- lapply(seq_along(normalized_input), function(index) {
+    ev <- evaluate_digest(
       normalized_input[index],
       enzyme = enzyme,
       missed_cleavages = missed_cleavages,
@@ -304,45 +307,70 @@ batch_evaluate <- function(sequences,
       weights = weights,
       ...
     )
+
+    pid <- names(normalized_input)[index]
+    peps <- ev$peptides
+    scores_row <- ev$scores[1L, , drop = FALSE]
+    flags <- .compute_difficulty_flags(peps)
+
+    score_cols <- intersect(
+      names(scores_row),
+      c(
+        "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+        "S_unique", "composite_score", "verdict", "median_peptide_length"
+      )
+    )
+
+    tibble::as_tibble(c(
+      list(
+        protein_id       = pid,
+        protein_length   = flags$protein_length,
+        n_peptides       = nrow(peps),
+        n_valid_peptides = flags$n_valid_peptides
+      ),
+      as.list(scores_row[score_cols]),
+      list(
+        flag_short_protein     = flags$flag_short_protein,
+        flag_hydrophobic       = flags$flag_hydrophobic,
+        flag_low_complexity    = flags$flag_low_complexity,
+        flag_no_valid_peptides = flags$flag_no_valid_peptides
+      )
+    ))
   })
 
-  names(results) <- names(normalized_input)
-  results
+  tibble::as_tibble(do.call(rbind, rows))
 }
 # nolint end
 
 # ---- Private batch helpers ----
 
 .validate_batch_result <- function(batch_result) {
-  if (!is.list(batch_result) || is.data.frame(batch_result)) {
+  if (!inherits(batch_result, "data.frame")) {
     cli::cli_abort(
-      paste(
-        "{.arg batch_result} must be a named list returned by",
-        "{.fn batch_evaluate}."
-      ),
+      "{.arg batch_result} must be a tibble returned by {.fn batch_evaluate}.",
       class = "pepvet_error_invalid_batch_result"
     )
   }
 
-  if (length(batch_result) == 0L) {
+  if (nrow(batch_result) == 0L) {
     cli::cli_abort(
-      "{.arg batch_result} must contain at least one protein result.",
+      "{.arg batch_result} must contain at least one protein row.",
       class = "pepvet_error_invalid_batch_result"
     )
   }
 
-  required_names <- c("scores", "peptides", "params")
-  well_formed <- vapply(batch_result, function(ev) {
-    is.list(ev) && !is.data.frame(ev) &&
-      all(required_names %in% names(ev))
-  }, logical(1))
+  required_cols <- c(
+    "protein_id", "composite_score", "verdict",
+    "flag_short_protein", "flag_hydrophobic",
+    "flag_low_complexity", "flag_no_valid_peptides"
+  )
+  missing_cols <- setdiff(required_cols, names(batch_result))
 
-  if (!all(well_formed)) {
+  if (length(missing_cols) > 0L) {
     cli::cli_abort(
-      paste(
-        "{.arg batch_result} must be a list where each element is an",
-        "{.fn evaluate_digest} result with {.field scores},",
-        "{.field peptides}, and {.field params}."
+      c(
+        "{.arg batch_result} is missing required columns from {.fn batch_evaluate}.",
+        "i" = paste("Missing:", paste(missing_cols, collapse = ", "))
       ),
       class = "pepvet_error_invalid_batch_result"
     )
@@ -385,43 +413,6 @@ batch_evaluate <- function(sequences,
     flag_hydrophobic      = flag_hydrophobic,
     flag_low_complexity   = flag_low_complexity
   )
-}
-
-.batch_to_flat <- function(batch_result) {
-  rows <- lapply(names(batch_result), function(pid) {
-    ev <- batch_result[[pid]]
-    peps <- ev$peptides
-    scores_row <- ev$scores[1L, , drop = FALSE]
-    flags <- .compute_difficulty_flags(peps)
-
-    score_extract_cols <- intersect(
-      names(scores_row),
-      c(
-        "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
-        "S_unique", "composite_score", "verdict", "median_peptide_length"
-      )
-    )
-
-    row_vals <- c(
-      list(
-        protein_id       = pid,
-        protein_length   = flags$protein_length,
-        n_peptides       = nrow(peps),
-        n_valid_peptides = flags$n_valid_peptides
-      ),
-      as.list(scores_row[score_extract_cols]),
-      list(
-        flag_short_protein     = flags$flag_short_protein,
-        flag_hydrophobic       = flags$flag_hydrophobic,
-        flag_low_complexity    = flags$flag_low_complexity,
-        flag_no_valid_peptides = flags$flag_no_valid_peptides
-      )
-    )
-
-    tibble::as_tibble(row_vals)
-  })
-
-  tibble::as_tibble(do.call(rbind, rows))
 }
 
 #' Summarize a Batch Digest Evaluation
@@ -469,7 +460,7 @@ batch_evaluate <- function(sequences,
 # nolint start: object_usage_linter.
 summarize_batch <- function(batch_result) {
   .validate_batch_result(batch_result)
-  flat <- .batch_to_flat(batch_result)
+  flat <- batch_result
 
   verdict_levels <- c("Good", "Moderate", "Poor")
   counts <- vapply(
@@ -567,7 +558,7 @@ summarize_batch <- function(batch_result) {
 # nolint start: object_usage_linter.
 triage_proteins <- function(batch_result) {
   .validate_batch_result(batch_result)
-  flat <- .batch_to_flat(batch_result)
+  flat <- batch_result
 
   score_cols <- intersect(
     names(flat),

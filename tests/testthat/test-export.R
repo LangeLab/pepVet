@@ -15,20 +15,15 @@ test_that("skyline format returns a tibble with the correct column names", {
   )
 })
 
-test_that("skyline format produces one row per valid peptide per charge state", {
+test_that("charges argument controls the number of rows per valid peptide", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
   valid_count <- sum(bsa_peps$length >= 7L & bsa_peps$length <= 25L)
-  result <- export_peptide_list(bsa_peps, format = "skyline", charges = 2:3)
 
-  expect_equal(nrow(result), valid_count * 2L)
-})
+  result_two   <- export_peptide_list(bsa_peps, format = "skyline", charges = 2:3)
+  result_three <- export_peptide_list(bsa_peps, format = "skyline", charges = 2:4)
 
-test_that("charges argument produces the correct number of rows per peptide", {
-  peps <- digest_protein("MAAAKAAAARAAAAK")
-  valid_count <- sum(peps$length >= 7L & peps$length <= 25L)
-  result <- export_peptide_list(peps, format = "skyline", charges = 2:4)
-
-  expect_equal(nrow(result), valid_count * 3L)
+  expect_equal(nrow(result_two),   valid_count * 2L)
+  expect_equal(nrow(result_three), valid_count * 3L)
 })
 
 test_that("skyline mz values are positive and finite", {
@@ -65,14 +60,15 @@ test_that("skyline format returns empty tibble when no valid peptides exist", {
 
 # ── export_peptide_list - generic ────────────────────────────────────────────
 
-test_that("generic format returns all peptide rows with gravy and valid columns", {
+test_that("generic format returns all rows annotated with gravy, pI, and valid columns", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
   result <- export_peptide_list(bsa_peps, format = "generic")
 
   expect_s3_class(result, "data.frame")
   expect_equal(nrow(result), nrow(bsa_peps))
-  expect_true("gravy" %in% names(result))
-  expect_true("valid" %in% names(result))
+  expect_true(all(c("gravy", "pI", "valid") %in% names(result)))
+  expect_true(all(is.finite(result$gravy)))
+  expect_true(all(is.finite(result$pI)))
 })
 
 test_that("generic valid column matches the length_range filter", {
@@ -83,30 +79,17 @@ test_that("generic valid column matches the length_range filter", {
   expect_equal(result$valid, expected_valid)
 })
 
-test_that("generic gravy values are finite for all peptides", {
-  bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
-  result <- export_peptide_list(bsa_peps, format = "generic")
-
-  expect_true(all(is.finite(result$gravy)))
-})
-
 # ── export_peptide_list - fasta ──────────────────────────────────────────────
 
-test_that("fasta format returns a character vector with > headers", {
-  bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
-  result <- export_peptide_list(bsa_peps, format = "fasta")
-
-  expect_type(result, "character")
-  header_lines <- result[seq(1L, length(result), by = 2L)]
-  expect_true(all(startsWith(header_lines, ">")))
-})
-
-test_that("fasta format returns two lines per valid peptide", {
+test_that("fasta format returns two lines per valid peptide with > headers", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
   valid_count <- sum(bsa_peps$length >= 7L & bsa_peps$length <= 25L)
   result <- export_peptide_list(bsa_peps, format = "fasta")
 
+  expect_type(result, "character")
   expect_equal(length(result), valid_count * 2L)
+  header_lines <- result[seq(1L, length(result), by = 2L)]
+  expect_true(all(startsWith(header_lines, ">")))
 })
 
 test_that("fasta headers encode protein_id and start-end coordinates", {

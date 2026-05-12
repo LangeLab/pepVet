@@ -22,36 +22,43 @@ test_that("evaluate_digest gives the same result as manual pipeline", {
   expect_identical(result$scores, manual_scores)
 })
 
-test_that("batch_evaluate matches individual evaluate_digest calls exactly", {
+test_that("batch_evaluate returns a tibble with one row per protein and required columns", {
   small_path <- reference_fasta("small_proteome_50_proteins.fasta")
   batch <- batch_evaluate(small_path, enzyme = "trypsin")
 
   sequences <- Biostrings::readAAStringSet(small_path)
-
-  for (protein_id in names(sequences)[1:3]) {
-    individual <- evaluate_digest(sequences[protein_id], enzyme = "trypsin")
-    expect_identical(batch[[protein_id]], individual)
-  }
+  expect_s3_class(batch, "tbl_df")
+  expect_equal(nrow(batch), length(sequences))
+  expect_true(
+    all(
+      c(
+        "protein_id", "protein_length", "n_peptides", "n_valid_peptides",
+        "composite_score", "verdict", "median_peptide_length",
+        "flag_short_protein", "flag_hydrophobic",
+        "flag_low_complexity", "flag_no_valid_peptides"
+      ) %in% names(batch)
+    )
+  )
 })
 
-test_that("batch_evaluate works for a single protein", {
+test_that("batch_evaluate composite_score and verdict match evaluate_digest for the same protein", {
   bsa_path <- reference_fasta("P02769.fasta")
-  result <- batch_evaluate(bsa_path, enzyme = "trypsin")
+  batch <- batch_evaluate(bsa_path, enzyme = "trypsin")
+  individual <- evaluate_digest(bsa_path, enzyme = "trypsin")
 
-  expect_length(result, 1L)
-  expect_type(result, "list")
-  expect_s3_class(result[[1]]$scores, "tbl_df")
+  expect_equal(batch$composite_score[[1L]], individual$scores$composite_score)
+  expect_equal(batch$verdict[[1L]], individual$scores$verdict)
 })
 
-test_that("batch_evaluate threads the proteome argument to every evaluation", {
+test_that("batch_evaluate includes S_unique column when proteome is provided", {
   multi_path <- reference_fasta("P37840_isoforms.fasta")
   proteome_digest <- digest_protein(multi_path)
 
-  batch_with_proteome <- batch_evaluate(multi_path, proteome = proteome_digest)
-  batch_no_proteome <- batch_evaluate(multi_path)
+  batch_with <- batch_evaluate(multi_path, proteome = proteome_digest)
+  batch_without <- batch_evaluate(multi_path)
 
-  expect_true("S_unique" %in% names(batch_with_proteome[[1]]$scores))
-  expect_false("S_unique" %in% names(batch_no_proteome[[1]]$scores))
+  expect_true("S_unique" %in% names(batch_with))
+  expect_false("S_unique" %in% names(batch_without))
 })
 
 test_that("evaluate_digest passes include_pI through to score output", {
@@ -257,7 +264,7 @@ test_that("summarize_batch verdict_counts n sums to number of proteins", {
   batch <- batch_evaluate(small_path, enzyme = "trypsin")
   summary <- summarize_batch(batch)
 
-  expect_equal(sum(summary$verdict_counts$n), length(batch))
+  expect_equal(sum(summary$verdict_counts$n), nrow(batch))
 })
 
 test_that("summarize_batch verdict_counts has the three verdict levels", {
@@ -303,16 +310,16 @@ test_that("summarize_batch problem_proteins is a tibble ordered by score", {
   expect_true(all(diff(scores) >= 0))
 })
 
-test_that("summarize_batch rejects a non-list input with a classed error", {
+test_that("summarize_batch rejects a non-tibble input with a classed error", {
   expect_error(
-    summarize_batch("not a list"),
+    summarize_batch("not a tibble"),
     class = "pepvet_error_invalid_batch_result"
   )
 })
 
-test_that("summarize_batch rejects an empty list with a classed error", {
+test_that("summarize_batch rejects an empty tibble with a classed error", {
   expect_error(
-    summarize_batch(list()),
+    summarize_batch(tibble::tibble()),
     class = "pepvet_error_invalid_batch_result"
   )
 })
@@ -343,7 +350,7 @@ test_that("triage_proteins returns one row per protein", {
   batch <- batch_evaluate(small_path, enzyme = "trypsin")
   triaged <- triage_proteins(batch)
 
-  expect_equal(nrow(triaged), length(batch))
+  expect_equal(nrow(triaged), nrow(batch))
 })
 
 test_that("triage_proteins categorizes BSA trypsin (mc=1) as proceed", {

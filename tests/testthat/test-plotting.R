@@ -247,3 +247,102 @@ test_that("plot_coverage_map snapshot: BSA / trypsin MC=1 with cleavage sites", 
                       title = "BSA – trypsin – MC=1")
   )
 })
+
+# ── plot_enzyme_comparison ────────────────────────────────────────────────────
+
+# Shared fixture helper
+.bsa_comparison <- function(enzymes = c("trypsin", "lysc",
+                                        "glutamyl endopeptidase")) {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  compare_digests(bsa_path, enzymes = enzymes)
+}
+
+test_that("plot_enzyme_comparison returns a patchwork object", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  comp <- .bsa_comparison()
+  p    <- plot_enzyme_comparison(comp)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_enzyme_comparison: recommend = FALSE suppresses badge", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  comp <- .bsa_comparison()
+  expect_no_error(plot_enzyme_comparison(comp, recommend = FALSE))
+})
+
+test_that("plot_enzyme_comparison: subset of scores renders without error", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  comp <- .bsa_comparison()
+  expect_no_error(
+    plot_enzyme_comparison(comp, scores = c("S_coverage", "S_count"))
+  )
+})
+
+test_that("plot_enzyme_comparison: custom title is accepted", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  comp <- .bsa_comparison()
+  p    <- plot_enzyme_comparison(comp, title = "My comparison")
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_enzyme_comparison: two-enzyme comparison works", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  comp <- .bsa_comparison(enzymes = c("trypsin", "lysc"))
+  expect_no_error(plot_enzyme_comparison(comp))
+})
+
+test_that("plot_enzyme_comparison errors on non-data.frame input", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  expect_error(
+    plot_enzyme_comparison("not a tibble"),
+    class = "pepvet_error_invalid_comparison"
+  )
+})
+
+test_that("plot_enzyme_comparison errors on missing required columns", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  bad <- data.frame(enzyme = c("a", "b"), foo = 1:2)
+  expect_error(
+    plot_enzyme_comparison(bad),
+    class = "pepvet_error_invalid_comparison"
+  )
+})
+
+test_that("plot_enzyme_comparison errors when fewer than 2 enzymes", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  bad <- data.frame(enzyme = "trypsin", composite_score = 0.6,
+                    S_coverage = 0.8, S_length = 0.7,
+                    S_count = 0.5, S_hydro = 0.6, S_charge = 0.4)
+  expect_error(
+    plot_enzyme_comparison(bad),
+    class = "pepvet_error_invalid_comparison"
+  )
+})
+
+test_that("plot_enzyme_comparison snapshot: BSA 3-enzyme comparison", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+  skip_if_not_installed("vdiffr")
+
+  comp <- .bsa_comparison()
+  vdiffr::expect_doppelganger(
+    "enzyme_comparison_bsa_3",
+    plot_enzyme_comparison(comp, title = "BSA – enzyme comparison")
+  )
+})

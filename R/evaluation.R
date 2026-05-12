@@ -250,6 +250,10 @@ recommend_enzyme <- function(sequence,
 #' individually. Use it for small proteomes, panels, or fixture-level quality
 #' assessment before moving to a larger parallel workflow.
 #'
+#' Pass the returned list to [summarize_batch()] for aggregate statistics or
+#' to [triage_proteins()] for a flat per-protein tibble with action
+#' recommendations.
+#'
 #' @param sequences Multi-protein input. Accepts the same forms as
 #'   [digest_protein()]. Must resolve to at least one protein.
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
@@ -268,7 +272,8 @@ recommend_enzyme <- function(sequence,
 #'   for the corresponding protein. Names match the `protein_id` values from
 #'   the input.
 #'
-#' @seealso [evaluate_digest()], [compare_digests()]
+#' @seealso [evaluate_digest()], [compare_digests()], [summarize_batch()],
+#'   [triage_proteins()]
 #'
 #' @examples
 #' small_proteome <- system.file(
@@ -303,5 +308,301 @@ batch_evaluate <- function(sequences,
 
   names(results) <- names(normalized_input)
   results
+}
+# nolint end
+
+# ---- Private batch helpers ----
+
+.validate_batch_result <- function(batch_result) {
+  if (!is.list(batch_result) || is.data.frame(batch_result)) {
+    cli::cli_abort(
+      paste(
+        "{.arg batch_result} must be a named list returned by",
+        "{.fn batch_evaluate}."
+      ),
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  if (length(batch_result) == 0L) {
+    cli::cli_abort(
+      "{.arg batch_result} must contain at least one protein result.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  required_names <- c("scores", "peptides", "params")
+  well_formed <- vapply(batch_result, function(ev) {
+    is.list(ev) && !is.data.frame(ev) &&
+      all(required_names %in% names(ev))
+  }, logical(1))
+
+  if (!all(well_formed)) {
+    cli::cli_abort(
+      paste(
+        "{.arg batch_result} must be a list where each element is an",
+        "{.fn evaluate_digest} result with {.field scores},",
+        "{.field peptides}, and {.field params}."
+      ),
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  batch_result
+}
+
+.compute_difficulty_flags <- function(peptides) {
+  protein_length <- max(peptides$end)
+  valid_mask <- peptides$length >= 7L & peptides$length <= 25L
+  n_valid <- sum(valid_mask)
+  valid_peps <- peptides[valid_mask, , drop = FALSE]
+
+  flag_short_protein <- protein_length < 100L
+  flag_no_valid_peptides <- n_valid == 0L
+
+  flag_hydrophobic <- if (n_valid > 0L) {
+    gravy_vals <- vapply(valid_peps$peptide, .calculate_gravy, numeric(1))
+    stats::median(gravy_vals) > 0.6
+  } else {
+    FALSE
+  }
+
+  mc0_peps <- peptides[peptides$missed_cleavages == 0L, , drop = FALSE]
+  mc0_peps <- mc0_peps[order(mc0_peps$start), , drop = FALSE]
+  protein_seq <- paste(mc0_peps$peptide, collapse = "")
+  flag_low_complexity <- if (nchar(protein_seq) > 0L) {
+    aa_counts <- table(strsplit(protein_seq, "", fixed = TRUE)[[1]])
+    max(aa_counts) / sum(aa_counts) > 0.5
+  } else {
+    FALSE
+  }
+
+  list(
+    protein_length        = protein_length,
+    n_valid_peptides      = n_valid,
+    flag_short_protein    = flag_short_protein,
+    flag_no_valid_peptides = flag_no_valid_peptides,
+    flag_hydrophobic      = flag_hydrophobic,
+    flag_low_complexity   = flag_low_complexity
+  )
+}
+
+.batch_to_flat <- function(batch_result) {
+  rows <- lapply(names(batch_result), function(pid) {
+    ev <- batch_result[[pid]]
+    peps <- ev$peptides
+    scores_row <- ev$scores[1L, , drop = FALSE]
+    flags <- .compute_difficulty_flags(peps)
+
+    score_extract_cols <- intersect(
+      names(scores_row),
+      c(
+        "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+        "S_unique", "composite_score", "verdict", "median_peptide_length"
+      )
+    )
+
+    row_vals <- c(
+      list(
+        protein_id       = pid,
+        protein_length   = flags$protein_length,
+        n_peptides       = nrow(peps),
+        n_valid_peptides = flags$n_valid_peptides
+      ),
+      as.list(scores_row[score_extract_cols]),
+      list(
+        flag_short_protein     = flags$flag_short_protein,
+        flag_hydrophobic       = flags$flag_hydrophobic,
+        flag_low_complexity    = flags$flag_low_complexity,
+        flag_no_valid_peptides = flags$flag_no_valid_peptides
+      )
+    )
+
+    tibble::as_tibble(row_vals)
+  })
+
+  tibble::as_tibble(do.call(rbind, rows))
+}
+
+#' Summarize a Batch Digest Evaluation
+#'
+#' `summarize_batch()` extracts aggregate statistics from a [batch_evaluate()]
+#' result list. It returns a named list covering verdict distribution, score
+#' distribution, per-component averages, the lowest-scoring proteins, and a
+#' heuristic set of enzyme-switch candidates.
+#'
+#' @param batch_result A named list returned by [batch_evaluate()].
+#'
+#' @return A named list with five elements:
+#'   \describe{
+#'     \item{`verdict_counts`}{A tibble with columns `verdict`, `n`, and `pct`
+#'       covering the three verdict categories.}
+#'     \item{`score_distribution`}{A named numeric vector with `mean`,
+#'       `median`, `sd`, `q25`, `q75`, `min`, and `max` of composite scores.}
+#'     \item{`component_summary`}{A named numeric vector of per-component mean
+#'       scores. The lowest values identify the weakest scoring dimension
+#'       across the proteome.}
+#'     \item{`problem_proteins`}{A tibble of proteins in the bottom 10% by
+#'       composite score, ordered ascending, with all score and flag columns.}
+#'     \item{`enzyme_switch_candidates`}{A tibble of Moderate or Poor proteins
+#'       where `flag_hydrophobic` or `flag_short_protein` is `TRUE`, indicating
+#'       that enzyme or preset choice is the likely limiting factor.}
+#'   }
+#'
+#' @details `enzyme_switch_candidates` is a heuristic flag list derived from
+#'   sequence-level difficulty flags, not from running alternative enzymes.
+#'   Use [compare_digests()] to confirm whether a specific alternative enzyme
+#'   improves the verdict for a flagged protein.
+#'
+#' @seealso [batch_evaluate()], [triage_proteins()]
+#'
+#' @examples
+#' small_path <- system.file(
+#'   "extdata", "small_proteome_50_proteins.fasta",
+#'   package = "pepVet"
+#' )
+#' batch <- batch_evaluate(small_path, enzyme = "trypsin")
+#' summary <- summarize_batch(batch)
+#' summary$verdict_counts
+#' summary$component_summary
+#' @export
+# nolint start: object_usage_linter.
+summarize_batch <- function(batch_result) {
+  .validate_batch_result(batch_result)
+  flat <- .batch_to_flat(batch_result)
+
+  verdict_levels <- c("Good", "Moderate", "Poor")
+  counts <- vapply(
+    verdict_levels,
+    function(v) sum(flat$verdict == v),
+    integer(1)
+  )
+  verdict_counts <- tibble::tibble(
+    verdict = verdict_levels,
+    n       = counts,
+    pct     = round(counts / nrow(flat) * 100, 1)
+  )
+
+  scores <- flat$composite_score
+  score_distribution <- c(
+    mean   = mean(scores),
+    median = stats::median(scores),
+    sd     = stats::sd(scores),
+    q25    = stats::quantile(scores, 0.25, names = FALSE),
+    q75    = stats::quantile(scores, 0.75, names = FALSE),
+    min    = min(scores),
+    max    = max(scores)
+  )
+
+  score_cols <- intersect(
+    names(flat),
+    c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge", "S_unique")
+  )
+  component_summary <- vapply(flat[score_cols], mean, numeric(1))
+
+  threshold <- stats::quantile(flat$composite_score, 0.1, names = FALSE)
+  problem_mask <- flat$composite_score <= threshold
+  problem_proteins <- flat[problem_mask, , drop = FALSE]
+  problem_proteins <- problem_proteins[
+    order(problem_proteins$composite_score), , drop = FALSE
+  ]
+
+  switch_mask <- flat$verdict %in% c("Moderate", "Poor") &
+    (flat$flag_hydrophobic | flat$flag_short_protein)
+  keep_cols <- intersect(
+    names(flat),
+    c(
+      "protein_id", "verdict", "composite_score",
+      "flag_hydrophobic", "flag_short_protein"
+    )
+  )
+  enzyme_switch_candidates <- flat[switch_mask, keep_cols, drop = FALSE]
+
+  list(
+    verdict_counts           = verdict_counts,
+    score_distribution       = score_distribution,
+    component_summary        = component_summary,
+    problem_proteins         = problem_proteins,
+    enzyme_switch_candidates = enzyme_switch_candidates
+  )
+}
+# nolint end
+
+#' Triage Proteins from a Batch Evaluation
+#'
+#' `triage_proteins()` converts a [batch_evaluate()] result list into a flat
+#' per-protein tibble and appends an `action` column with deterministic
+#' recommendations based on each protein's verdict and difficulty flags.
+#'
+#' @param batch_result A named list returned by [batch_evaluate()].
+#'
+#' @return A tibble with one row per protein containing all score and flag
+#'   columns from the flat batch summary, plus an `action` column. Possible
+#'   values:
+#'   \describe{
+#'     \item{`"proceed"`}{Good verdict. No intervention indicated.}
+#'     \item{`"consider_alternative"`}{Moderate verdict with at least one
+#'       component score below 0.5. A preset change or missed-cleavage
+#'       adjustment may improve results.}
+#'     \item{`"try_other_enzyme"`}{Moderate or Poor verdict with
+#'       `flag_hydrophobic` or `flag_short_protein`, or any Poor verdict
+#'       without an intrinsic complexity flag. An alternative enzyme is the
+#'       most likely improvement path.}
+#'     \item{`"skip"`}{No valid peptides or low-complexity sequence. No
+#'       standard enzyme choice is expected to substantially improve the
+#'       score.}
+#'   }
+#'
+#' @seealso [batch_evaluate()], [summarize_batch()]
+#'
+#' @examples
+#' small_path <- system.file(
+#'   "extdata", "small_proteome_50_proteins.fasta",
+#'   package = "pepVet"
+#' )
+#' batch <- batch_evaluate(small_path, enzyme = "trypsin")
+#' triaged <- triage_proteins(batch)
+#' table(triaged$action)
+#' @export
+# nolint start: object_usage_linter.
+triage_proteins <- function(batch_result) {
+  .validate_batch_result(batch_result)
+  flat <- .batch_to_flat(batch_result)
+
+  score_cols <- intersect(
+    names(flat),
+    c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge", "S_unique")
+  )
+
+  action <- vapply(seq_len(nrow(flat)), function(i) {
+    row <- flat[i, , drop = FALSE]
+    verdict <- row$verdict
+
+    if (identical(verdict, "Good")) {
+      return("proceed")
+    }
+
+    if (isTRUE(row$flag_no_valid_peptides) ||
+          isTRUE(row$flag_low_complexity)) {
+      return("skip")
+    }
+
+    if (isTRUE(row$flag_hydrophobic) || isTRUE(row$flag_short_protein)) {
+      return("try_other_enzyme")
+    }
+
+    if (identical(verdict, "Poor")) {
+      return("try_other_enzyme")
+    }
+
+    component_vals <- unlist(row[score_cols])
+    if (any(component_vals < 0.5, na.rm = TRUE)) {
+      return("consider_alternative")
+    }
+
+    "consider_alternative"
+  }, character(1))
+
+  tibble::add_column(flat, action = action)
 }
 # nolint end

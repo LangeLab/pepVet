@@ -234,3 +234,147 @@ test_that("empty AAStringSet in batch_evaluate raises a classed error", {
     class = "pepvet_error_invalid_input"
   )
 })
+
+# ── summarize_batch ─────────────────────────────────────────────────────────
+
+test_that("summarize_batch returns a list with expected element names", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  summary <- summarize_batch(batch)
+
+  expect_type(summary, "list")
+  expect_setequal(
+    names(summary),
+    c(
+      "verdict_counts", "score_distribution", "component_summary",
+      "problem_proteins", "enzyme_switch_candidates"
+    )
+  )
+})
+
+test_that("summarize_batch verdict_counts n sums to number of proteins", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  summary <- summarize_batch(batch)
+
+  expect_equal(sum(summary$verdict_counts$n), length(batch))
+})
+
+test_that("summarize_batch verdict_counts has the three verdict levels", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  batch <- batch_evaluate(bsa_path, enzyme = "trypsin")
+  summary <- summarize_batch(batch)
+
+  expect_equal(summary$verdict_counts$verdict, c("Good", "Moderate", "Poor"))
+})
+
+test_that("summarize_batch score_distribution has expected statistic names", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  summary <- summarize_batch(batch)
+
+  expect_named(
+    summary$score_distribution,
+    c("mean", "median", "sd", "q25", "q75", "min", "max")
+  )
+  expect_true(all(is.finite(summary$score_distribution)))
+})
+
+test_that("summarize_batch component_summary contains the five core components", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  batch <- batch_evaluate(bsa_path, enzyme = "trypsin")
+  summary <- summarize_batch(batch)
+
+  expect_true(
+    all(
+      c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge") %in%
+        names(summary$component_summary)
+    )
+  )
+})
+
+test_that("summarize_batch problem_proteins is a tibble ordered by score", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  summary <- summarize_batch(batch)
+
+  expect_s3_class(summary$problem_proteins, "tbl_df")
+  scores <- summary$problem_proteins$composite_score
+  expect_true(all(diff(scores) >= 0))
+})
+
+test_that("summarize_batch rejects a non-list input with a classed error", {
+  expect_error(
+    summarize_batch("not a list"),
+    class = "pepvet_error_invalid_batch_result"
+  )
+})
+
+test_that("summarize_batch rejects an empty list with a classed error", {
+  expect_error(
+    summarize_batch(list()),
+    class = "pepvet_error_invalid_batch_result"
+  )
+})
+
+# ── triage_proteins ─────────────────────────────────────────────────────────
+
+test_that("triage_proteins returns a tibble with an action column", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  triaged <- triage_proteins(batch)
+
+  expect_s3_class(triaged, "tbl_df")
+  expect_true("action" %in% names(triaged))
+})
+
+test_that("triage_proteins action values are from the expected set", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  triaged <- triage_proteins(batch)
+
+  valid_actions <- c("proceed", "consider_alternative",
+                     "try_other_enzyme", "skip")
+  expect_true(all(triaged$action %in% valid_actions))
+})
+
+test_that("triage_proteins returns one row per protein", {
+  small_path <- reference_fasta("small_proteome_50_proteins.fasta")
+  batch <- batch_evaluate(small_path, enzyme = "trypsin")
+  triaged <- triage_proteins(batch)
+
+  expect_equal(nrow(triaged), length(batch))
+})
+
+test_that("triage_proteins categorizes BSA trypsin (mc=1) as proceed", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  batch <- batch_evaluate(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+  triaged <- triage_proteins(batch)
+
+  expect_equal(triaged$action[[1]], "proceed")
+})
+
+test_that("triage_proteins categorizes Histone H3.1 trypsin as try_other_enzyme", {
+  h3_path <- reference_fasta("P68431.fasta")
+  batch <- batch_evaluate(h3_path, enzyme = "trypsin")
+  triaged <- triage_proteins(batch)
+
+  expect_equal(triaged$action[[1]], "try_other_enzyme")
+})
+
+test_that("triage_proteins flat tibble contains expected score columns", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  batch <- batch_evaluate(bsa_path, enzyme = "trypsin")
+  triaged <- triage_proteins(batch)
+
+  expect_true(
+    all(
+      c(
+        "protein_id", "protein_length", "n_peptides", "n_valid_peptides",
+        "composite_score", "verdict",
+        "flag_short_protein", "flag_hydrophobic",
+        "flag_low_complexity", "flag_no_valid_peptides"
+      ) %in% names(triaged)
+    )
+  )
+})

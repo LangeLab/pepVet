@@ -47,6 +47,11 @@ protein is bit-identical to calling \code{\link[=evaluate_digest]{evaluate_diges
 individually. Use it for small proteomes, panels, or fixture-level quality
 assessment before moving to a larger parallel workflow.
 }
+\details{
+Pass the returned list to \code{\link[=summarize_batch]{summarize_batch()}} for aggregate statistics or
+to \code{\link[=triage_proteins]{triage_proteins()}} for a flat per-protein tibble with action
+recommendations.
+}
 \examples{
 small_proteome <- system.file(
   "extdata", "small_proteome_50_proteins.fasta",
@@ -57,5 +62,6 @@ length(results)
 results[[1]]$scores
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }

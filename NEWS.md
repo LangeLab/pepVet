@@ -1,5 +1,15 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
+# pepVet (development version)
+
+## Batch evaluation, triage, and export
+
+* `batch_evaluate()` docs updated to reference `summarize_batch()` and `triage_proteins()` as the aggregate and triage layer.
+* Added `summarize_batch()` to extract aggregate statistics from a `batch_evaluate()` result: verdict distribution, score distribution, per-component averages, bottom-10% problem proteins, and heuristic enzyme-switch candidates.
+* Added `triage_proteins()` to convert a `batch_evaluate()` result into a flat per-protein tibble with an `action` column (`"proceed"`, `"consider_alternative"`, `"try_other_enzyme"`, `"skip"`) derived from verdict and sequence-level difficulty flags.
+* Added `pepvet_check()` as a single-call convenience wrapper that evaluates a digest and immediately prints a styled console report.
+* Added `export_peptide_list()` in a new `R/export.R` module. Exports valid peptides in `"skyline"` (precursor-charge CSV for Skyline import), `"generic"` (annotated CSV with GRAVY and validity), or `"fasta"` format. Writes to a file when `file` is specified; returns a tibble or character vector otherwise.
+
 # pepVet 0.1.0
 
 ## Digestion and annotations

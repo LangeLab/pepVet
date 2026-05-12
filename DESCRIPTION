@@ -1,7 +1,7 @@
 Package: pepVet
 Type: Package
 Title: Evaluate Proteolytic Digests for Proteomics Workflows
-Version: 0.1.0
+Version: 0.1.1
 Authors@R:
     person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"))
 Description: Simulates proteolytic digestion, scores the resulting peptides
@@ -39,4 +39,4 @@ biocViews: Proteomics, MassSpectrometry, QualityControl
 Encoding: UTF-8
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.0.0

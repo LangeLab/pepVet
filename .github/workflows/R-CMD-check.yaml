@@ -12,7 +12,6 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  RENV_CONFIG_AUTOLOADER_ENABLED: FALSE
 
 jobs:
   R-CMD-check:
@@ -22,9 +21,9 @@ jobs:
       matrix:
         config:
           - os: ubuntu-latest
-            r: release
+            r: "4.6"
           - os: macos-latest
-            r: release
+            r: "4.6"
 
     steps:
       - uses: actions/checkout@v4

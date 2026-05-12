@@ -23,5 +23,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Enes K. Ergin \email{eneskemalergin@gmail.com}
 
+Authors:
+\itemize{
+  \item Enes K. Ergin \email{eneskemalergin@gmail.com}
+}
+
 }
 \keyword{internal}

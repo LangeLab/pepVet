@@ -35,14 +35,11 @@ vignettes/*.html
 docs/
 *.BiocCheck/
 
-# Dependency management
-renv/library/
-renv/local/
-renv/staging/
-renv/python/
-renv/cache/
+# Dependency management (pak cache - never commit)
+~/.cache/R/pak/
 
-# Legacy dependency managers
+# Legacy dependency managers (renv, packrat - not used)
+renv/
 packrat/lib/
 packrat/src/
 

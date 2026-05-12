@@ -193,3 +193,30 @@ digest_report <- function(x, title = NULL) {
   .print_comparison_table(comparison, protein_id = header_text)
   cli::cat_rule()
 }
+
+#' Quick Digest Check for a Single Protein
+#'
+#' `pepvet_check()` is a convenience wrapper that evaluates a protein digest
+#' and immediately prints a styled console report. It is intended for
+#' interactive use and first-time exploration where a single call is more
+#' useful than manually wiring [evaluate_digest()] and [digest_report()].
+#'
+#' @param sequence Protein input. Accepts the same forms as [evaluate_digest()].
+#' @param enzyme Enzyme name. Defaults to `"trypsin"`.
+#' @param ... Additional arguments passed to [evaluate_digest()], such as
+#'   `missed_cleavages`, `include_cleavage_efficiency`, `weights`,
+#'   `gravy_range`, and `length_range`.
+#'
+#' @return The [evaluate_digest()] result list, invisibly.
+#'
+#' @seealso [evaluate_digest()], [digest_report()]
+#'
+#' @examples
+#' bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#' pepvet_check(bsa_path, enzyme = "trypsin")
+#' @export
+pepvet_check <- function(sequence, enzyme = "trypsin", ...) {
+  result <- evaluate_digest(sequence, enzyme = enzyme, ...)
+  digest_report(result)
+  invisible(result)
+}

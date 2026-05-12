@@ -98,3 +98,30 @@ test_that("digest_report rejects invalid input with a classed error", {
     class = "pepvet_error_invalid_report_input"
   )
 })
+
+# ── pepvet_check ──────────────────────────────────────────────────────────────
+
+test_that("pepvet_check returns evaluate_digest result invisibly", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  result <- withVisible(pepvet_check(bsa_path, enzyme = "trypsin"))
+
+  expect_false(result$visible)
+  expect_type(result$value, "list")
+  expect_setequal(names(result$value), c("scores", "peptides", "params"))
+})
+
+test_that("pepvet_check result is identical to evaluate_digest output", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  ev <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  check <- pepvet_check(bsa_path, enzyme = "trypsin")
+
+  expect_identical(check$scores, ev$scores)
+  expect_identical(check$peptides, ev$peptides)
+})
+
+test_that("pepvet_check passes ... arguments through to evaluate_digest", {
+  bsa_path <- reference_fasta("P02769.fasta")
+  result <- pepvet_check(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+
+  expect_equal(result$params$missed_cleavages, 1L)
+})

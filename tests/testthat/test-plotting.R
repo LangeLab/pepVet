@@ -653,3 +653,140 @@ test_that("plot_pI_distribution snapshot: BSA trypsin", {
     plot_pI_distribution(res, title = "BSA – trypsin pI distribution")
   )
 })
+
+
+# ── multi-input: plot_length_distribution ────────────────────────────────────
+
+test_that("plot_length_distribution: named list produces faceted ggplot", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  p <- plot_length_distribution(list(BSA = bsa_res, H3 = h3_res))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_length_distribution: multi-input renders without warnings", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  expect_no_warning(
+    plot_length_distribution(list(BSA = bsa_res, H3 = h3_res))
+  )
+})
+
+# ── multi-input: plot_gravy_landscape ────────────────────────────────────────
+
+test_that("plot_gravy_landscape: named list produces faceted ggplot", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  p <- plot_gravy_landscape(list(BSA = bsa_res, H3 = h3_res))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_gravy_landscape: multi-input renders without warnings", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  expect_no_warning(
+    plot_gravy_landscape(list(BSA = bsa_res, H3 = h3_res))
+  )
+})
+
+# ── multi-input: plot_pI_distribution ────────────────────────────────────────
+
+test_that("plot_pI_distribution: named list produces overlaid density ggplot", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  p <- plot_pI_distribution(list(BSA = bsa_res, H3 = h3_res))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_pI_distribution: multi-input renders without warnings", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  expect_no_warning(
+    plot_pI_distribution(list(BSA = bsa_res, H3 = h3_res))
+  )
+})
+
+# ── plot_protein_comparison ───────────────────────────────────────────────────
+
+test_that("plot_protein_comparison returns ggplot from named list", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  p <- plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_protein_comparison accepts batch_evaluate tibble", {
+  skip_if_not_installed("Biostrings")
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_seq  <- Biostrings::readAAStringSet(bsa_path)
+  h3_seq   <- Biostrings::readAAStringSet(h3_path)
+  batch    <- batch_evaluate(c(bsa_seq, h3_seq), enzyme = "trypsin")
+  p <- plot_protein_comparison(batch)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_protein_comparison: show_verdict = FALSE renders without error", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  expect_no_error(
+    plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
+                            show_verdict = FALSE)
+  )
+})
+
+test_that("plot_protein_comparison: custom title accepted", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  p <- plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
+                                title = "My comparison")
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_protein_comparison: renders without warnings", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  expect_no_warning(
+    plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res))
+  )
+})
+
+test_that("plot_protein_comparison errors on invalid input", {
+  expect_error(
+    plot_protein_comparison("not valid"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_protein_comparison snapshot: BSA vs H3 trypsin", {
+  skip_if_not_installed("vdiffr")
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  vdiffr::expect_doppelganger(
+    "protein_comparison_bsa_h3_trypsin",
+    plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
+                            title = "BSA vs H3.1 — trypsin")
+  )
+})

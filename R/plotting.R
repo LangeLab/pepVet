@@ -2039,6 +2039,13 @@ plot_length_distribution <- function(
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_length_distribution()")
 
+  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  if (.is_named_results_list(result)) {
+    return(.plot_length_distribution_multi(result, length_range = length_range,
+                                           show_density = show_density,
+                                           title = title))
+  }
+
   # ── Accept evaluate_digest() list or a bare peptide data.frame ───────────
   if (is.list(result) && !is.data.frame(result) &&
       all(c("peptides", "params") %in% names(result))) {
@@ -2213,6 +2220,101 @@ plot_length_distribution <- function(
   p
 }
 
+# Private helper: detect a named list of evaluate_digest() results
+.is_named_results_list <- function(x) {
+  is.list(x) && !is.data.frame(x) &&
+    length(x) >= 1L &&
+    !all(c("peptides", "params") %in% names(x)) &&
+    all(vapply(x, function(r)
+      is.list(r) && !is.data.frame(r) &&
+        all(c("peptides", "params") %in% names(r)),
+      logical(1L)))
+}
+
+# Private helper: extract auto-label for a single evaluate_digest result
+.result_label <- function(r) {
+  paste0(.tidy_protein_id(r$params$protein_ids[[1L]]),
+         " / ", r$params$enzyme)
+}
+
+# Private: multi-input length distribution (faceted)
+.plot_length_distribution_multi <- function(results, length_range, show_density, title) {
+  rlang::check_installed("ggplot2", reason = "to use plot_length_distribution()")
+
+  labels <- if (!is.null(names(results))) names(results) else
+    vapply(results, .result_label, character(1L))
+
+  peps_list <- lapply(seq_along(results), function(i) {
+    r   <- results[[i]]
+    lr  <- r$params$length_range %||% length_range
+    df  <- r$peptides
+    df$length_range_lo <- as.integer(lr[[1L]])
+    df$length_range_hi <- as.integer(lr[[2L]])
+    df$.label <- factor(labels[[i]], levels = labels)
+    df
+  })
+  peps <- do.call(rbind, peps_list)
+
+  # Use the first result's range as global default for shading
+  g_lo <- peps_list[[1L]]$length_range_lo[[1L]]
+  g_hi <- peps_list[[1L]]$length_range_hi[[1L]]
+
+  peps$length_class <- factor(
+    ifelse(peps$length < peps$length_range_lo, "Too short",
+      ifelse(peps$length > peps$length_range_hi, "Too long", "Valid")),
+    levels = c("Valid", "Too short", "Too long")
+  )
+  class_colors <- c("Valid" = .pepvet_pal$valid,
+                    "Too short" = .pepvet_pal$too_short,
+                    "Too long"  = .pepvet_pal$too_long)
+
+  x_lo <- max(0L, min(peps$length) - 1L)
+  x_hi <- max(peps$length) + 1L
+
+  auto_title <- title %||% "Peptide length distribution — comparison"
+
+  ggplot2::ggplot(peps, ggplot2::aes(x = .data$length, fill = .data$length_class)) +
+    ggplot2::annotate("rect",
+      xmin = g_lo - 0.5, xmax = g_hi + 0.5,
+      ymin = -Inf, ymax = Inf,
+      fill = .pepvet_pal$shade, alpha = 0.45) +
+    ggplot2::geom_vline(xintercept = g_lo - 0.5,
+      color = .pepvet_pal$good, linewidth = 0.5, linetype = "dashed") +
+    ggplot2::geom_vline(xintercept = g_hi + 0.5,
+      color = .pepvet_pal$poor, linewidth = 0.5, linetype = "dashed") +
+    ggplot2::geom_histogram(binwidth = 1L, color = "white",
+      linewidth = 0.12, alpha = 0.88) +
+    {
+      if (show_density) {
+        ggplot2::stat_density(
+          ggplot2::aes(x = .data$length, y = ggplot2::after_stat(count)),
+          data = peps, geom = "line",
+          color = .pepvet_pal$brand_dark, linewidth = 0.7,
+          adjust = 1.2, inherit.aes = FALSE
+        )
+      }
+    } +
+    ggplot2::facet_wrap(ggplot2::vars(.data$.label), scales = "free_y") +
+    ggplot2::scale_fill_manual(values = class_colors, name = NULL,
+      guide = ggplot2::guide_legend(override.aes = list(alpha = 1, color = NA))) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0L, x_hi + 4L, by = 5L),
+      expand = ggplot2::expansion(add = c(0.5, 1))) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.12))) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi + 1L), clip = "off") +
+    ggplot2::labs(title = auto_title,
+                  x = "Peptide length (aa)", y = "Count") +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      strip.text = ggplot2::element_text(
+        size = 9, face = "bold", color = .pepvet_pal$brand_dark),
+      plot.title = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark)
+    )
+}
+
 
 # ── plot_gravy_landscape ──────────────────────────────────────────────────────
 
@@ -2261,6 +2363,12 @@ plot_gravy_landscape <- function(
 ) {
   rlang::check_installed("ggplot2",   reason = "to use plot_gravy_landscape()")
   rlang::check_installed("patchwork", reason = "to assemble panels in plot_gravy_landscape()")
+
+  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  if (.is_named_results_list(result)) {
+    return(.plot_gravy_landscape_multi(result, length_range = length_range,
+                                       gravy_range = gravy_range, title = title))
+  }
 
   # ── Parse input ───────────────────────────────────────────────────────────
   if (is.list(result) && !is.data.frame(result) &&
@@ -2494,6 +2602,84 @@ plot_gravy_landscape <- function(
     )
 }
 
+# Private: multi-input GRAVY landscape (faceted, no marginals)
+.plot_gravy_landscape_multi <- function(results, length_range, gravy_range, title) {
+  rlang::check_installed("ggplot2", reason = "to use plot_gravy_landscape()")
+
+  labels <- if (!is.null(names(results))) names(results) else
+    vapply(results, .result_label, character(1L))
+
+  peps_list <- lapply(seq_along(results), function(i) {
+    r   <- results[[i]]
+    lr  <- r$params$length_range %||% length_range
+    gr  <- r$params$gravy_range  %||% gravy_range
+    df  <- r$peptides
+    if (!"gravy" %in% names(df) && "peptide" %in% names(df))
+      df$gravy <- vapply(df$peptide, .calculate_gravy, numeric(1L))
+    df$length_lo <- as.integer(lr[[1L]])
+    df$length_hi <- as.integer(lr[[2L]])
+    df$gravy_lo  <- gr[[1L]]
+    df$gravy_hi  <- gr[[2L]]
+    df$.label    <- factor(labels[[i]], levels = labels)
+    df
+  })
+  peps <- do.call(rbind, peps_list)
+
+  g_len_lo <- peps_list[[1L]]$length_lo[[1L]]
+  g_len_hi <- peps_list[[1L]]$length_hi[[1L]]
+  g_grav_lo <- peps_list[[1L]]$gravy_lo[[1L]]
+  g_grav_hi <- peps_list[[1L]]$gravy_hi[[1L]]
+
+  peps$valid_length <- peps$length >= peps$length_lo & peps$length <= peps$length_hi
+  peps$valid_gravy  <- peps$gravy  >= peps$gravy_lo  & peps$gravy  <= peps$gravy_hi
+  peps$class <- factor(
+    ifelse( peps$valid_length &  peps$valid_gravy, "Valid",
+      ifelse(!peps$valid_length &  peps$valid_gravy, "Invalid length",
+        ifelse( peps$valid_length & !peps$valid_gravy, "Invalid GRAVY",
+          "Invalid both"))),
+    levels = c("Valid", "Invalid length", "Invalid GRAVY", "Invalid both")
+  )
+  class_colors <- c("Valid" = .pepvet_pal$valid,
+                    "Invalid length" = .pepvet_pal$too_short,
+                    "Invalid GRAVY"  = .pepvet_pal$moderate,
+                    "Invalid both"   = .pepvet_pal$poor)
+
+  auto_title <- title %||% "GRAVY landscape — comparison"
+
+  ggplot2::ggplot(
+    peps, ggplot2::aes(x = .data$length, y = .data$gravy,
+                       fill = .data$class, color = .data$class)
+  ) +
+    ggplot2::annotate("rect",
+      xmin = g_len_lo - 0.5, xmax = g_len_hi + 0.5,
+      ymin = g_grav_lo, ymax = g_grav_hi,
+      fill = .pepvet_pal$shade, alpha = 0.50, color = NA) +
+    ggplot2::annotate("rect",
+      xmin = g_len_lo - 0.5, xmax = g_len_hi + 0.5,
+      ymin = g_grav_lo, ymax = g_grav_hi,
+      fill = NA, color = .pepvet_pal$good,
+      linewidth = 0.4, linetype = "dashed") +
+    ggplot2::geom_jitter(shape = 21, size = 1.8, stroke = 0.3,
+                         width = 0.2, height = 0, alpha = 0.75) +
+    ggplot2::facet_wrap(ggplot2::vars(.data$.label)) +
+    ggplot2::scale_color_manual(values = class_colors, name = NULL,
+                                guide = "none") +
+    ggplot2::scale_fill_manual(values = class_colors, name = NULL,
+      guide = ggplot2::guide_legend(
+        override.aes = list(shape = 21, size = 3, alpha = 1,
+                            stroke = 0.5, color = "white"))) +
+    ggplot2::labs(title = auto_title,
+                  x = "Peptide length (aa)", y = "GRAVY score") +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      strip.text = ggplot2::element_text(
+        size = 9, face = "bold", color = .pepvet_pal$brand_dark),
+      plot.title = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark)
+    )
+}
+
 
 # ── plot_pI_distribution ──────────────────────────────────────────────────────
 
@@ -2538,6 +2724,14 @@ plot_pI_distribution <- function(
     title               = NULL
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
+
+  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  if (.is_named_results_list(result)) {
+    return(.plot_pI_distribution_multi(result,
+                                       fraction_breaks = fraction_breaks,
+                                       show_fraction_lines = show_fraction_lines,
+                                       title = title))
+  }
 
   # ── Extract pI values ─────────────────────────────────────────────────────
   pI_vals <- if (is.numeric(result)) {
@@ -2712,6 +2906,303 @@ plot_pI_distribution <- function(
       plot.title      = ggplot2::element_text(
         size = 13, face = "bold", color = .pepvet_pal$brand_dark
       )
+    )
+}
+
+# Private: extract pI values from a single evaluate_digest result
+.pI_from_result <- function(r, length_range = c(7L, 25L)) {
+  lr    <- r$params$length_range %||% length_range
+  peps  <- r$peptides
+  valid <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], , drop = FALSE]
+  if (nrow(valid) == 0L || !"peptide" %in% names(valid))
+    return(numeric(0L))
+  as.numeric(calculate_pI(valid$peptide))
+}
+
+# Private: multi-input pI distribution (overlaid density curves)
+.plot_pI_distribution_multi <- function(results, fraction_breaks,
+                                        show_fraction_lines, title) {
+  rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
+
+  labels <- if (!is.null(names(results))) names(results) else
+    vapply(results, .result_label, character(1L))
+
+  pI_list <- lapply(seq_along(results), function(i) {
+    vals <- .pI_from_result(results[[i]])
+    if (length(vals) == 0L) return(NULL)
+    data.frame(pI = vals, .label = factor(labels[[i]], levels = labels),
+               stringsAsFactors = FALSE)
+  })
+  pI_list <- Filter(Negate(is.null), pI_list)
+
+  if (length(pI_list) == 0L) {
+    cli::cli_abort("No pI values found in any of the supplied results.",
+                   class = "pepvet_error_invalid_digest_result")
+  }
+  df <- do.call(rbind, pI_list)
+
+  breaks   <- sort(unique(as.numeric(fraction_breaks)))
+  lo_break <- breaks[[1L]]
+  hi_break <- breaks[[length(breaks)]]
+  x_lo     <- min(c(df$pI, lo_break)) - 0.5
+  x_hi     <- max(c(df$pI, hi_break)) + 0.5
+
+  # Colour palette: one line per protein/enzyme
+  n     <- length(labels)
+  cols  <- grDevices::hcl.colors(n, palette = "Dark 2")
+  names(cols) <- labels
+
+  auto_title <- title %||% "pI distribution — comparison"
+
+  p <- ggplot2::ggplot(df, ggplot2::aes(
+    x = .data$pI, color = .data$.label, fill = .data$.label
+  )) +
+    ggplot2::geom_density(alpha = 0.15, linewidth = 0.8, adjust = 1.2)
+
+  if (isTRUE(show_fraction_lines)) {
+    interior <- breaks[-c(1L, length(breaks))]
+    if (length(interior) > 0L) {
+      p <- p + ggplot2::geom_vline(
+        xintercept = interior,
+        color = .pepvet_pal$separator, linewidth = 0.45, linetype = "dashed"
+      )
+    }
+  }
+
+  p +
+    ggplot2::scale_color_manual(values = cols, name = NULL) +
+    ggplot2::scale_fill_manual( values = cols, name = NULL) +
+    ggplot2::scale_x_continuous(breaks = breaks) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi)) +
+    ggplot2::labs(
+      title = auto_title,
+      x     = "Isoelectric point (pI)",
+      y     = "Density"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      plot.title = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark)
+    )
+}
+
+
+# ── plot_protein_comparison ───────────────────────────────────────────────────
+
+#' Protein Comparison — Component Scores Across Multiple Proteins
+#'
+#' `plot_protein_comparison()` draws a grouped bar chart of component scores
+#' for multiple proteins digested with the same enzyme, allowing direct
+#' side-by-side comparison.  It is the multi-protein mirror of
+#' [plot_enzyme_comparison()].
+#'
+#' @param results A named list of [evaluate_digest()] results (each for a
+#'   different protein, same enzyme), **or** a `batch_evaluate()` tibble.
+#'   List names are used as protein labels; when unnamed the function falls
+#'   back to protein IDs extracted from `result$params`.
+#' @param components Character vector of component score column names to show.
+#'   Defaults to all standard components (`S_length`, `S_coverage`, `S_count`,
+#'   `S_hydro`, `S_charge`) plus `composite_score`.
+#' @param show_verdict Logical.  When `TRUE` (default) a verdict badge is
+#'   drawn above each protein's group.
+#' @param title Optional character string for the plot title.
+#'
+#' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+#'   results  <- list(
+#'     BSA = evaluate_digest(bsa_path, enzyme = "trypsin"),
+#'     H3  = evaluate_digest(h3_path,  enzyme = "trypsin")
+#'   )
+#'   p <- plot_protein_comparison(results)
+#'   print(p)
+#' }
+#'
+#' @seealso [plot_enzyme_comparison()], [evaluate_digest()], [batch_evaluate()]
+#' @export
+plot_protein_comparison <- function(
+    results,
+    components    = c("S_length", "S_coverage", "S_count",
+                      "S_hydro", "S_charge", "composite_score"),
+    show_verdict  = TRUE,
+    title         = NULL
+) {
+  rlang::check_installed("ggplot2", reason = "to use plot_protein_comparison()")
+
+  # ── Parse input ───────────────────────────────────────────────────────────
+  score_df <- if (is.data.frame(results)) {
+    # batch_evaluate() tibble
+    .validate_batch_result(results)
+    results
+  } else if (.is_named_results_list(results)) {
+    labels <- if (!is.null(names(results))) names(results) else
+      vapply(results, .result_label, character(1L))
+    rows <- lapply(seq_along(results), function(i) {
+      s <- results[[i]]$scores[1L, , drop = FALSE]
+      s$protein_label <- labels[[i]]
+      s
+    })
+    do.call(rbind, rows)
+  } else {
+    cli::cli_abort(
+      c(
+        "{.arg results} must be a named list of {.fn evaluate_digest} results or a {.fn batch_evaluate} tibble.",
+        "x" = "Got {.cls {class(results)[[1L]]}}."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if ("protein_label" %in% names(score_df)) {
+    # already set (from named list path above)
+  } else {
+    score_df$protein_label <- vapply(score_df$protein_id, .tidy_protein_id, character(1L))
+  }
+
+  # ── Validate & restrict components ────────────────────────────────────────
+  avail_comps <- intersect(components, names(score_df))
+  if (length(avail_comps) == 0L) {
+    cli::cli_abort("None of the requested component columns were found in the score data.")
+  }
+  components <- avail_comps
+
+  # ── Order proteins by composite_score (descending = best on left) ─────────
+  if ("composite_score" %in% names(score_df)) {
+    ord <- order(score_df$composite_score, decreasing = TRUE)
+    score_df <- score_df[ord, , drop = FALSE]
+  }
+  protein_levels <- score_df$protein_label
+
+  # ── Tidy long format ──────────────────────────────────────────────────────
+  long <- do.call(rbind, lapply(components, function(comp) {
+    data.frame(
+      protein   = factor(score_df$protein_label, levels = protein_levels),
+      component = comp,
+      value     = as.numeric(score_df[[comp]]),
+      stringsAsFactors = FALSE
+    )
+  }))
+  long$component <- factor(long$component, levels = components)
+
+  # ── Verdict annotation data ───────────────────────────────────────────────
+  verdict_df <- NULL
+  if (show_verdict && "verdict" %in% names(score_df)) {
+    verdict_df <- data.frame(
+      protein  = factor(score_df$protein_label, levels = protein_levels),
+      verdict  = score_df$verdict,
+      score    = if ("composite_score" %in% names(score_df)) score_df$composite_score else NA_real_,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  # ── Colors: components get brand palette; composite gets brand_dark ───────
+  n_comps    <- length(components)
+  comp_cols  <- grDevices::hcl.colors(n_comps, palette = "viridis", alpha = 0.85)
+  names(comp_cols) <- components
+  if ("composite_score" %in% names(comp_cols))
+    comp_cols[["composite_score"]] <- .pepvet_pal$brand_dark
+
+  # Verdict label colors
+  verdict_colors <- c(
+    "Good"     = .pepvet_pal$good,
+    "Moderate" = .pepvet_pal$moderate,
+    "Poor"     = .pepvet_pal$poor
+  )
+
+  # ── Threshold lines ───────────────────────────────────────────────────────
+  thresholds <- data.frame(
+    y     = c(0.7, 0.4),
+    color = c(.pepvet_pal$good, .pepvet_pal$moderate),
+    label = c("Good", "Moderate")
+  )
+
+  auto_title <- if (!is.null(title)) {
+    title
+  } else {
+    enzymes <- unique(unlist(lapply(
+      if (is.data.frame(results)) list() else results,
+      function(r) r$params$enzyme
+    )))
+    if (length(enzymes) == 1L)
+      paste0(enzymes, "  \u00b7  Protein comparison")
+    else
+      "Protein comparison"
+  }
+
+  # ── Build plot ────────────────────────────────────────────────────────────
+  p <- ggplot2::ggplot(
+    long, ggplot2::aes(x = .data$protein, y = .data$value,
+                       fill = .data$component)
+  ) +
+    # Threshold reference lines
+    ggplot2::geom_hline(
+      data = thresholds,
+      ggplot2::aes(yintercept = .data$y),
+      color     = thresholds$color,
+      linewidth = 0.5,
+      linetype  = "dashed",
+      inherit.aes = FALSE
+    ) +
+    ggplot2::geom_col(
+      position  = ggplot2::position_dodge(width = 0.85),
+      width     = 0.80,
+      color     = "white",
+      linewidth = 0.15
+    ) +
+    ggplot2::scale_fill_manual(
+      values = comp_cols,
+      name   = NULL,
+      labels = c(
+        S_length        = "Length (S\u2097)",
+        S_coverage      = "Coverage (S\u2099)",
+        S_count         = "Count (S\u2095)",
+        S_hydro         = "Hydrophobicity (S\u02b0)",
+        S_charge        = "Charge (S\u2c)",
+        composite_score = "Composite"
+      )
+    ) +
+    ggplot2::scale_y_continuous(
+      limits = c(0, 1.12),
+      breaks = seq(0, 1, by = 0.2),
+      expand = ggplot2::expansion(mult = c(0, 0))
+    )
+
+  # Verdict badges
+  if (!is.null(verdict_df)) {
+    p <- p + ggplot2::geom_text(
+      data = verdict_df,
+      ggplot2::aes(x = .data$protein, y = 1.06,
+                   label = .data$verdict,
+                   color = .data$verdict),
+      size        = 2.6,
+      fontface    = "bold",
+      inherit.aes = FALSE
+    ) +
+      ggplot2::scale_color_manual(
+        values = verdict_colors, name = NULL, guide = "none"
+      )
+  }
+
+  p +
+    ggplot2::labs(
+      title    = auto_title,
+      subtitle = sprintf("%d proteins  \u00b7  sorted by composite score",
+                         nrow(score_df)),
+      x        = NULL,
+      y        = "Score"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position  = "bottom",
+      axis.text.x      = ggplot2::element_text(
+        angle = 35, hjust = 1, size = 9),
+      plot.title       = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark),
+      plot.subtitle    = ggplot2::element_text(size = 9, color = "#666666")
     )
 }
 

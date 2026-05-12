@@ -2494,3 +2494,224 @@ plot_gravy_landscape <- function(
     )
 }
 
+
+# ── plot_pI_distribution ──────────────────────────────────────────────────────
+
+#' pI Distribution — Histogram of Peptide Isoelectric Points
+#'
+#' `plot_pI_distribution()` draws a histogram of peptide isoelectric points
+#' coloured by SCX fraction bin (e.g., pH 3–4, 4–5, …) to preview
+#' fractionation outcomes.  Vertical boundary lines and per-fraction count
+#' annotations are optionally overlaid.
+#'
+#' @param result Accepted inputs:
+#'   * A named list returned by [evaluate_digest()].  pI values are computed
+#'     automatically from the valid-peptide sequences.
+#'   * A tibble returned by [score_peptides()] with `include_pI = TRUE`
+#'     (contains a `pI` list column).
+#'   * A plain data.frame / tibble with a numeric `pI` column.
+#'   * A bare numeric vector of pI values.
+#' @param fraction_breaks Numeric vector of pH boundary values defining the
+#'   fraction bins.  Defaults to `c(3, 4, 5, 6, 7, 8, 9, 10)`, which produces
+#'   eight bins: `<3`, `3–4`, …, `9–10`, `>10`.
+#' @param show_fraction_lines Logical.  When `TRUE` (default) vertical dashed
+#'   lines are drawn at each interior fraction boundary.
+#' @param title Optional character string for the plot title.
+#'
+#' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   p   <- plot_pI_distribution(res)
+#'   print(p)
+#' }
+#'
+#' @seealso [evaluate_digest()], [score_peptides()], [plot_length_distribution()],
+#'   [plot_gravy_landscape()]
+#' @export
+plot_pI_distribution <- function(
+    result,
+    fraction_breaks     = c(3, 4, 5, 6, 7, 8, 9, 10),
+    show_fraction_lines = TRUE,
+    title               = NULL
+) {
+  rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
+
+  # ── Extract pI values ─────────────────────────────────────────────────────
+  pI_vals <- if (is.numeric(result)) {
+    result[!is.na(result)]
+
+  } else if (is.list(result) && !is.data.frame(result) &&
+             all(c("peptides", "params") %in% names(result))) {
+    # evaluate_digest() list — compute pI for valid peptides
+    peps   <- result$peptides
+    lr     <- result$params$length_range %||% c(7L, 25L)
+    valid  <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], , drop = FALSE]
+    if (nrow(valid) == 0L || !"peptide" %in% names(valid)) {
+      cli::cli_abort(
+        "No valid peptides found in {.arg result} to compute pI values.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+    as.numeric(calculate_pI(valid$peptide))
+
+  } else if (is.data.frame(result)) {
+    if ("pI" %in% names(result) && is.list(result$pI)) {
+      # score_peptides(include_pI = TRUE) — unlist the list column
+      vals <- unlist(result$pI, use.names = FALSE)
+      as.numeric(vals[!is.na(vals)])
+    } else if ("pI" %in% names(result)) {
+      as.numeric(result$pI[!is.na(result$pI)])
+    } else {
+      cli::cli_abort(
+        "{.arg result} data.frame must contain a {.field pI} column.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+
+  } else {
+    cli::cli_abort(
+      c(
+        "{.arg result} must be an {.fn evaluate_digest} list, a {.fn score_peptides} tibble, a data.frame with a {.field pI} column, or a numeric vector.",
+        "x" = "Got {.cls {class(result)[[1L]]}}."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (length(pI_vals) == 0L) {
+    cli::cli_abort("No pI values to plot.", class = "pepvet_error_invalid_digest_result")
+  }
+
+  # ── Fraction bins ─────────────────────────────────────────────────────────
+  breaks   <- sort(unique(as.numeric(fraction_breaks)))
+  lo_break <- breaks[[1L]]
+  hi_break <- breaks[[length(breaks)]]
+
+  # Build label vector: "<lo", "lo–b2", "b2–b3", …, ">hi"
+  bin_labels <- character(length(breaks) + 1L)
+  bin_labels[[1L]] <- sprintf("< %.0f", lo_break)
+  for (i in seq_len(length(breaks) - 1L)) {
+    bin_labels[[i + 1L]] <- sprintf("%.0f\u2013%.0f", breaks[[i]], breaks[[i + 1L]])
+  }
+  bin_labels[[length(bin_labels)]] <- sprintf("> %.0f", hi_break)
+
+  all_breaks <- c(-Inf, breaks, Inf)
+  pI_bin <- cut(pI_vals, breaks = all_breaks, labels = bin_labels,
+                right = TRUE, include.lowest = FALSE)
+
+  df <- data.frame(pI = pI_vals, bin = pI_bin)
+
+  # ── Fraction count annotation data ────────────────────────────────────────
+  bin_counts <- as.integer(table(pI_bin))
+  n_bins     <- length(bin_labels)
+
+  # Mid-x for each label: for <lo and >hi, place 1 unit outside; for intervals, mid-point
+  bin_mids <- numeric(n_bins)
+  bin_mids[[1L]] <- lo_break - 1
+  for (i in seq_len(length(breaks) - 1L)) {
+    bin_mids[[i + 1L]] <- (breaks[[i]] + breaks[[i + 1L]]) / 2
+  }
+  bin_mids[[n_bins]] <- hi_break + 1
+
+  ann_df <- data.frame(
+    pI    = bin_mids,
+    count = bin_counts,
+    bin   = factor(bin_labels, levels = bin_labels),
+    label = ifelse(bin_counts == 0L, "", as.character(bin_counts))
+  )
+
+  # ── Colours: viridis-based sequential across bins ─────────────────────────
+  n_colours <- n_bins
+  # Use a hand-picked sequential palette that works with the pepVet brand
+  # Acidic (low pI) → cool blues; basic (high pI) → warm orange-reds
+  viridis_cols <- grDevices::hcl.colors(n_colours, palette = "viridis", alpha = 0.85)
+
+  # ── Auto title ────────────────────────────────────────────────────────────
+  auto_title <- if (!is.null(title)) {
+    title
+  } else if (is.list(result) && !is.data.frame(result) &&
+             "params" %in% names(result)) {
+    pid    <- result$params$protein_ids[[1L]]
+    enzyme <- result$params$enzyme
+    paste0(.tidy_protein_id(pid), "  \u00b7  ", enzyme, "  \u00b7  pI distribution")
+  } else {
+    "pI distribution"
+  }
+
+  x_lo <- min(c(pI_vals, lo_break)) - 0.5
+  x_hi <- max(c(pI_vals, hi_break)) + 0.5
+
+  # ── Build plot ────────────────────────────────────────────────────────────
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$pI, fill = .data$bin)) +
+    ggplot2::geom_histogram(
+      binwidth = 0.25,
+      color    = "white",
+      linewidth = 0.2
+    ) +
+    ggplot2::scale_fill_manual(
+      values = viridis_cols,
+      name   = "SCX fraction",
+      drop   = FALSE
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = breaks,
+      expand = ggplot2::expansion(mult = c(0.01, 0.01))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.12))
+    )
+
+  # Optional fraction boundary lines
+  if (isTRUE(show_fraction_lines)) {
+    interior_breaks <- breaks[-c(1L, length(breaks))]
+    if (length(interior_breaks) > 0L) {
+      p <- p + ggplot2::geom_vline(
+        xintercept = interior_breaks,
+        color      = .pepvet_pal$separator,
+        linewidth  = 0.5,
+        linetype   = "dashed"
+      )
+    }
+  }
+
+  # Per-fraction count annotations (above bars, suppressed for zero-count bins)
+  ann_nonzero <- ann_df[ann_df$count > 0L, , drop = FALSE]
+  if (nrow(ann_nonzero) > 0L) {
+    p <- p + ggplot2::geom_text(
+      data        = ann_nonzero,
+      ggplot2::aes(x = .data$pI, y = Inf, label = .data$label),
+      inherit.aes = FALSE,
+      vjust       = 1.4,
+      size        = 2.7,
+      fontface    = "bold",
+      color       = "#555555"
+    )
+  }
+
+  p +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi), clip = "off") +
+    ggplot2::labs(
+      x     = "Isoelectric point (pI)",
+      y     = "Peptide count",
+      title = auto_title,
+      subtitle = sprintf(
+        "%d peptides  \u00b7  median pI %.2f  \u00b7  range [%.1f, %.1f]",
+        length(pI_vals),
+        stats::median(pI_vals),
+        min(pI_vals),
+        max(pI_vals)
+      )
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "right",
+      plot.subtitle   = ggplot2::element_text(size = 9, color = "#666666"),
+      plot.title      = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark
+      )
+    )
+}
+

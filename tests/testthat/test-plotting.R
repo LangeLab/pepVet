@@ -577,3 +577,79 @@ test_that("plot_gravy_landscape snapshot: BSA trypsin", {
     plot_gravy_landscape(res, title = "BSA – trypsin GRAVY landscape")
   )
 })
+
+
+# ── plot_pI_distribution ──────────────────────────────────────────────────────
+
+test_that("plot_pI_distribution returns a ggplot from evaluate_digest result", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  p   <- plot_pI_distribution(res)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_pI_distribution accepts score_peptides(include_pI=TRUE) tibble", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res    <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  scored <- score_peptides(res$peptides, enzyme = "trypsin", include_pI = TRUE)
+  expect_no_error(plot_pI_distribution(scored))
+})
+
+test_that("plot_pI_distribution accepts data.frame with numeric pI column", {
+  df <- data.frame(pI = c(4.2, 5.7, 6.1, 8.3, 9.5))
+  expect_no_error(plot_pI_distribution(df))
+})
+
+test_that("plot_pI_distribution accepts a bare numeric vector", {
+  expect_no_error(plot_pI_distribution(c(4.2, 5.7, 6.1, 8.3, 9.5)))
+})
+
+test_that("plot_pI_distribution: show_fraction_lines = FALSE renders without error", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  expect_no_error(plot_pI_distribution(res, show_fraction_lines = FALSE))
+})
+
+test_that("plot_pI_distribution: custom fraction_breaks accepted", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  expect_no_error(plot_pI_distribution(res, fraction_breaks = c(4, 6, 8, 10)))
+})
+
+test_that("plot_pI_distribution: custom title is accepted", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  p   <- plot_pI_distribution(res, title = "My pI plot")
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_pI_distribution: H3.1 renders without warnings", {
+  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  res <- evaluate_digest(h3_path, enzyme = "trypsin")
+  expect_no_warning(plot_pI_distribution(res))
+})
+
+test_that("plot_pI_distribution errors on invalid input", {
+  expect_error(
+    plot_pI_distribution("not valid"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_pI_distribution errors when data.frame lacks pI column", {
+  bad <- data.frame(length = c(8L, 12L))
+  expect_error(
+    plot_pI_distribution(bad),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_pI_distribution snapshot: BSA trypsin", {
+  skip_if_not_installed("vdiffr")
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  vdiffr::expect_doppelganger(
+    "pi_dist_bsa_trypsin",
+    plot_pI_distribution(res, title = "BSA – trypsin pI distribution")
+  )
+})

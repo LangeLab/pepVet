@@ -1,14 +1,15 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
-# pepVet (development version)
+# pepVet 0.1.1
 
 ## Batch evaluation, triage, and export
 
-* `batch_evaluate()` docs updated to reference `summarize_batch()` and `triage_proteins()` as the aggregate and triage layer.
-* Added `summarize_batch()` to extract aggregate statistics from a `batch_evaluate()` result: verdict distribution, score distribution, per-component averages, bottom-10% problem proteins, and heuristic enzyme-switch candidates.
-* Added `triage_proteins()` to convert a `batch_evaluate()` result into a flat per-protein tibble with an `action` column (`"proceed"`, `"consider_alternative"`, `"try_other_enzyme"`, `"skip"`) derived from verdict and sequence-level difficulty flags.
-* Added `pepvet_check()` as a single-call convenience wrapper that evaluates a digest and immediately prints a styled console report.
-* Added `export_peptide_list()` in a new `R/export.R` module. Exports valid peptides in `"skyline"` (precursor-charge CSV for Skyline import), `"generic"` (annotated CSV with GRAVY and validity), or `"fasta"` format. Writes to a file when `file` is specified; returns a tibble or character vector otherwise.
+* `batch_evaluate()` now returns a flat tibble with one row per protein instead of a named list of `evaluate_digest()` results. Columns: `protein_id`, `protein_length`, `n_peptides`, `n_valid_peptides`, all component scores, `composite_score`, `verdict`, `median_peptide_length`, and four sequence-level difficulty flags. This is a breaking change for any code that accessed results via `batch[[protein_id]]$scores`.
+* Added `summarize_batch()` to extract aggregate statistics from the batch tibble: verdict distribution, composite score distribution, per-component means, bottom-10% problem proteins, and heuristic enzyme-switch candidates.
+* Added `triage_proteins()` to append an `action` column (`"proceed"`, `"consider_alternative"`, `"try_other_enzyme"`, `"skip"`) to the batch tibble based on verdict and sequence-level difficulty flags.
+* Added `pepvet_check()` as a single-call convenience wrapper: evaluates a protein digest and immediately prints a styled console report. Returns the `evaluate_digest()` result invisibly.
+* Added `export_peptide_list()` in a new `R/export.R` module. Exports valid peptides in `"skyline"` (precursor-charge CSV with computed m/z for Skyline import), `"generic"` (annotated CSV with GRAVY, pI, and validity), or `"fasta"` format. Writes to a file when `file` is specified; returns a tibble or character vector otherwise.
+* Fixed `export_peptide_list()` generic format to include a `pI` column alongside `gravy` and `valid`.
 
 # pepVet 0.1.0
 

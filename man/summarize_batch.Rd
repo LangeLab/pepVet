@@ -7,7 +7,7 @@
 summarize_batch(batch_result)
 }
 \arguments{
-\item{batch_result}{A named list returned by \code{\link[=batch_evaluate]{batch_evaluate()}}.}
+\item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}.}
 }
 \value{
 A named list with five elements:
@@ -28,7 +28,7 @@ that enzyme or preset choice is the likely limiting factor.}
 }
 \description{
 \code{summarize_batch()} extracts aggregate statistics from a \code{\link[=batch_evaluate]{batch_evaluate()}}
-result list. It returns a named list covering verdict distribution, score
+result tibble. It returns a named list covering verdict distribution, score
 distribution, per-component averages, the lowest-scoring proteins, and a
 heuristic set of enzyme-switch candidates.
 }

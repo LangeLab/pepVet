@@ -7,7 +7,7 @@
 triage_proteins(batch_result)
 }
 \arguments{
-\item{batch_result}{A named list returned by \code{\link[=batch_evaluate]{batch_evaluate()}}.}
+\item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}.}
 }
 \value{
 A tibble with one row per protein containing all score and flag
@@ -28,9 +28,9 @@ score.}
 }
 }
 \description{
-\code{triage_proteins()} converts a \code{\link[=batch_evaluate]{batch_evaluate()}} result list into a flat
-per-protein tibble and appends an \code{action} column with deterministic
-recommendations based on each protein's verdict and difficulty flags.
+\code{triage_proteins()} appends an \code{action} column to the flat tibble returned
+by \code{\link[=batch_evaluate]{batch_evaluate()}} with deterministic recommendations based on each
+protein's verdict and difficulty flags.
 }
 \examples{
 small_path <- system.file(

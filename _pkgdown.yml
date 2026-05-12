@@ -78,13 +78,32 @@ reference:
       - evaluate_digest
       - compare_digests
       - recommend_enzyme
+
+  - title: "Batch workflows"
+    desc: >
+      Evaluate all proteins in a multi-FASTA in one call, summarise the
+      proteome-level score distribution, and triage proteins by difficulty.
+    contents:
       - batch_evaluate
+      - summarize_batch
+      - triage_proteins
 
   - title: "Reporting"
     desc: >
       Render styled, colour-coded console summaries of digest quality.
+      `pepvet_check()` combines evaluation and reporting in a single call
+      for interactive use.
     contents:
       - digest_report
+      - pepvet_check
+
+  - title: "Export"
+    desc: >
+      Export valid peptide lists to downstream proteomics tools.
+      Supported formats: Skyline transition list, generic annotated CSV, and
+      FASTA.
+    contents:
+      - export_peptide_list
 
   - title: "Reference data"
     desc: >

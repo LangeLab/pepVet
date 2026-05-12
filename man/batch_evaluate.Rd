@@ -25,10 +25,12 @@ batch_evaluate(
 
 \item{include_cleavage_efficiency}{Logical flag passed to
 \code{\link[=evaluate_digest]{evaluate_digest()}} and ultimately \code{\link[=digest_protein]{digest_protein()}}. When \code{TRUE}, each
-per-protein peptide table includes a \code{cleavage_efficiency} column.}
+per-protein peptide table includes a \code{cleavage_efficiency} column (does
+not affect the flat batch tibble columns).}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
-for every protein evaluation.}
+for every protein evaluation. When supplied, an \code{S_unique} column appears
+in the returned tibble.}
 
 \item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
 
@@ -36,30 +38,30 @@ for every protein evaluation.}
 as \code{gravy_range} and \code{length_range}.}
 }
 \value{
-A named list where each element is the result of \code{\link[=evaluate_digest]{evaluate_digest()}}
-for the corresponding protein. Names match the \code{protein_id} values from
-the input.
+A tibble with one row per protein. Fixed columns:
+\code{protein_id}, \code{protein_length}, \code{n_peptides}, \code{n_valid_peptides},
+all available component scores (\code{S_length}, \code{S_coverage}, \code{S_count},
+\code{S_hydro}, \code{S_charge}; \code{S_unique} when proteome is provided),
+\code{composite_score}, \code{verdict}, \code{median_peptide_length},
+\code{flag_short_protein}, \code{flag_hydrophobic}, \code{flag_low_complexity},
+\code{flag_no_valid_peptides}.
 }
 \description{
 \code{batch_evaluate()} calls \code{\link[=evaluate_digest]{evaluate_digest()}} independently for each protein
-in \code{sequences} and returns a named list of results. The output for each
-protein is bit-identical to calling \code{\link[=evaluate_digest]{evaluate_digest()}} on that protein
-individually. Use it for small proteomes, panels, or fixture-level quality
-assessment before moving to a larger parallel workflow.
-}
-\details{
-Pass the returned list to \code{\link[=summarize_batch]{summarize_batch()}} for aggregate statistics or
-to \code{\link[=triage_proteins]{triage_proteins()}} for a flat per-protein tibble with action
-recommendations.
+in \code{sequences} and returns a flat tibble with one row per protein. Columns
+include \code{protein_id}, \code{protein_length}, all component scores, \code{composite_score},
+\code{verdict}, \code{n_peptides}, \code{n_valid_peptides}, \code{median_peptide_length}, and four
+sequence-level difficulty flags. Pass the result to \code{\link[=summarize_batch]{summarize_batch()}} for
+aggregate statistics or to \code{\link[=triage_proteins]{triage_proteins()}} for action recommendations.
 }
 \examples{
 small_proteome <- system.file(
   "extdata", "small_proteome_50_proteins.fasta",
   package = "pepVet"
 )
-results <- batch_evaluate(small_proteome, enzyme = "trypsin")
-length(results)
-results[[1]]$scores
+batch <- batch_evaluate(small_proteome, enzyme = "trypsin")
+nrow(batch)
+batch[, c("protein_id", "composite_score", "verdict")]
 }
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=summarize_batch]{summarize_batch()}},

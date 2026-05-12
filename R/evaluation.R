@@ -418,11 +418,11 @@ batch_evaluate <- function(sequences,
 #' Summarize a Batch Digest Evaluation
 #'
 #' `summarize_batch()` extracts aggregate statistics from a [batch_evaluate()]
-#' result list. It returns a named list covering verdict distribution, score
+#' result tibble. It returns a named list covering verdict distribution, score
 #' distribution, per-component averages, the lowest-scoring proteins, and a
 #' heuristic set of enzyme-switch candidates.
 #'
-#' @param batch_result A named list returned by [batch_evaluate()].
+#' @param batch_result A tibble returned by [batch_evaluate()].
 #'
 #' @return A named list with five elements:
 #'   \describe{
@@ -521,11 +521,11 @@ summarize_batch <- function(batch_result) {
 
 #' Triage Proteins from a Batch Evaluation
 #'
-#' `triage_proteins()` converts a [batch_evaluate()] result list into a flat
-#' per-protein tibble and appends an `action` column with deterministic
-#' recommendations based on each protein's verdict and difficulty flags.
+#' `triage_proteins()` appends an `action` column to the flat tibble returned
+#' by [batch_evaluate()] with deterministic recommendations based on each
+#' protein's verdict and difficulty flags.
 #'
-#' @param batch_result A named list returned by [batch_evaluate()].
+#' @param batch_result A tibble returned by [batch_evaluate()].
 #'
 #' @return A tibble with one row per protein containing all score and flag
 #'   columns from the flat batch summary, plus an `action` column. Possible

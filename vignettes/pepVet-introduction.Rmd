@@ -36,6 +36,9 @@ Protein sequence
     evaluate_digest()   ->  convenience wrapper: digest + score + params in one call
       │
       v
+    pepvet_check()      ->  evaluate + print report in one interactive call
+      │
+      v
     compare_digests()   ->  run evaluate_digest across N enzymes, rank by composite
       │
       v
@@ -43,6 +46,15 @@ Protein sequence
       │
       v
     batch_evaluate()    ->  run evaluate_digest across all proteins in a FASTA
+      │                     returns a flat tibble: one row per protein
+      v
+    summarize_batch()   ->  proteome-level verdict distribution and score stats
+      │
+      v
+    triage_proteins()   ->  per-protein action recommendations (proceed / try other enzyme …)
+      │
+      v
+    export_peptide_list()  ->  export valid peptides to Skyline, generic CSV, or FASTA
       │
       v
     digest_report()     ->  styled console output for any of the above
@@ -295,30 +307,124 @@ recommend_enzyme(
 
 ## Step 6: Batch across a proteome
 
-`batch_evaluate()` runs `evaluate_digest()` independently for every protein in a multi-FASTA file and returns a named list. Each element matches what you would get from calling `evaluate_digest()` directly on that protein.
+`batch_evaluate()` runs `evaluate_digest()` independently for every protein in a multi-FASTA file and returns a **flat tibble** with one row per protein. Columns include `protein_id`, `protein_length`, all component scores, `composite_score`, `verdict`, count fields, and four sequence-level difficulty flags.
 
 ```{r batch, eval=FALSE}
 batch <- batch_evaluate(proteome_path, enzyme = "trypsin",
                         missed_cleavages = 1L)
 
 # How many proteins were evaluated?
-length(batch)
+nrow(batch)
 
-# Score of the first protein
-batch[[1]]$scores
+# Score and verdict for the first few proteins
+batch[, c("protein_id", "composite_score", "verdict")]
 ```
 
-Each protein is evaluated independently. Wrap in `BiocParallel::bplapply()` if you are processing thousands of proteins.
+Each protein is evaluated independently. The returned tibble slots directly into `summarize_batch()` and `triage_proteins()`.
 
-The setup is short when you want a proteome-aware workflow.
+For proteome-aware uniqueness scoring, supply a background proteome digest:
 
 ```{r proteome-onboarding, eval=FALSE}
 proteome_digest <- digest_protein(proteome_path, enzyme = "trypsin")
-batch <- batch_evaluate(proteome_path, enzyme = "trypsin", proteome = proteome_digest)
-compare_digests(bsa_path, enzymes = c("trypsin", "lysc"), proteome = proteome_digest)
+batch <- batch_evaluate(proteome_path, enzyme = "trypsin",
+                        proteome = proteome_digest)
 ```
 
-## Step 7: Report to the console
+## Step 6a: Summarize a batch
+
+`summarize_batch()` computes proteome-level aggregate statistics from the tibble returned by `batch_evaluate()`. It returns a named list with five elements.
+
+```{r summarize-batch, eval=FALSE}
+summary <- summarize_batch(batch)
+
+# Verdict distribution (Good / Moderate / Poor and their percentages)
+summary$verdict_counts
+
+# Composite score distribution
+summary$score_distribution
+
+# Per-component mean scores — lowest value is the weakest dimension
+summary$component_summary
+
+# Proteins in the bottom 10% by composite score
+summary$problem_proteins
+
+# Moderate / Poor proteins where hydrophobicity or short-protein flags are set —
+# likely candidates for switching to a less specific enzyme
+summary$enzyme_switch_candidates
+```
+
+`enzyme_switch_candidates` is a heuristic derived from sequence-level difficulty flags, not from running alternative enzymes. Use `compare_digests()` to confirm whether a specific alternative enzyme actually improves a flagged protein.
+
+## Step 6b: Triage proteins
+
+`triage_proteins()` appends an `action` column to the batch tibble with a deterministic recommendation for each protein.
+
+```{r triage, eval=FALSE}
+triaged <- triage_proteins(batch)
+
+# Count of each action
+table(triaged$action)
+
+# Proteins that should be tried with a different enzyme
+triaged[triaged$action == "try_other_enzyme",
+        c("protein_id", "verdict", "composite_score")]
+```
+
+| Action | Meaning |
+|---|---|
+| `proceed` | Good verdict. No intervention indicated. |
+| `consider_alternative` | Moderate verdict with at least one component score below 0.5. A preset change or missed-cleavage adjustment may help. |
+| `try_other_enzyme` | Moderate or Poor verdict with hydrophobicity or short-protein flag. An alternative enzyme is the most likely improvement path. |
+| `skip` | No valid peptides or low-complexity sequence. No standard enzyme choice is expected to substantially improve the score. |
+
+## Step 6c: Export a peptide list
+
+`export_peptide_list()` filters valid peptides from any `digest_protein()` tibble and writes them in a format compatible with downstream tools.
+
+```{r export-skyline}
+peps <- digest_protein(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+
+# Skyline transition list: one row per valid peptide per charge state
+# Columns: Protein, Peptide Sequence, Precursor Charge, Precursor Mz
+export_peptide_list(peps, format = "skyline", charges = 2:3)
+```
+
+```{r export-generic}
+# Generic annotated table: all peptide columns plus gravy, pI, and valid flag
+export_peptide_list(peps, format = "generic")
+```
+
+```{r export-fasta}
+# FASTA character vector for valid peptides only
+# Each header: >protein_id|start-end
+head(export_peptide_list(peps, format = "fasta"))
+```
+
+Write directly to a file by passing a path to the `file` argument:
+
+```{r export-file, eval=FALSE}
+export_peptide_list(peps, format = "skyline", file = "bsa_transitions.csv")
+export_peptide_list(peps, format = "fasta",   file = "bsa_peptides.fasta")
+```
+
+## Step 7: Quick interactive check
+
+`pepvet_check()` combines `evaluate_digest()` and `digest_report()` into a single call. It is the fastest way to inspect a protein interactively: one function call, one styled console report, result returned invisibly for further use.
+
+```{r pepvet-check}
+result <- pepvet_check(bsa_path, enzyme = "trypsin")
+```
+
+The returned value is the full `evaluate_digest()` result list, so you can pipe it into any downstream step:
+
+```{r pepvet-check-pipe, eval=FALSE}
+result <- pepvet_check(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+result$scores
+result$peptides
+```
+
+## Step 8: Report to the console
 
 `digest_report()` produces a styled, colour-coded summary for either an `evaluate_digest()` result (single protein, bar-chart style) or a `compare_digests()` tibble (ranked table style). It returns its input invisibly so pipeline chains continue uninterrupted.
 

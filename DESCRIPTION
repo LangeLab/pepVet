@@ -10,12 +10,14 @@ Description: Simulates proteolytic digestion, scores the resulting peptides
     enzymes, workflow presets, peptide mass and pI utilities, sequence-local
     cleavage-efficiency annotations for trypsin-family digests,
     proteome-aware uniqueness scoring, batch evaluation across multi-FASTA
-    files, and styled console reporting.
+    files with per-protein triage and proteome-level summarisation, peptide
+    list export for Skyline and generic downstream tools, and styled
+    console reporting.
 License: MIT + file LICENSE
 URL: https://github.com/LangeLab/pepVet, https://langelab.github.io/pepVet/
 BugReports: https://github.com/LangeLab/pepVet/issues
 Depends:
-    R (>= 4.5.0)
+    R (>= 4.6.0)
 Imports:
     Biostrings,
     cleaver,
@@ -27,6 +29,8 @@ Suggests:
     dplyr,
     rlang,
     ggplot2,
+    patchwork,
+    ggrepel,
     data.table,
     BiocParallel,
     testthat (>= 3.0.0),

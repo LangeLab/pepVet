@@ -4,6 +4,10 @@ plan/
 # Local scratch / exploratory scripts (never part of the package)
 scratch/
 
+# Tmp files
+*.tmp
+tmp/
+
 # R session / IDE state
 .Rhistory
 .Rapp.history

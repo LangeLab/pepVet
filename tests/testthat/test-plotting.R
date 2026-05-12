@@ -499,3 +499,81 @@ test_that("plot_length_distribution snapshot: BSA trypsin", {
     plot_length_distribution(res, title = "BSA – trypsin length distribution")
   )
 })
+
+
+# ── plot_gravy_landscape ──────────────────────────────────────────────────────
+
+test_that("plot_gravy_landscape returns a patchwork/ggplot from evaluate_digest result", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  p   <- plot_gravy_landscape(res)
+  expect_true(inherits(p, "gg") || inherits(p, "patchwork"))
+})
+
+test_that("plot_gravy_landscape accepts a bare data.frame with length + gravy", {
+  peps <- data.frame(
+    length = c(8L, 12L, 30L, 5L),
+    gravy  = c(0.2, -0.5, 0.8, -1.2)
+  )
+  expect_no_error(plot_gravy_landscape(peps))
+})
+
+test_that("plot_gravy_landscape auto-computes GRAVY from peptide column", {
+  peps <- data.frame(
+    length  = c(8L, 12L),
+    peptide = c("ACDEFGHIK", "LMNPQRSTVW")
+  )
+  expect_no_error(plot_gravy_landscape(peps))
+})
+
+test_that("plot_gravy_landscape: custom length_range and gravy_range accepted", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  expect_no_error(
+    plot_gravy_landscape(res, length_range = c(5L, 30L), gravy_range = c(-1.5, 1.0))
+  )
+})
+
+test_that("plot_gravy_landscape: label_outliers_n = 0L suppresses labels silently", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  expect_no_error(plot_gravy_landscape(res, label_outliers_n = 0L))
+})
+
+test_that("plot_gravy_landscape: custom title is accepted", {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  p   <- plot_gravy_landscape(res, title = "My GRAVY plot")
+  expect_true(inherits(p, "gg") || inherits(p, "patchwork"))
+})
+
+test_that("plot_gravy_landscape: H3.1 (short protein) renders without warnings", {
+  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
+  res <- evaluate_digest(h3_path, enzyme = "trypsin")
+  expect_no_warning(plot_gravy_landscape(res))
+})
+
+test_that("plot_gravy_landscape errors on invalid input", {
+  expect_error(
+    plot_gravy_landscape("not valid"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_gravy_landscape errors when length column is missing", {
+  bad <- data.frame(gravy = c(0.1, 0.2))
+  expect_error(
+    plot_gravy_landscape(bad),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_gravy_landscape snapshot: BSA trypsin", {
+  skip_if_not_installed("vdiffr")
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  vdiffr::expect_doppelganger(
+    "gravy_landscape_bsa_trypsin",
+    plot_gravy_landscape(res, title = "BSA – trypsin GRAVY landscape")
+  )
+})

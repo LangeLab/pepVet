@@ -2213,3 +2213,284 @@ plot_length_distribution <- function(
   p
 }
 
+
+# ── plot_gravy_landscape ──────────────────────────────────────────────────────
+
+#' GRAVY Landscape — 2D Scatter of Peptide Length vs. Hydrophobicity
+#'
+#' `plot_gravy_landscape()` plots each peptide as a point in the
+#' length \eqn{\times} GRAVY physicochemical space.  The LC-friendly valid
+#' region is shaded, points are colour-coded by validity class, and marginal
+#' density panels show the 1D distributions on each axis.  Outlier peptides
+#' (outside the valid region) are labelled with their sequences when there are
+#' fewer than `label_outliers_n` of them.
+#'
+#' @param result A named list returned by [evaluate_digest()], **or** a
+#'   data.frame / tibble with at least `length` and `gravy` columns.  When a
+#'   bare data.frame lacks a `gravy` column but has a `peptide` column, GRAVY
+#'   scores are computed automatically.
+#' @param length_range Integer vector of length 2.  Valid length window.
+#'   Defaults to `c(7L, 25L)`.  Read from `result$params` when a full
+#'   [evaluate_digest()] result is supplied.
+#' @param gravy_range Numeric vector of length 2.  LC-friendly GRAVY window.
+#'   Defaults to `c(-1.0, 0.6)`.  Read from `result$params` when available.
+#' @param label_outliers_n Integer.  Maximum number of outlier points to label
+#'   with their peptide sequences.  Labels are suppressed when the count
+#'   exceeds this threshold.  Defaults to `15L`.
+#' @param title Optional character string for the plot title.
+#'
+#' @return A `patchwork` composite `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   p   <- plot_gravy_landscape(res)
+#'   print(p)
+#' }
+#'
+#' @seealso [evaluate_digest()], [plot_length_distribution()],
+#'   [plot_digest_profile()]
+#' @export
+plot_gravy_landscape <- function(
+    result,
+    length_range     = c(7L, 25L),
+    gravy_range      = c(-1.0, 0.6),
+    label_outliers_n = 15L,
+    title            = NULL
+) {
+  rlang::check_installed("ggplot2",   reason = "to use plot_gravy_landscape()")
+  rlang::check_installed("patchwork", reason = "to assemble panels in plot_gravy_landscape()")
+
+  # ── Parse input ───────────────────────────────────────────────────────────
+  if (is.list(result) && !is.data.frame(result) &&
+      all(c("peptides", "params") %in% names(result))) {
+    peps         <- result$peptides
+    length_range <- result$params$length_range %||% length_range
+    gravy_range  <- result$params$gravy_range  %||% gravy_range
+  } else if (is.data.frame(result)) {
+    peps <- result
+  } else {
+    cli::cli_abort(
+      c(
+        "{.arg result} must be an {.fn evaluate_digest} list or a peptide data.frame.",
+        "x" = "Got {.cls {class(result)[[1L]]}}."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (!"length" %in% names(peps)) {
+    cli::cli_abort(
+      "{.arg result} must contain a {.field length} column.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  # Compute GRAVY if not already present
+  if (!"gravy" %in% names(peps)) {
+    if (!"peptide" %in% names(peps)) {
+      cli::cli_abort(
+        "Cannot compute GRAVY: {.arg result} needs a {.field gravy} or {.field peptide} column.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+    peps$gravy <- vapply(peps$peptide, .calculate_gravy, numeric(1L))
+  }
+
+  length_lo <- as.integer(length_range[[1L]])
+  length_hi <- as.integer(length_range[[2L]])
+  gravy_lo  <- gravy_range[[1L]]
+  gravy_hi  <- gravy_range[[2L]]
+
+  # ── Classify peptides ─────────────────────────────────────────────────────
+  peps$valid_length <- peps$length >= length_lo & peps$length <= length_hi
+  peps$valid_gravy  <- peps$gravy  >= gravy_lo  & peps$gravy  <= gravy_hi
+  peps$class <- factor(
+    ifelse(
+       peps$valid_length &  peps$valid_gravy,  "Valid",
+      ifelse(
+        !peps$valid_length &  peps$valid_gravy, "Invalid length",
+        ifelse(
+           peps$valid_length & !peps$valid_gravy, "Invalid GRAVY",
+          "Invalid both"
+        )
+      )
+    ),
+    levels = c("Valid", "Invalid length", "Invalid GRAVY", "Invalid both")
+  )
+
+  class_colors <- c(
+    "Valid"          = .pepvet_pal$valid,
+    "Invalid length" = .pepvet_pal$too_short,
+    "Invalid GRAVY"  = .pepvet_pal$moderate,
+    "Invalid both"   = .pepvet_pal$poor
+  )
+
+  n_total   <- nrow(peps)
+  n_valid   <- sum(peps$class == "Valid")
+  pct_valid <- round(100 * n_valid / n_total, 1)
+
+  # ── Outlier labels ────────────────────────────────────────────────────────
+  outliers  <- peps[peps$class != "Valid", , drop = FALSE]
+  do_label  <- "peptide" %in% names(peps) &&
+    nrow(outliers) > 0L && nrow(outliers) <= as.integer(label_outliers_n)
+
+  # ── Axis limits with padding ──────────────────────────────────────────────
+  x_pad  <- 1.5
+  y_pad  <- 0.15
+  x_lims <- c(max(0, min(peps$length) - x_pad), max(peps$length) + x_pad)
+  y_lims <- c(min(peps$gravy, na.rm = TRUE) - y_pad,
+              max(peps$gravy, na.rm = TRUE) + y_pad)
+
+  # ── Auto title ────────────────────────────────────────────────────────────
+  auto_title <- if (!is.null(title)) {
+    title
+  } else if (is.list(result) && !is.data.frame(result) &&
+             "params" %in% names(result)) {
+    pid    <- result$params$protein_ids[[1L]]
+    enzyme <- result$params$enzyme
+    paste0(.tidy_protein_id(pid), "  \u00b7  ", enzyme,
+           "  \u00b7  GRAVY landscape")
+  } else {
+    "GRAVY landscape"
+  }
+
+  # ── Central scatter ───────────────────────────────────────────────────────
+  p_scatter <- ggplot2::ggplot(
+    peps, ggplot2::aes(x = .data$length, y = .data$gravy,
+                       color = .data$class, fill = .data$class)
+  ) +
+    # Valid region background
+    ggplot2::annotate(
+      "rect",
+      xmin = length_lo - 0.5, xmax = length_hi + 0.5,
+      ymin = gravy_lo,         ymax = gravy_hi,
+      fill = .pepvet_pal$shade, alpha = 0.55, color = NA
+    ) +
+    # Valid region dashed border
+    ggplot2::annotate(
+      "rect",
+      xmin = length_lo - 0.5, xmax = length_hi + 0.5,
+      ymin = gravy_lo,         ymax = gravy_hi,
+      fill = NA, color = .pepvet_pal$good,
+      linewidth = 0.45, linetype = "dashed"
+    ) +
+    # Reference lines at valid boundaries
+    ggplot2::geom_hline(
+      yintercept = c(gravy_lo, gravy_hi),
+      color = .pepvet_pal$separator, linewidth = 0.3, linetype = "dotted"
+    ) +
+    ggplot2::geom_vline(
+      xintercept = c(length_lo - 0.5, length_hi + 0.5),
+      color = .pepvet_pal$separator, linewidth = 0.3, linetype = "dotted"
+    ) +
+    # Points (jittered horizontally to avoid over-plotting at integer lengths)
+    ggplot2::geom_jitter(
+      shape  = 21,
+      size   = 2.2,
+      stroke = 0.35,
+      width  = 0.25,
+      height = 0,
+      alpha  = 0.80
+    ) +
+    # Outlier sequence labels when count <= label_outliers_n
+    {
+      if (do_label) {
+        ggplot2::geom_text(
+          data    = outliers,
+          ggplot2::aes(label = .data$peptide),
+          size          = 1.9,
+          fontface      = "italic",
+          nudge_y       = 0.06,
+          check_overlap = TRUE,
+          inherit.aes   = TRUE
+        )
+      }
+    } +
+    ggplot2::scale_color_manual(values = class_colors, name = NULL,
+      guide = "none") +
+    ggplot2::scale_fill_manual(values = class_colors, name = NULL,
+      guide = ggplot2::guide_legend(
+        override.aes = list(shape = 21, size = 3, alpha = 1,
+                            stroke = 0.5, color = "white")
+      )) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0L, ceiling(x_lims[[2L]] / 5) * 5L, by = 5L)
+    ) +
+    ggplot2::coord_cartesian(xlim = x_lims, ylim = y_lims) +
+    ggplot2::labs(
+      x        = "Peptide length (aa)",
+      y        = "GRAVY score",
+      subtitle = sprintf(
+        "%d / %d peptides fully valid (%.0f%%)  \u00b7  valid region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]",
+        n_valid, n_total, pct_valid, length_lo, length_hi, gravy_lo, gravy_hi
+      )
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(legend.position = "bottom")
+
+  # ── Top marginal: length density by class ────────────────────────────────
+  p_top <- ggplot2::ggplot(
+    peps, ggplot2::aes(x = .data$length, fill = .data$class)
+  ) +
+    ggplot2::annotate(
+      "rect",
+      xmin = length_lo - 0.5, xmax = length_hi + 0.5,
+      ymin = -Inf, ymax = Inf,
+      fill = .pepvet_pal$shade, alpha = 0.30
+    ) +
+    ggplot2::geom_density(alpha = 0.50, linewidth = 0.25, adjust = 1.2,
+                          color = NA) +
+    ggplot2::scale_fill_manual(values = class_colors, guide = "none") +
+    ggplot2::coord_cartesian(xlim = x_lims) +
+    ggplot2::labs(x = NULL, y = NULL) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      panel.border      = ggplot2::element_blank(),
+      panel.grid        = ggplot2::element_blank(),
+      axis.text         = ggplot2::element_blank(),
+      axis.ticks        = ggplot2::element_blank(),
+      plot.margin       = ggplot2::margin(0, 0, 2, 0)
+    )
+
+  # ── Right marginal: GRAVY density by class (coord_flip) ───────────────────
+  p_right <- ggplot2::ggplot(
+    peps, ggplot2::aes(x = .data$gravy, fill = .data$class)
+  ) +
+    ggplot2::annotate(
+      "rect",
+      xmin = gravy_lo, xmax = gravy_hi,
+      ymin = -Inf, ymax = Inf,
+      fill = .pepvet_pal$shade, alpha = 0.30
+    ) +
+    ggplot2::geom_density(alpha = 0.50, linewidth = 0.25, adjust = 1.2,
+                          color = NA) +
+    ggplot2::scale_fill_manual(values = class_colors, guide = "none") +
+    ggplot2::coord_flip(xlim = y_lims) +
+    ggplot2::labs(x = NULL, y = NULL) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      panel.border      = ggplot2::element_blank(),
+      panel.grid        = ggplot2::element_blank(),
+      axis.text         = ggplot2::element_blank(),
+      axis.ticks        = ggplot2::element_blank(),
+      plot.margin       = ggplot2::margin(0, 0, 0, 2)
+    )
+
+  # ── Assemble: top-marginal / (scatter + right-marginal) ───────────────────
+  (p_top | patchwork::plot_spacer()) /
+    (p_scatter | p_right) +
+    patchwork::plot_layout(heights = c(1, 4), widths = c(4, 1)) +
+    patchwork::plot_annotation(
+      title = auto_title,
+      theme = ggplot2::theme(
+        plot.title = ggplot2::element_text(
+          size   = 13, face = "bold",
+          color  = .pepvet_pal$brand_dark,
+          margin = ggplot2::margin(b = 4)
+        )
+      )
+    )
+}
+

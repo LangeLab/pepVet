@@ -3,15 +3,19 @@
 # Run `vdiffr::manage_cases()` to review new / changed snapshots interactively.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Helper shared across tests in this file
+# Shared fixtures are pre-computed in helper-fixtures.R (sourced once).
+# .bsa_result() / .h3_result() are thin wrappers that return the cached
+# fixture, falling back to live computation for non-default MC levels.
 .bsa_result <- function(mc = 0L) {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = mc)
+  if (mc == 0L) return(.fix_bsa_mc0)
+  if (mc == 1L) return(.fix_bsa_mc1)
+  if (mc == 2L) return(.fix_bsa_mc2)
+  evaluate_digest(..bsa_path, enzyme = "trypsin", missed_cleavages = mc)
 }
 
 .h3_result <- function(mc = 0L) {
-  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  evaluate_digest(h3_path, enzyme = "trypsin", missed_cleavages = mc)
+  if (mc == 0L) return(.fix_h3_trypsin)
+  evaluate_digest(..h3_path, enzyme = "trypsin", missed_cleavages = mc)
 }
 
 # ── plot_digest_profile ───────────────────────────────────────────────────────
@@ -69,14 +73,24 @@ test_that("plot_digest_profile: proteome-aware result includes S_unique panel", 
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("patchwork")
 
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   proteome_path <- system.file(
     "extdata", "small_proteome_50_proteins.fasta", package = "pepVet"
   )
   proteome_digest <- digest_protein(proteome_path, enzyme = "trypsin")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin", proteome = proteome_digest)
+  res <- evaluate_digest(.bsa_path, enzyme = "trypsin", proteome = proteome_digest)
 
   p <- plot_digest_profile(res)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_digest_profile: chymotrypsin-high renders without error", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  # chymotrypsin-high produces many short aromatic peptides — exercises
+  # the length/GRAVY panels with a very different peptide population
+  res <- .fix_bsa_chymotryp
+  p   <- plot_digest_profile(res)
   expect_s3_class(p, "patchwork")
 })
 
@@ -135,13 +149,11 @@ test_that("plot_digest_profile errors on missing required columns", {
 
 # Shared fixture helpers
 .bsa_cs <- function() {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+  annotate_cleavage_sites(.bsa_path, enzyme = "trypsin")
 }
 
 .h3_cs <- function() {
-  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  annotate_cleavage_sites(h3_path, enzyme = "trypsin")
+  annotate_cleavage_sites(.h3_path, enzyme = "trypsin")
 }
 
 test_that("plot_coverage_map returns a ggplot for BSA / trypsin MC=0", {
@@ -212,6 +224,16 @@ test_that("plot_coverage_map: H3.1 short protein renders without error", {
   expect_no_error(plot_coverage_map(res, cleavage_sites = cs))
 })
 
+test_that("plot_coverage_map: chymotrypsin-high produces different lane layout", {
+  skip_if_not_installed("ggplot2")
+
+  # chymotrypsin-high yields shorter, more numerous peptides than trypsin;
+  # exercises the lane-packing algorithm with a denser peptide map
+  res <- .fix_bsa_chymotryp
+  p   <- plot_coverage_map(res)
+  expect_s3_class(p, "gg")
+})
+
 test_that("plot_coverage_map errors on non-list input", {
   skip_if_not_installed("ggplot2")
 
@@ -253,8 +275,7 @@ test_that("plot_coverage_map snapshot: BSA / trypsin MC=1 with cleavage sites", 
 # Shared fixture helper
 .bsa_comparison <- function(enzymes = c("trypsin", "lysc",
                                         "glutamyl endopeptidase")) {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  compare_digests(bsa_path, enzymes = enzymes)
+  compare_digests(.bsa_path, enzymes = enzymes)
 }
 
 test_that("plot_enzyme_comparison returns a patchwork object", {
@@ -368,8 +389,7 @@ test_that("plot_score_radar: single evaluate_digest() result renders", {
 test_that("plot_score_radar: four enzymes renders without error", {
   skip_if_not_installed("ggplot2")
 
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  comp4 <- compare_digests(bsa_path,
+  comp4 <- compare_digests(.bsa_path,
     enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
                 "chymotrypsin-high"))
   expect_no_error(plot_score_radar(comp4))
@@ -504,8 +524,7 @@ test_that("plot_length_distribution snapshot: BSA trypsin", {
 # ── plot_gravy_landscape ──────────────────────────────────────────────────────
 
 test_that("plot_gravy_landscape returns a patchwork/ggplot from evaluate_digest result", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   p   <- plot_gravy_landscape(res)
   expect_true(inherits(p, "gg") || inherits(p, "patchwork"))
 })
@@ -527,29 +546,25 @@ test_that("plot_gravy_landscape auto-computes GRAVY from peptide column", {
 })
 
 test_that("plot_gravy_landscape: custom length_range and gravy_range accepted", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   expect_no_error(
     plot_gravy_landscape(res, length_range = c(5L, 30L), gravy_range = c(-1.5, 1.0))
   )
 })
 
 test_that("plot_gravy_landscape: label_outliers_n = 0L suppresses labels silently", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   expect_no_error(plot_gravy_landscape(res, label_outliers_n = 0L))
 })
 
 test_that("plot_gravy_landscape: custom title is accepted", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   p   <- plot_gravy_landscape(res, title = "My GRAVY plot")
   expect_true(inherits(p, "gg") || inherits(p, "patchwork"))
 })
 
 test_that("plot_gravy_landscape: H3.1 (short protein) renders without warnings", {
-  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  res <- evaluate_digest(h3_path, enzyme = "trypsin")
+  res <- .fix_h3_trypsin
   expect_no_warning(plot_gravy_landscape(res))
 })
 
@@ -570,8 +585,7 @@ test_that("plot_gravy_landscape errors when length column is missing", {
 
 test_that("plot_gravy_landscape snapshot: BSA trypsin", {
   skip_if_not_installed("vdiffr")
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   vdiffr::expect_doppelganger(
     "gravy_landscape_bsa_trypsin",
     plot_gravy_landscape(res, title = "BSA – trypsin GRAVY landscape")
@@ -582,15 +596,13 @@ test_that("plot_gravy_landscape snapshot: BSA trypsin", {
 # ── plot_pI_distribution ──────────────────────────────────────────────────────
 
 test_that("plot_pI_distribution returns a ggplot from evaluate_digest result", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   p   <- plot_pI_distribution(res)
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_pI_distribution accepts score_peptides(include_pI=TRUE) tibble", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res    <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res    <- .fix_bsa_trypsin
   scored <- score_peptides(res$peptides, enzyme = "trypsin", include_pI = TRUE)
   expect_no_error(plot_pI_distribution(scored))
 })
@@ -605,27 +617,23 @@ test_that("plot_pI_distribution accepts a bare numeric vector", {
 })
 
 test_that("plot_pI_distribution: show_fraction_lines = FALSE renders without error", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   expect_no_error(plot_pI_distribution(res, show_fraction_lines = FALSE))
 })
 
 test_that("plot_pI_distribution: custom fraction_breaks accepted", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   expect_no_error(plot_pI_distribution(res, fraction_breaks = c(4, 6, 8, 10)))
 })
 
 test_that("plot_pI_distribution: custom title is accepted", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   p   <- plot_pI_distribution(res, title = "My pI plot")
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_pI_distribution: H3.1 renders without warnings", {
-  h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  res <- evaluate_digest(h3_path, enzyme = "trypsin")
+  res <- .fix_h3_trypsin
   expect_no_warning(plot_pI_distribution(res))
 })
 
@@ -646,8 +654,7 @@ test_that("plot_pI_distribution errors when data.frame lacks pI column", {
 
 test_that("plot_pI_distribution snapshot: BSA trypsin", {
   skip_if_not_installed("vdiffr")
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- .fix_bsa_trypsin
   vdiffr::expect_doppelganger(
     "pi_dist_bsa_trypsin",
     plot_pI_distribution(res, title = "BSA – trypsin pI distribution")
@@ -658,19 +665,15 @@ test_that("plot_pI_distribution snapshot: BSA trypsin", {
 # ── multi-input: plot_length_distribution ────────────────────────────────────
 
 test_that("plot_length_distribution: named list produces faceted ggplot", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   p <- plot_length_distribution(list(BSA = bsa_res, H3 = h3_res))
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_length_distribution: multi-input renders without warnings", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   expect_no_warning(
     plot_length_distribution(list(BSA = bsa_res, H3 = h3_res))
   )
@@ -679,19 +682,15 @@ test_that("plot_length_distribution: multi-input renders without warnings", {
 # ── multi-input: plot_gravy_landscape ────────────────────────────────────────
 
 test_that("plot_gravy_landscape: named list produces faceted ggplot", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   p <- plot_gravy_landscape(list(BSA = bsa_res, H3 = h3_res))
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_gravy_landscape: multi-input renders without warnings", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   expect_no_warning(
     plot_gravy_landscape(list(BSA = bsa_res, H3 = h3_res))
   )
@@ -700,19 +699,15 @@ test_that("plot_gravy_landscape: multi-input renders without warnings", {
 # ── multi-input: plot_pI_distribution ────────────────────────────────────────
 
 test_that("plot_pI_distribution: named list produces overlaid density ggplot", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   p <- plot_pI_distribution(list(BSA = bsa_res, H3 = h3_res))
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_pI_distribution: multi-input renders without warnings", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   expect_no_warning(
     plot_pI_distribution(list(BSA = bsa_res, H3 = h3_res))
   )
@@ -721,30 +716,22 @@ test_that("plot_pI_distribution: multi-input renders without warnings", {
 # ── plot_protein_comparison ───────────────────────────────────────────────────
 
 test_that("plot_protein_comparison returns ggplot from named list", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   p <- plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res))
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_protein_comparison accepts batch_evaluate tibble", {
   skip_if_not_installed("Biostrings")
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_seq  <- Biostrings::readAAStringSet(bsa_path)
-  h3_seq   <- Biostrings::readAAStringSet(h3_path)
-  batch    <- batch_evaluate(c(bsa_seq, h3_seq), enzyme = "trypsin")
+  batch <- .fix_batch_trypsin
   p <- plot_protein_comparison(batch)
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_protein_comparison: show_verdict = FALSE renders without error", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   expect_no_error(
     plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
                             show_verdict = FALSE)
@@ -752,20 +739,16 @@ test_that("plot_protein_comparison: show_verdict = FALSE renders without error",
 })
 
 test_that("plot_protein_comparison: custom title accepted", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   p <- plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
                                 title = "My comparison")
   expect_s3_class(p, "gg")
 })
 
 test_that("plot_protein_comparison: renders without warnings", {
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   expect_no_warning(
     plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res))
   )
@@ -780,13 +763,295 @@ test_that("plot_protein_comparison errors on invalid input", {
 
 test_that("plot_protein_comparison snapshot: BSA vs H3 trypsin", {
   skip_if_not_installed("vdiffr")
-  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-  bsa_res  <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  h3_res   <- evaluate_digest(h3_path,  enzyme = "trypsin")
+  bsa_res <- .fix_bsa_trypsin
+  h3_res  <- .fix_h3_trypsin
   vdiffr::expect_doppelganger(
     "protein_comparison_bsa_h3_trypsin",
     plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
                             title = "BSA vs H3.1 — trypsin")
+  )
+})
+
+
+# ── plot_cleavage_map ─────────────────────────────────────────────────────────
+
+test_that("plot_cleavage_map returns ggplot from evaluate_digest result", {
+  res <- .fix_bsa_trypsin
+  p   <- plot_cleavage_map(res)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_cleavage_map renders without warnings (no cleavage_sites)", {
+  res <- .fix_bsa_trypsin
+  expect_no_warning(plot_cleavage_map(res))
+})
+
+test_that("plot_cleavage_map: custom title accepted", {
+  res <- .fix_bsa_trypsin
+  p   <- plot_cleavage_map(res, title = "BSA cleavage")
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_cleavage_map: asp-n endopeptidase (N-terminal cutter) renders", {
+  # asp-n cuts N-terminal to D; exercises site-inference from the opposite
+  # end of peptides compared to trypsin/lysc
+  res <- .fix_bsa_aspn
+  p   <- plot_cleavage_map(res)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_cleavage_map errors on invalid result", {
+  expect_error(
+    plot_cleavage_map("not valid"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+# ── plot_quick_score ──────────────────────────────────────────────────────────
+
+test_that("plot_quick_score returns patchwork object", {
+  res <- .fix_bsa_trypsin
+  p   <- plot_quick_score(res)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_quick_score renders without warnings", {
+  res <- .fix_bsa_trypsin
+  expect_no_warning(plot_quick_score(res))
+})
+
+test_that("plot_quick_score: H3.1 histone renders without warnings", {
+  res <- .fix_h3_trypsin
+  expect_no_warning(plot_quick_score(res))
+})
+
+test_that("plot_quick_score: glutamyl endopeptidase (D/E cutter) renders", {
+  # glutamyl endopeptidase produces more peptides with acidic C-termini;
+  # exercises the score-donut and component strip with a different score profile
+  res <- .fix_bsa_glute
+  p   <- plot_quick_score(res)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_quick_score errors on invalid result", {
+  expect_error(
+    plot_quick_score("bad"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+# ── plot_enzyme_protein_heatmap ───────────────────────────────────────────────
+
+test_that("plot_enzyme_protein_heatmap returns ggplot from nested list", {
+  nested <- list(
+    BSA = list(
+      trypsin = .fix_bsa_trypsin,
+      lysc    = .fix_bsa_lysc
+    ),
+    H3 = list(
+      trypsin = .fix_h3_trypsin,
+      lysc    = .fix_h3_lysc
+    )
+  )
+  p <- plot_enzyme_protein_heatmap(nested)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_enzyme_protein_heatmap: component argument works", {
+  nested <- list(
+    BSA = list(trypsin = .fix_bsa_trypsin),
+    H3  = list(trypsin = .fix_h3_trypsin)
+  )
+  p <- plot_enzyme_protein_heatmap(nested, component = "S_length")
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_enzyme_protein_heatmap renders without warnings", {
+  nested <- list(
+    BSA = list(trypsin = .fix_bsa_trypsin,
+               lysc    = .fix_bsa_lysc),
+    H3  = list(trypsin = .fix_h3_trypsin,
+               lysc    = .fix_h3_lysc)
+  )
+  expect_no_warning(plot_enzyme_protein_heatmap(nested))
+})
+
+test_that("plot_enzyme_protein_heatmap errors on bad component", {
+  nested <- list(BSA = list(trypsin = .fix_bsa_trypsin))
+  expect_error(
+    plot_enzyme_protein_heatmap(nested, component = "not_a_score"),
+    class = "pepvet_error_invalid_component"
+  )
+})
+
+# ── plot_missed_cleavage_impact ───────────────────────────────────────────────
+
+test_that("plot_missed_cleavage_impact returns ggplot from MC list", {
+  r0 <- .fix_bsa_mc0
+  r1 <- .fix_bsa_mc1
+  r2 <- .fix_bsa_mc2
+  p  <- plot_missed_cleavage_impact(list("MC=0" = r0, "MC=1" = r1, "MC=2" = r2))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_missed_cleavage_impact: unnamed list auto-named", {
+  r0 <- .fix_bsa_mc0
+  r1 <- .fix_bsa_mc1
+  p  <- plot_missed_cleavage_impact(list(r0, r1))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_missed_cleavage_impact renders without warnings", {
+  r0 <- .fix_bsa_mc0
+  r1 <- .fix_bsa_mc1
+  r2 <- .fix_bsa_mc2
+  expect_no_warning(
+    plot_missed_cleavage_impact(list("MC=0" = r0, "MC=1" = r1, "MC=2" = r2))
+  )
+})
+
+test_that("plot_missed_cleavage_impact: chymotrypsin-high MC=0/1 renders", {
+  # chymotrypsin produces many more peptides than trypsin; tests the line-plot
+  # rendering when S_count and S_length change more dramatically across MC levels
+  r0 <- .fix_bsa_chymotryp
+  r1 <- .fix_bsa_chymotryp_mc1
+  p  <- plot_missed_cleavage_impact(list("MC=0" = r0, "MC=1" = r1))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_missed_cleavage_impact errors on single-element list", {
+  r0 <- .fix_bsa_mc0
+  expect_error(
+    plot_missed_cleavage_impact(list(r0)),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+# ── plot_batch_summary ────────────────────────────────────────────────────────
+
+test_that("plot_batch_summary returns patchwork from batch_evaluate", {
+  skip_if_not_installed("Biostrings")
+  batch <- .fix_batch_trypsin
+  p <- plot_batch_summary(batch)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_batch_summary renders without warnings", {
+  skip_if_not_installed("Biostrings")
+  batch <- .fix_batch_trypsin
+  expect_no_warning(plot_batch_summary(batch))
+})
+
+test_that("plot_batch_summary: chymotrypsin-high batch renders", {
+  skip_if_not_installed("Biostrings")
+  # chymotrypsin yields higher peptide counts and lower scores than trypsin;
+  # exercises the histogram color-coding and LOESS scatter with a different
+  # verdict distribution
+  batch <- .fix_batch_chymotryp
+  p     <- plot_batch_summary(batch)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_batch_summary errors on missing required columns", {
+  bad_batch <- data.frame(x = 1:3)
+  expect_error(
+    plot_batch_summary(bad_batch),
+    class = "pepvet_error_invalid_batch"
+  )
+})
+
+# ── plot_component_scatter ────────────────────────────────────────────────────
+
+test_that("plot_component_scatter returns ggplot from batch_evaluate", {
+  skip_if_not_installed("Biostrings")
+  batch <- .fix_batch_trypsin
+  p <- plot_component_scatter(batch)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_component_scatter: custom component axes work", {
+  skip_if_not_installed("Biostrings")
+  batch <- .fix_batch_trypsin
+  p <- plot_component_scatter(batch, x_component = "S_length",
+                               y_component = "S_coverage")
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_component_scatter renders without warnings", {
+  skip_if_not_installed("Biostrings")
+  batch <- .fix_batch_trypsin
+  expect_no_warning(plot_component_scatter(batch))
+})
+
+test_that("plot_component_scatter: chymotrypsin-high batch renders", {
+  skip_if_not_installed("Biostrings")
+  # chymotrypsin batch has a distinctive score cluster; exercises label
+  # rendering for Poor proteins and rug marks with a different distribution
+  batch <- .fix_batch_chymotryp
+  p     <- plot_component_scatter(batch)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_component_scatter errors on invalid component", {
+  skip_if_not_installed("Biostrings")
+  batch    <- batch_evaluate(
+    Biostrings::readAAStringSet(.bsa_path),
+    enzyme = "trypsin"
+  )
+  expect_error(
+    plot_component_scatter(batch, x_component = "not_a_col"),
+    class = "pepvet_error_invalid_component"
+  )
+})
+
+# ── plot_proteome_heatmap ─────────────────────────────────────────────────────
+
+test_that("plot_proteome_heatmap returns a pheatmap object", {
+  skip_if_not_installed("Biostrings")
+  skip_if_not_installed("pheatmap")
+
+  batch <- .fix_batch_trypsin
+  ph    <- plot_proteome_heatmap(batch)
+  # pheatmap returns a list with class "pheatmap"
+  expect_s3_class(ph, "pheatmap")
+})
+
+test_that("plot_proteome_heatmap: subset of components renders", {
+  skip_if_not_installed("Biostrings")
+  skip_if_not_installed("pheatmap")
+
+  batch <- .fix_batch_trypsin
+  ph    <- plot_proteome_heatmap(batch,
+                                  components = c("S_length", "S_coverage"))
+  expect_s3_class(ph, "pheatmap")
+})
+
+test_that("plot_proteome_heatmap: cluster_rows = FALSE renders", {
+  skip_if_not_installed("Biostrings")
+  skip_if_not_installed("pheatmap")
+
+  batch <- .fix_batch_trypsin
+  ph    <- plot_proteome_heatmap(batch, cluster_rows = FALSE)
+  expect_s3_class(ph, "pheatmap")
+})
+
+test_that("plot_proteome_heatmap: chymotrypsin-high batch renders", {
+  skip_if_not_installed("Biostrings")
+  skip_if_not_installed("pheatmap")
+
+  # chymotrypsin yields a different per-component score profile; exercises
+  # the color ramp and row-clustering with a lower-scoring proteome
+  batch <- .fix_batch_chymotryp
+  ph    <- plot_proteome_heatmap(batch, title = "Chymotrypsin Proteome Heatmap")
+  expect_s3_class(ph, "pheatmap")
+})
+
+test_that("plot_proteome_heatmap errors on missing required columns", {
+  skip_if_not_installed("pheatmap")
+
+  bad_batch <- data.frame(x = 1:3)
+  expect_error(
+    plot_proteome_heatmap(bad_batch),
+    class = "pepvet_error_invalid_batch"
   )
 })

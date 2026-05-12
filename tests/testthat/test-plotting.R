@@ -421,3 +421,81 @@ test_that("plot_score_radar snapshot: BSA 3-enzyme radar", {
     plot_score_radar(comp, title = "BSA – score radar")
   )
 })
+
+# ── plot_length_distribution ──────────────────────────────────────────────────
+
+test_that("plot_length_distribution returns a ggplot from evaluate_digest result", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  p   <- plot_length_distribution(res)
+  expect_s3_class(p, "gg")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_length_distribution accepts a bare peptide data.frame", {
+  skip_if_not_installed("ggplot2")
+
+  res  <- .bsa_result()
+  peps <- res$peptides
+  expect_no_error(plot_length_distribution(peps))
+})
+
+test_that("plot_length_distribution: show_density = FALSE renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  expect_no_error(plot_length_distribution(res, show_density = FALSE))
+})
+
+test_that("plot_length_distribution: custom length_range is respected", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  expect_no_error(plot_length_distribution(res, length_range = c(5L, 30L)))
+})
+
+test_that("plot_length_distribution: custom title is accepted", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  p   <- plot_length_distribution(res, title = "My length plot")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_length_distribution: H3.1 (short protein) renders without warnings", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .h3_result()
+  expect_no_warning(plot_length_distribution(res))
+})
+
+test_that("plot_length_distribution errors on invalid input", {
+  skip_if_not_installed("ggplot2")
+
+  expect_error(
+    plot_length_distribution("not valid"),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_length_distribution errors when length column missing", {
+  skip_if_not_installed("ggplot2")
+
+  bad <- data.frame(x = 1:5)
+  expect_error(
+    plot_length_distribution(bad),
+    class = "pepvet_error_invalid_digest_result"
+  )
+})
+
+test_that("plot_length_distribution snapshot: BSA trypsin", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("vdiffr")
+
+  res <- .bsa_result()
+  vdiffr::expect_doppelganger(
+    "length_dist_bsa_trypsin",
+    plot_length_distribution(res, title = "BSA – trypsin length distribution")
+  )
+})

@@ -1997,3 +1997,219 @@ plot_score_radar <- function(
   p
 }
 
+
+# ── plot_length_distribution ──────────────────────────────────────────────────
+
+#' Standalone Peptide Length Distribution
+#'
+#' `plot_length_distribution()` draws a histogram of peptide lengths
+#' colour-coded by validity class (Valid / Too short / Too long), with the
+#' valid range shaded in the package's green, per-category percentage
+#' annotations, and an optional density-curve overlay.
+#'
+#' @param result A named list returned by [evaluate_digest()], **or** a
+#'   data.frame / tibble with at least a `length` column (e.g. the
+#'   `$peptides` slot of such a result).
+#' @param length_range Integer vector of length 2 giving the valid length
+#'   window `c(lo, hi)`.  Defaults to `c(7L, 25L)`.  Ignored (and read from
+#'   `result$params`) when a full `evaluate_digest()` result is supplied.
+#' @param show_density Logical.  When `TRUE` (default) a scaled kernel-density
+#'   curve is overlaid on the histogram.
+#' @param title Optional character string for the plot title.  Auto-generated
+#'   when `NULL` (default).
+#'
+#' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   p   <- plot_length_distribution(res)
+#'   print(p)
+#' }
+#'
+#' @seealso [evaluate_digest()], [plot_digest_profile()],
+#'   [plot_gravy_landscape()]
+#' @export
+plot_length_distribution <- function(
+    result,
+    length_range  = c(7L, 25L),
+    show_density  = TRUE,
+    title         = NULL
+) {
+  rlang::check_installed("ggplot2", reason = "to use plot_length_distribution()")
+
+  # ── Accept evaluate_digest() list or a bare peptide data.frame ───────────
+  if (is.list(result) && !is.data.frame(result) &&
+      all(c("peptides", "params") %in% names(result))) {
+    peps         <- result$peptides
+    length_range <- result$params$length_range %||% length_range
+  } else if (is.data.frame(result)) {
+    peps <- result
+  } else {
+    cli::cli_abort(
+      c(
+        "{.arg result} must be an {.fn evaluate_digest} list or a peptide data.frame.",
+        "x" = "Got {.cls {class(result)[[1L]]}}."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (!"length" %in% names(peps)) {
+    cli::cli_abort(
+      "{.arg result} must contain a {.field length} column.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  length_lo <- as.integer(length_range[[1L]])
+  length_hi <- as.integer(length_range[[2L]])
+
+  # ── Classify peptides ─────────────────────────────────────────────────────
+  peps$length_class <- factor(
+    ifelse(peps$length < length_lo, "Too short",
+      ifelse(peps$length > length_hi, "Too long", "Valid")),
+    levels = c("Valid", "Too short", "Too long")
+  )
+
+  n_total    <- nrow(peps)
+  tbl        <- table(peps$length_class)
+  pct_valid  <- round(100 * sum(peps$length_class == "Valid")    / n_total, 1)
+  pct_short  <- round(100 * sum(peps$length_class == "Too short") / n_total, 1)
+  pct_long   <- round(100 * sum(peps$length_class == "Too long")  / n_total, 1)
+
+  class_colors <- c(
+    "Valid"     = .pepvet_pal$valid,
+    "Too short" = .pepvet_pal$too_short,
+    "Too long"  = .pepvet_pal$too_long
+  )
+
+  x_max <- max(peps$length) + 1L
+  x_min <- max(0L, min(peps$length) - 1L)
+
+  # ── Category annotation positions: each label sits at the centre of its
+  #    x-range, just below the top of the panel ─────────────────────────────
+  cat_labels <- data.frame(
+    x     = c((x_min + length_lo - 1) / 2,
+              (length_lo + length_hi) / 2,
+              (length_hi + x_max + 1) / 2),
+    label = c(
+      sprintf("Too short\n< %d aa\n(%.0f%%)", length_lo, pct_short),
+      sprintf("Valid\n[%d\u2013%d aa]\n(%.0f%%)", length_lo, length_hi, pct_valid),
+      sprintf("Too long\n> %d aa\n(%.0f%%)", length_hi, pct_long)
+    ),
+    color = unname(class_colors[c("Too short", "Valid", "Too long")]),
+    stringsAsFactors = FALSE
+  )
+  # Drop labels for empty categories
+  cat_labels <- cat_labels[
+    c(pct_short > 0, TRUE, pct_long > 0), , drop = FALSE
+  ]
+
+  # ── Auto title ────────────────────────────────────────────────────────────
+  auto_title <- if (!is.null(title)) {
+    title
+  } else if (is.list(result) && !is.data.frame(result) &&
+             "params" %in% names(result)) {
+    pid    <- result$params$protein_ids[[1L]]
+    enzyme <- result$params$enzyme
+    paste0(.tidy_protein_id(pid), "  \u00b7  ", enzyme,
+           "  \u00b7  Length distribution")
+  } else {
+    "Peptide length distribution"
+  }
+
+  # ── Build plot ────────────────────────────────────────────────────────────
+  p <- ggplot2::ggplot(peps, ggplot2::aes(x = .data$length,
+                                           fill = .data$length_class)) +
+    # Valid-range background shading
+    ggplot2::annotate(
+      "rect",
+      xmin = length_lo - 0.5, xmax = length_hi + 0.5,
+      ymin = -Inf,             ymax = Inf,
+      fill = .pepvet_pal$shade, alpha = 0.55
+    ) +
+    # Boundary lines at valid range edges
+    ggplot2::geom_vline(
+      xintercept = length_lo - 0.5,
+      color = .pepvet_pal$good, linewidth = 0.6, linetype = "dashed"
+    ) +
+    ggplot2::geom_vline(
+      xintercept = length_hi + 0.5,
+      color = .pepvet_pal$poor, linewidth = 0.6, linetype = "dashed"
+    ) +
+    # Histogram bars
+    ggplot2::geom_histogram(
+      binwidth  = 1L,
+      color     = "white",
+      linewidth = 0.15,
+      alpha     = 0.88
+    ) +
+    # Optional density overlay — computed over ALL peptides (one curve,
+    # independent of fill grouping) to avoid group-size warnings
+    {
+      if (show_density) {
+        ggplot2::stat_density(
+          ggplot2::aes(x = .data$length,
+                       y = ggplot2::after_stat(count)),
+          data        = peps,
+          geom        = "line",
+          color       = .pepvet_pal$brand_dark,
+          linewidth   = 0.8,
+          linetype    = "solid",
+          adjust      = 1.2,
+          inherit.aes = FALSE
+        )
+      }
+    } +
+    # Per-category annotation labels
+    ggplot2::geom_text(
+      data = cat_labels,
+      ggplot2::aes(x = .data$x, label = .data$label),
+      y        = Inf,
+      vjust    = 1.2,
+      size     = 2.8,
+      fontface = "bold",
+      color    = cat_labels$color,
+      inherit.aes = FALSE
+    ) +
+    # Scales
+    ggplot2::scale_fill_manual(
+      values = class_colors,
+      name   = NULL,
+      guide  = ggplot2::guide_legend(
+        override.aes = list(alpha = 1, color = NA)
+      )
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0L, x_max + 4L, by = 5L),
+      expand = ggplot2::expansion(add = c(0.5, 1))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.25))
+    ) +
+    ggplot2::coord_cartesian(xlim = c(x_min, x_max + 1), clip = "off") +
+    ggplot2::labs(
+      title    = auto_title,
+      subtitle = sprintf(
+        "%d peptides total  \u00b7  %d valid (%.0f%%)  \u00b7  range [%d\u2013%d aa]",
+        n_total,
+        as.integer(tbl[["Valid"]]),
+        pct_valid,
+        length_lo, length_hi
+      ),
+      x = "Peptide length (aa)",
+      y = "Count"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      plot.title = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark
+      )
+    )
+
+  p
+}
+

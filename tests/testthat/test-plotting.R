@@ -346,3 +346,78 @@ test_that("plot_enzyme_comparison snapshot: BSA 3-enzyme comparison", {
     plot_enzyme_comparison(comp, title = "BSA – enzyme comparison")
   )
 })
+
+# ── plot_score_radar ──────────────────────────────────────────────────────────
+
+test_that("plot_score_radar returns a ggplot from compare_digests tibble", {
+  skip_if_not_installed("ggplot2")
+
+  comp <- .bsa_comparison()
+  p    <- plot_score_radar(comp)
+  expect_s3_class(p, "gg")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_score_radar: single evaluate_digest() result renders", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result()
+  expect_no_error(plot_score_radar(res))
+})
+
+test_that("plot_score_radar: four enzymes renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  comp4 <- compare_digests(bsa_path,
+    enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
+                "chymotrypsin-high"))
+  expect_no_error(plot_score_radar(comp4))
+})
+
+test_that("plot_score_radar: subset of scores axes renders without error", {
+  skip_if_not_installed("ggplot2")
+
+  comp <- .bsa_comparison()
+  expect_no_error(
+    plot_score_radar(comp, scores = c("S_coverage", "S_count", "S_charge"))
+  )
+})
+
+test_that("plot_score_radar: custom title is accepted", {
+  skip_if_not_installed("ggplot2")
+
+  comp <- .bsa_comparison()
+  p    <- plot_score_radar(comp, title = "My radar")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_score_radar errors on non-data.frame / non-list input", {
+  skip_if_not_installed("ggplot2")
+
+  expect_error(
+    plot_score_radar("not valid"),
+    class = "pepvet_error_invalid_comparison"
+  )
+})
+
+test_that("plot_score_radar errors on missing required columns", {
+  skip_if_not_installed("ggplot2")
+
+  bad <- data.frame(enzyme = c("a", "b"), foo = 1:2)
+  expect_error(
+    plot_score_radar(bad),
+    class = "pepvet_error_invalid_comparison"
+  )
+})
+
+test_that("plot_score_radar snapshot: BSA 3-enzyme radar", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("vdiffr")
+
+  comp <- .bsa_comparison()
+  vdiffr::expect_doppelganger(
+    "score_radar_bsa_3",
+    plot_score_radar(comp, title = "BSA – score radar")
+  )
+})

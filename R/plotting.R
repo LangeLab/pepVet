@@ -64,7 +64,7 @@
       plot.title = ggplot2::element_text(
         face  = "bold",
         size  = base_size + 1,
-        color = "#1A1A2E",
+        color = .pepvet_pal$brand_dark,
         margin = ggplot2::margin(b = 3)
       ),
       plot.subtitle = ggplot2::element_text(
@@ -261,7 +261,14 @@
       x = "Peptide length (aa)",
       y = "Count"
     ) +
-    .pepvet_theme()
+    .pepvet_theme() +
+    ggplot2::theme(
+      axis.title.y = ggplot2::element_text(
+        angle  = 90,
+        hjust  = 0.5,
+        margin = ggplot2::margin(r = 4)
+      )
+    )
 }
 
 
@@ -314,7 +321,7 @@
         gravy_lo, gravy_hi, n_inside, n_total
       ),
       x = "GRAVY score",
-      y = "Count"
+      y = NULL
     ) +
     .pepvet_theme()
 }
@@ -804,15 +811,17 @@ plot_digest_profile <- function(result,
         plot.title = ggplot2::element_text(
           face   = "bold",
           size   = 15,
-          color  = "#1A1A2E",
+          color  = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 10)
-        ),
-        plot.tag = ggplot2::element_text(
-          face   = "bold",
-          size   = 14,
-          color  = "#2C5F8A",
-          margin = ggplot2::margin(t = 1, r = 6, b = 1, l = 2)
         )
+      )
+    ) &
+    ggplot2::theme(
+      plot.tag = ggplot2::element_text(
+        face   = "bold",
+        size   = 14,
+        color  = .pepvet_pal$brand,
+        margin = ggplot2::margin(t = 1, r = 6, b = 1, l = 2)
       )
     )
 }
@@ -1611,3 +1620,380 @@ plot_enzyme_comparison <- function(
       )
     )
 }
+
+
+# ── plot_score_radar ──────────────────────────────────────────────────────────
+
+#' Build a closed polygon data.frame for one radar layer (internal helper)
+#'
+#' Converts a named numeric vector of scores (values in [0, 1]) into
+#' Cartesian (x, y) coordinates for a regular n-gon centred at the origin.
+#' Axes are placed at equal angular intervals starting from the top (pi/2)
+#' and proceeding clockwise.
+#'
+#' @param values  Named numeric vector; names must match `axis_names`.
+#' @param axis_names Character vector giving axis order.
+#' @param group   Label identifying this polygon (enzyme name, etc.).
+#' @return data.frame with columns `x`, `y`, `group`.
+#' @noRd
+.radar_polygon <- function(values, axis_names, group) {
+  n     <- length(axis_names)
+  angs  <- pi / 2 - 2 * pi * (seq_len(n) - 1L) / n
+  vals  <- as.numeric(values[axis_names])
+  vals[is.na(vals)] <- 0
+  # Close the polygon
+  data.frame(
+    x     = c(vals * cos(angs), vals[[1L]] * cos(angs[[1L]])),
+    y     = c(vals * sin(angs), vals[[1L]] * sin(angs[[1L]])),
+    group = group,
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Build a regular-polygon grid ring (internal helper)
+#'
+#' @param r        Radius of the ring (0 < r <= 1).
+#' @param n_axes   Number of axes.
+#' @return data.frame with columns `x`, `y`, `r`.
+#' @noRd
+.radar_ring <- function(r, n_axes) {
+  angs <- pi / 2 - 2 * pi * (seq_len(n_axes) - 1L) / n_axes
+  data.frame(
+    x = c(r * cos(angs), r * cos(angs[[1L]])),
+    y = c(r * sin(angs), r * sin(angs[[1L]])),
+    r = r,
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Validate input for plot_score_radar (internal helper)
+#'
+#' Accepts either a compare_digests tibble (data.frame with `enzyme` column)
+#' or a single evaluate_digest list.  Returns a normalised one-row-per-enzyme
+#' data.frame with at minimum columns `enzyme` and `composite_score`.
+#' @noRd
+.prepare_radar_data <- function(comparison) {
+  # Single evaluate_digest() list
+  if (is.list(comparison) && !is.data.frame(comparison) &&
+      all(c("scores", "peptides", "params") %in% names(comparison))) {
+    df         <- comparison$scores
+    df$enzyme  <- comparison$params$enzyme
+    return(df)
+  }
+  # compare_digests tibble
+  if (!is.data.frame(comparison)) {
+    cli::cli_abort(
+      c(
+        "{.arg comparison} must be a tibble from {.fn compare_digests} or a
+         list from {.fn evaluate_digest}.",
+        "x" = "Got {.cls {class(comparison)[[1L]]}}."
+      ),
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+  required <- c("enzyme", "composite_score")
+  missing  <- setdiff(required, names(comparison))
+  if (length(missing) > 0L) {
+    cli::cli_abort(
+      c(
+        "{.arg comparison} is missing required columns.",
+        "x" = "Missing: {.field {missing}}."
+      ),
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+  comparison
+}
+
+
+#' Score Radar (Spider) Chart
+#'
+#' `plot_score_radar()` draws a radar / spider chart of component scores for
+#' one or more enzymes, overlaid as filled polygons on a regular grid.  The
+#' polygon *shape* reveals tradeoffs that bar charts hide: an enzyme with high
+#' coverage but low peptide count produces a very different silhouette from one
+#' that scores evenly across all components.
+#'
+#' The chart is built from pure ggplot2 Cartesian geometry — no additional
+#' packages beyond those already in `Suggests` are required.  Axes radiate
+#' from the centre at equal angular intervals, starting from the top and
+#' proceeding clockwise.  Concentric reference polygons at 0.25, 0.50, 0.75,
+#' and 1.00 act as a grid.
+#'
+#' @param comparison A tibble returned by [compare_digests()], **or** a named
+#'   list returned by [evaluate_digest()] (single-enzyme radar).  When a
+#'   single `evaluate_digest()` result is supplied the polygon is labeled with
+#'   the enzyme name stored in `result$params$enzyme`.
+#' @param scores Character vector of component-score column names to use as
+#'   radar axes.  Any column absent from `comparison` is silently dropped.
+#'   Defaults to all five standard component scores.
+#' @param title Optional character string for the plot title.  Auto-generated
+#'   when `NULL` (default).
+#' @param legend_ncol Integer.  Number of columns in the enzyme legend.
+#'   Defaults to `min(n_enzymes, 4)` so up to four enzymes sit in one row and
+#'   larger sets wrap onto additional rows automatically.
+#' @param legend_nrow Integer.  Number of rows in the enzyme legend.  Leave as
+#'   `NULL` (default) to let `legend_ncol` control wrapping.
+#'
+#' @return A `ggplot` object that can be printed, further customised, or saved
+#'   with [ggplot2::ggsave()].
+#'
+#' @details Axis labels use short human-readable names (e.g. "Coverage",
+#'   "Length").  The label for each axis is placed just outside the outer ring
+#'   (radius 1.18) and auto-justified toward the centre so it does not clip
+#'   against the panel border.
+#'
+#'   When more than five enzymes are compared, enzyme colors cycle through the
+#'   eight-color JCO-inspired palette.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   comp <- compare_digests(bsa_path,
+#'                           enzymes = c("trypsin", "lysc",
+#'                                       "glutamyl endopeptidase"))
+#'   p <- plot_score_radar(comp)
+#'   print(p)
+#' }
+#'
+#' @seealso [compare_digests()], [plot_enzyme_comparison()],
+#'   [plot_digest_profile()]
+#' @export
+plot_score_radar <- function(
+    comparison,
+    scores       = c("S_coverage", "S_length", "S_count", "S_hydro", "S_charge"),
+    title        = NULL,
+    legend_ncol  = NULL,
+    legend_nrow  = NULL
+) {
+  rlang::check_installed("ggplot2", reason = "to use plot_score_radar()")
+
+  df     <- .prepare_radar_data(comparison)
+  scores <- intersect(scores, names(df))
+  if (length(scores) == 0L) {
+    cli::cli_abort(
+      c(
+        "None of the requested {.arg scores} columns found in {.arg comparison}.",
+        "i" = "Available: {.field {names(df)}}."
+      ),
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+
+  # ── Axis display names ───────────────────────────────────────────────────
+  score_labels <- c(
+    S_coverage = "Coverage",
+    S_length   = "Length",
+    S_count    = "Count",
+    S_hydro    = "Hydrophobicity",
+    S_charge   = "Charge"
+  )
+  axis_labels <- ifelse(scores %in% names(score_labels),
+                        score_labels[scores], scores)
+
+  n_axes <- length(scores)
+  # Axes start at top (pi/2) and run clockwise
+  angs <- pi / 2 - 2 * pi * (seq_len(n_axes) - 1L) / n_axes
+
+  # ── Enzyme color palette (8 colours, cycling for > 8 enzymes) ────────────
+  enzyme_palette <- c(
+    "#2C5F8A", "#27AE60", "#E8A838", "#8B5E99",
+    "#4AAFB0", "#C94040", "#1A3D5C", "#7BAED4"
+  )
+  enzymes    <- as.character(df$enzyme)
+  n_enz      <- length(enzymes)
+  enz_colors <- enzyme_palette[((seq_len(n_enz) - 1L) %% length(enzyme_palette)) + 1L]
+  names(enz_colors) <- enzymes
+
+  # ── Legend layout: default to ≤ 4 per row so long lists wrap cleanly ─────
+  if (is.null(legend_ncol) && is.null(legend_nrow)) {
+    legend_ncol <- min(n_enz, 4L)
+  }
+
+  # ── Grid rings (closed n-gon polygons at r = 0.25 / 0.50 / 0.75 / 1.00) ─
+  grid_r    <- c(0.25, 0.50, 0.75, 1.00)
+  grid_data <- do.call(rbind, lapply(grid_r, .radar_ring, n_axes = n_axes))
+
+  # ── Axis spokes: from centre (0,0) outward to the unit ring ─────────────
+  spoke_df <- data.frame(
+    x    = cos(angs),
+    y    = sin(angs),
+    xend = rep(0, n_axes),
+    yend = rep(0, n_axes)
+  )
+
+  # ── Axis labels at r = 1.20; align text toward the outer edge ───────────
+  label_r   <- 1.20
+  hjust_map <- ifelse(cos(angs) > 0.1, 0, ifelse(cos(angs) < -0.1, 1, 0.5))
+  vjust_map <- ifelse(sin(angs) > 0.1, 0, ifelse(sin(angs) < -0.1, 1, 0.5))
+
+  axis_label_df <- data.frame(
+    x      = label_r * cos(angs),
+    y      = label_r * sin(angs),
+    label  = axis_labels,
+    hjust  = hjust_map,
+    vjust  = vjust_map,
+    stringsAsFactors = FALSE
+  )
+
+  # ── Grid level labels: placed along the midpoint angle between spokes 1&2
+  # so they never sit on top of a spoke or the polygon edge ─────────────────
+  mid_ang       <- (angs[[1L]] + angs[[min(2L, n_axes)]]) / 2
+  grid_label_df <- data.frame(
+    x     = grid_r * cos(mid_ang) * 0.92,
+    y     = grid_r * sin(mid_ang) * 0.92,
+    label = as.character(grid_r),
+    stringsAsFactors = FALSE
+  )
+
+  # ── Enzyme polygons ──────────────────────────────────────────────────────
+  poly_data <- do.call(rbind, lapply(seq_len(n_enz), function(i) {
+    row  <- df[i, , drop = FALSE]
+    vals <- unlist(row[scores])
+    grp  <- enzymes[[i]]
+    .radar_polygon(vals, scores, grp)
+  }))
+  poly_data$enzyme <- poly_data$group
+
+  # ── Vertex points for each enzyme ────────────────────────────────────────
+  vertex_data <- do.call(rbind, lapply(seq_len(n_enz), function(i) {
+    row  <- df[i, , drop = FALSE]
+    vals <- as.numeric(row[scores])
+    data.frame(
+      x      = vals * cos(angs),
+      y      = vals * sin(angs),
+      enzyme = enzymes[[i]],
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  # ── Auto title ───────────────────────────────────────────────────────────
+  auto_title <- if (!is.null(title)) {
+    title
+  } else if ("protein_id" %in% names(df)) {
+    pid <- df$protein_id[[1L]]
+    paste0(.tidy_protein_id(pid), "  \u00b7  Score radar")
+  } else {
+    "Score radar"
+  }
+
+  # ── Build plot ────────────────────────────────────────────────────────────
+  p <- ggplot2::ggplot() +
+
+    # Background: shade the "Good" zone (r 0.70 – 1.00) in the same green
+    # as the rest of the package; mask below 0.70 back to white
+    ggplot2::geom_polygon(
+      data  = .radar_ring(1.00, n_axes),
+      ggplot2::aes(x = .data$x, y = .data$y),
+      fill  = .pepvet_pal$shade, alpha = 0.40, color = NA
+    ) +
+    ggplot2::geom_polygon(
+      data  = .radar_ring(0.70, n_axes),
+      ggplot2::aes(x = .data$x, y = .data$y),
+      fill  = "white", alpha = 1, color = NA
+    ) +
+
+    # Grid rings (drawn on top of shading so they show as ring borders)
+    ggplot2::geom_polygon(
+      data      = grid_data,
+      ggplot2::aes(x = .data$x, y = .data$y, group = factor(.data$r)),
+      fill      = NA,
+      color     = .pepvet_pal$separator,
+      linewidth = 0.30
+    ) +
+
+    # Axis spokes (dotted, same separator colour)
+    ggplot2::geom_segment(
+      data = spoke_df,
+      ggplot2::aes(x = .data$x, y = .data$y,
+                   xend = .data$xend, yend = .data$yend),
+      color     = .pepvet_pal$separator,
+      linewidth = 0.30,
+      linetype  = "dotted"
+    ) +
+
+    # Grid-level reference numbers along the inter-spoke gap
+    ggplot2::geom_text(
+      data = grid_label_df,
+      ggplot2::aes(x = .data$x, y = .data$y, label = .data$label),
+      size  = 2.0,
+      color = "#BBBBBB",
+      hjust = 0.5,
+      vjust = 0.5
+    ) +
+
+    # Enzyme score polygons (filled + outlined)
+    ggplot2::geom_polygon(
+      data = poly_data,
+      ggplot2::aes(x     = .data$x,
+                   y     = .data$y,
+                   group = .data$enzyme,
+                   fill  = .data$enzyme,
+                   color = .data$enzyme),
+      alpha     = 0.18,
+      linewidth = 0.9
+    ) +
+
+    # Vertex dots
+    ggplot2::geom_point(
+      data = vertex_data,
+      ggplot2::aes(x = .data$x, y = .data$y, color = .data$enzyme),
+      size = 2.4
+    ) +
+
+    # Axis names: bold brand-dark text; hjust/vjust push each label away from
+    # the chart centre toward its own edge for clean separation
+    ggplot2::geom_text(
+      data = axis_label_df,
+      ggplot2::aes(x     = .data$x,
+                   y     = .data$y,
+                   label = .data$label,
+                   hjust = .data$hjust,
+                   vjust = .data$vjust),
+      size     = 3.1,
+      fontface = "bold",
+      color    = .pepvet_pal$brand_dark
+    ) +
+
+    # ── Scales ──────────────────────────────────────────────────────────────
+    ggplot2::scale_fill_manual(values = enz_colors, name = "Enzyme") +
+    ggplot2::scale_color_manual(values = enz_colors, name = "Enzyme") +
+
+    # Merge fill + color into one legend; respect caller-supplied ncol/nrow
+    ggplot2::guides(
+      fill  = ggplot2::guide_legend(ncol = legend_ncol, nrow = legend_nrow,
+                                    byrow = TRUE),
+      color = ggplot2::guide_legend(ncol = legend_ncol, nrow = legend_nrow,
+                                    byrow = TRUE)
+    ) +
+
+    ggplot2::coord_equal(
+      xlim = c(-1.50, 1.50),
+      ylim = c(-1.15, 1.50)
+    ) +
+    ggplot2::labs(
+      title    = auto_title,
+      subtitle = sprintf(
+        "%d component%s  \u00b7  %d enzyme%s  \u00b7  shaded region \u2265 0.70 (Good)",
+        n_axes, if (n_axes == 1L) "" else "s",
+        n_enz,  if (n_enz  == 1L) "" else "s"
+      ),
+      x = NULL, y = NULL
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      axis.text       = ggplot2::element_blank(),
+      axis.ticks      = ggplot2::element_blank(),
+      panel.grid      = ggplot2::element_blank(),
+      panel.border    = ggplot2::element_blank(),
+      legend.position = "bottom",
+      legend.title    = ggplot2::element_text(face = "bold",
+                                              color = .pepvet_pal$brand_dark),
+      plot.title      = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark
+      )
+    )
+
+  p
+}
+

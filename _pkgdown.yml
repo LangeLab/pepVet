@@ -81,12 +81,36 @@ reference:
 
   - title: "Batch workflows"
     desc: >
-      Evaluate all proteins in a multi-FASTA in one call, summarise the
-      proteome-level score distribution, and triage proteins by difficulty.
+      Evaluate all proteins in a multi-FASTA in one call, compare enzymes
+      across a proteome, summarise the score distribution, and triage
+      proteins by difficulty.
     contents:
       - batch_evaluate
+      - batch_compare_enzymes
       - summarize_batch
       - triage_proteins
+
+  - title: "Visualisation"
+    desc: >
+      Plot digest quality, score components, enzyme comparisons, batch
+      summaries, and proteome-level overviews.
+    contents:
+      - plot_digest_profile
+      - plot_length_distribution
+      - plot_gravy_landscape
+      - plot_mz_distribution
+      - plot_pI_distribution
+      - plot_coverage_map
+      - plot_cleavage_map
+      - plot_missed_cleavage_impact
+      - plot_enzyme_comparison
+      - plot_protein_comparison
+      - plot_component_scatter
+      - plot_batch_summary
+      - plot_batch_comparison
+      - plot_proteome_heatmap
+      - plot_proteome_overview
+      - plot_enzyme_protein_heatmap
 
   - title: "Reporting"
     desc: >

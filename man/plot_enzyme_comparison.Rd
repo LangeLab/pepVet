@@ -42,7 +42,7 @@ Reference lines at 0.50 and 0.75 divide the axis into poor / moderate / good
 regions. Enzymes are sorted by composite score with the best at the top.
 
 Panel B shows the composite score as a lollipop, color-coded by verdict tier
-(green >= 0.70, amber 0.40-0.69, red < 0.40). When \code{recommend = TRUE} a
+(green >= 0.65, amber 0.40-0.64, red < 0.40). When \code{recommend = TRUE} a
 gold "* Recommended" badge is appended next to the top-ranked enzyme.
 }
 \examples{

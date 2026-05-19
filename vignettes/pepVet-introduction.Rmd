@@ -238,7 +238,7 @@ bsa_digest <- digest_protein(bsa_path, enzyme = "trypsin")
 score_peptides(bsa_digest, proteome = proteome_digest)
 ```
 
-Proteome-aware scoring switches the default weight set to give `S_unique` a 20% share: `c(0.20, 0.20, 0.15, 0.15, 0.10, 0.20)`.
+Proteome-aware scoring switches the default weight set to give `S_unique` a 20% share: `c(S_length = 0.160, S_coverage = 0.279, S_count = 0.181, S_hydro = 0.110, S_charge = 0.070, S_unique = 0.200)`.
 
 ## Step 3: Evaluate in one call
 

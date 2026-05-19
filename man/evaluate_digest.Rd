@@ -7,7 +7,7 @@
 evaluate_digest(
   sequence,
   enzyme = "trypsin",
-  missed_cleavages = 0L,
+  missed_cleavages = 1L,
   include_cleavage_efficiency = FALSE,
   proteome = NULL,
   weights = NULL,
@@ -23,7 +23,7 @@ a character sequence, named character vector, \code{Biostrings::AAString},
 \code{"trypsin"}.}
 
 \item{missed_cleavages}{Maximum missed cleavages passed to
-\code{\link[=digest_protein]{digest_protein()}}. Defaults to \code{0L}.}
+\code{\link[=digest_protein]{digest_protein()}}. Defaults to \code{1L}.}
 
 \item{include_cleavage_efficiency}{Logical flag passed to \code{\link[=digest_protein]{digest_protein()}}.
 When \code{TRUE}, the returned peptide table gains a \code{cleavage_efficiency}

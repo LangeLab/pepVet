@@ -35,19 +35,19 @@ combine_digest_results <- function(...) {
 }
 
 expected_protein_only_weights <- c(
-  S_length   = 0.451,
-  S_coverage = 0.239,
-  S_count    = 0.155,
-  S_hydro    = 0.095,
-  S_charge   = 0.060
+  S_length   = 0.200,
+  S_coverage = 0.348,
+  S_count    = 0.226,
+  S_hydro    = 0.138,
+  S_charge   = 0.088
 )
 
 expected_proteome_weights <- c(
-  S_length   = 0.361,
-  S_coverage = 0.191,
-  S_count    = 0.124,
-  S_hydro    = 0.076,
-  S_charge   = 0.048,
+  S_length   = 0.160,
+  S_coverage = 0.279,
+  S_count    = 0.181,
+  S_hydro    = 0.110,
+  S_charge   = 0.070,
   S_unique   = 0.200
 )
 
@@ -82,11 +82,11 @@ test_that("weight validation returns the documented defaults", {
 
 test_that("weight validation accepts named weights and reorders them", {
   weights <- c(
-    S_charge   = 0.060,
-    S_hydro    = 0.095,
-    S_count    = 0.155,
-    S_coverage = 0.239,
-    S_length   = 0.451
+    S_charge   = 0.088,
+    S_hydro    = 0.138,
+    S_count    = 0.226,
+    S_coverage = 0.348,
+    S_length   = 0.200
   )
 
   expect_equal(

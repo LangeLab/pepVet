@@ -7,7 +7,7 @@
 digest_protein(
   sequence,
   enzyme = "trypsin",
-  missed_cleavages = 0L,
+  missed_cleavages = 1L,
   include_cleavage_efficiency = FALSE
 )
 }

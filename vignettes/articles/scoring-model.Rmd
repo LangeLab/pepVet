@@ -144,9 +144,11 @@ $$
 Default weights depend on whether `S_unique` is in play.
 
 | Mode | Weight vector |
-|---|---|
-| Protein-only | `c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20, S_hydro = 0.15, S_charge = 0.15)` |
-| Proteome-aware | `c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15, S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)` |
+|---|---|---|
+| Protein-only | `c(S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)` |
+| Proteome-aware | `c(S_length = 0.160, S_coverage = 0.279, S_count = 0.181, S_hydro = 0.110, S_charge = 0.070, S_unique = 0.200)` |
+
+Default weights were derived using the Analytic Hierarchy Process (AHP), comparing each scoring dimension pairwise on a 1--9 Saaty scale grounded in the proteomics literature. Peptide length receives the base weight (length determines whether a peptide is detectable at all). Sequence coverage and peptide count --- both strongly correlated with digest quality --- together carry the main biological signal. Hydrophobicity and charge richness capture independent LC-MS dimensions that cannot be tuned by enzyme choice alone. The pairwise judgments are internally consistent (consistency ratio 0.03, well below the 0.10 acceptability threshold).
 
 `pepvet_preset()` exposes curated starting points for common workflows.
 

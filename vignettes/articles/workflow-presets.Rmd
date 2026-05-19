@@ -40,14 +40,14 @@ That keeps the scoring logic explicit and easy to modify.
 pepvet_preset("standard")
 ```
 
-| Preset | Intended use | Main change |
-|---|---|---|
-| `standard` | Routine DDA | Package defaults |
-| `dia` | DIA and SWATH | Higher coverage weight |
-| `targeted` | SRM, PRM, MRM | Higher uniqueness weight |
-| `membrane` | Hydrophobic proteins | Wider GRAVY window |
-| `ffpe_degraded` | Degraded or fragmented material | Wider length window |
-| `fractionated` | Offline fractionation planning | Standard weights with fractionation-oriented interpretation |
+| Preset | Intended use | Key change | Literature basis |
+|---|---|---|---|---|
+| `standard` | Routine DDA | Default AHP weights | Tabb 2008 |
+| `dia` | DIA and SWATH | `[7,30]` aa, GRAVY `[-1,0.8]`, high coverage | Ludwig et al. 2018 |
+| `targeted` | SRM, PRM, MRM | `[8,20]` aa, GRAVY `[-0.8,0.4]`, S_unique 30% | Lange et al. 2008, Picotti & Aebersold 2012 |
+| `membrane` | Hydrophobic proteins | GRAVY `[-1.0,2.0]`, S_hydro 5% | Vit & Petrak 2017 |
+| `ffpe_degraded` | Degraded material | `[6,30]` aa, high S_count weight | Coscia et al. 2020, Buczak et al. 2023 |
+| `fractionated` | Offline fractionation | Standard + pI annotation | — |
 
 ## Standard workflow
 
@@ -64,7 +64,7 @@ do.call(
 
 ## DIA workflow
 
-DIA benefits from broad peptide support across the protein because identification is not driven by one selected precursor at a time. The `dia` preset shifts weight toward coverage while preserving the same basic peptide-quality checks. [REF]
+DIA benefits from broad peptide support across the protein because fragmentation is decoupled from precursor selection. The `dia` preset shifts weight toward coverage, widens the valid length window to 30 aa, and extends the GRAVY window to \[-1.0, 0.8\] since DIA tolerates more hydrophobic peptides (Ludwig et al. 2018, *Cell Systems*).
 
 ```{r dia-example}
 syn_proteome <- digest_protein(syn_path, enzyme = "trypsin")
@@ -94,7 +94,7 @@ Without a proteome digest, a non-zero uniqueness weight is not valid. pepVet rai
 
 ## Membrane workflow
 
-Membrane proteins are a common reason to reject default hydrophobicity assumptions. The `membrane` preset widens the GRAVY window so that hydrophobic peptides are treated as expected rather than automatically penalized.
+Membrane proteins are a common reason to reject default hydrophobicity assumptions. The `membrane` preset extends the GRAVY window to \[-1.0, 2.0\] because transmembrane helices contain long hydrophobic stretches with GRAVY values far exceeding soluble proteins (Vit & Petrak 2017, *J Proteomics*). The S_hydro weight drops to 5% to avoid penalising the very hydrophobicity that defines this class.
 
 ```{r membrane-example}
 pepvet_preset("membrane")
@@ -104,7 +104,7 @@ This does not guarantee a membrane digest is good. It only stops the scoring mod
 
 ## Degraded samples
 
-The `ffpe_degraded` preset broadens the peptide-length window because degraded material can yield shorter but still informative peptides. That can be useful for FFPE recovery workflows and heavily processed archival material. [REF]
+The `ffpe_degraded` preset lowers the minimum length to 6 aa because FFPE-derived peptides are shorter due to formalin-induced cross-linking and degradation (Coscia et al. 2020, *Nat Commun*; Buczak et al. 2023, *Mol Cell Proteomics*). The elevated S_count weight prioritises having more quantifiable peptides to compensate for reduced overall signal.
 
 ```{r ffpe-example}
 pepvet_preset("ffpe_degraded")

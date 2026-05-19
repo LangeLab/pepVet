@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD033 MD036 MD041 -->
+<br/>
 <p align="center">
   <img src="man/figures/logo.svg" alt="pepVet logo" width="96">
 </p>
@@ -10,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.1.1-2C5F8A?style=flat-square" alt="v0.1.1">
+  <img src="https://img.shields.io/badge/version-v0.1.3-2C5F8A?style=flat-square" alt="v0.1.3">
   <img src="https://img.shields.io/badge/R-%3E%3D4.6-276DC3?style=flat-square&logo=r&logoColor=white" alt="R >= 4.6">
   <img src="https://img.shields.io/badge/Bioconductor-3.23-87B13F?style=flat-square" alt="Bioconductor 3.23">
   <a href="https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml">
@@ -170,14 +171,14 @@ targeted <- pepvet_preset("targeted")
 do.call(evaluate_digest, c(list(sequence = bsa, enzyme = "trypsin"), targeted))
 ```
 
-| Preset          | Best fit                   | Main scoring shift                                        |
-| --------------- | -------------------------- | --------------------------------------------------------- |
-| `standard`      | Routine DDA                | Package defaults                                          |
-| `dia`           | DIA and SWATH              | Higher coverage weight                                    |
-| `targeted`      | SRM, PRM, MRM              | Higher uniqueness weight                                  |
-| `membrane`      | Hydrophobic proteins       | Wider GRAVY window                                        |
-| `ffpe_degraded` | Degraded material          | Wider peptide-length window                               |
-| `fractionated`  | SCX or high-pH RP planning | Standard score with fractionation-oriented interpretation |
+| Preset          | Best fit                   | Key parameters                                      | Literature basis         |
+| --------------- | -------------------------- | --------------------------------------------------- | ------------------------ |
+| `standard`      | Routine DDA                | `[7,25]` aa, GRAVY `[-1,0.6]`, AHP weights          | Tabb 2008                |
+| `dia`           | DIA and SWATH              | `[7,30]` aa, GRAVY `[-1,0.8]`, high coverage weight | Ludwig 2018              |
+| `targeted`      | SRM, PRM, MRM              | `[8,20]` aa, GRAVY `[-0.8,0.4]`, S_unique 30%       | Lange 2008, Picotti 2012 |
+| `membrane`      | Hydrophobic proteins       | GRAVY `[-1.0,2.0]`, S_hydro 5%                      | Vit & Petrak 2017        |
+| `ffpe_degraded` | Degraded material          | `[6,30]` aa, high S_count weight                    | Coscia 2020, Buczak 2023 |
+| `fractionated`  | SCX or high-pH RP planning | Same as standard, `include_pI = TRUE`               | —                        |
 
 ## Fixtures
 

@@ -7,7 +7,7 @@
 compare_digests(
   sequence,
   enzymes = c("trypsin", "lysc"),
-  missed_cleavages = 0L,
+  missed_cleavages = 1L,
   proteome = NULL,
   weights = NULL,
   ...
@@ -21,7 +21,7 @@ compare_digests(
 be one of pepVet's supported cleaver-compatible enzyme names.}
 
 \item{missed_cleavages}{Maximum missed cleavages passed to
-\code{\link[=digest_protein]{digest_protein()}} for every enzyme. Defaults to \code{0L}.}
+\code{\link[=digest_protein]{digest_protein()}} for every enzyme. Defaults to \code{1L}.}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
 for all enzyme evaluations.}

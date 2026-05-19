@@ -12,7 +12,7 @@
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages passed to
-#'   [digest_protein()]. Defaults to `0L`.
+#'   [digest_protein()]. Defaults to `1L`.
 #' @param include_cleavage_efficiency Logical flag passed to [digest_protein()].
 #'   When `TRUE`, the returned peptide table gains a `cleavage_efficiency`
 #'   column. This does not affect the score components.
@@ -128,7 +128,7 @@ evaluate_digest <- function(sequence,
 #' @param enzymes Character vector of enzyme names to compare. Each name must
 #'   be one of pepVet's supported cleaver-compatible enzyme names.
 #' @param missed_cleavages Maximum missed cleavages passed to
-#'   [digest_protein()] for every enzyme. Defaults to `0L`.
+#'   [digest_protein()] for every enzyme. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for all enzyme evaluations.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
@@ -203,7 +203,7 @@ compare_digests <- function(sequence,
 #'
 #' @param sequence A single-protein input passed to [compare_digests()].
 #' @param enzymes Character vector of enzyme names to compare.
-#' @param missed_cleavages Maximum missed cleavages. Defaults to `0L`.
+#' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble for uniqueness scoring.
 #' @param weights Optional scoring weight vector.
 #' @param ... Additional scoring arguments passed to [compare_digests()] and
@@ -255,7 +255,7 @@ recommend_enzyme <- function(sequence,
 #'   [digest_protein()]. Must resolve to at least one protein.
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
 #'   `"trypsin"`.
-#' @param missed_cleavages Maximum missed cleavages. Defaults to `0L`.
+#' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param include_cleavage_efficiency Logical flag passed to
 #'   [evaluate_digest()] and ultimately [digest_protein()]. When `TRUE`, each
 #'   per-protein peptide table includes a `cleavage_efficiency` column (does
@@ -675,7 +675,7 @@ summarize_batch <- function(batch_result) {
 #'   near-linear scaling up to 4 cores (~82% efficiency) and a practical
 #'   ceiling around 8 cores before memory bandwidth dominates.
 #' @param missed_cleavages Maximum missed cleavages passed to
-#'   [batch_evaluate()] for every enzyme. Defaults to `0L`.
+#'   [batch_evaluate()] for every enzyme. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble passed to [batch_evaluate()]
 #'   for every enzyme. When supplied, an `S_unique` column appears in the
 #'   returned tibble.

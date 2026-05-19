@@ -1,5 +1,34 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
+# pepVet 0.1.3
+
+## Defaults
+
+* Changed default `missed_cleavages` from `0L` to `1L` across all evaluation functions. MC=1 reflects standard bottom-up proteomics practice; MC=0 produces unrealistically poor scores for every enzyme.
+* Changed default scoring weights to AHP-derived values: `S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088`. Weights were derived via Analytic Hierarchy Process with pairwise comparisons grounded in the proteomics literature (CR = 0.028).
+* Lowered the Good verdict threshold from `0.70` to `0.65` to better align with the observed score distribution under the new weights. Centralised verdict thresholds in `.pepvet_params` accessed via `.get_param()`.
+
+## Performance
+
+* `digest_protein()` rewritten for batch workloads. `.cleavage_ranges()` is now called once on the full `AAStringSet` instead of once per protein, eliminating repeated S4 dispatch overhead. The non-efficiency path pre-allocates six output vectors and fills them in a single loop before constructing one tibble, replacing ~20 K individual tibble builds followed by `do.call(rbind, ...)`.
+* `batch_evaluate()` restructured around two bulk calls — one `digest_protein()` and one `score_peptides()` for the entire input — instead of a per-protein loop over `evaluate_digest()`. A new internal helper `.batch_difficulty_flags()` computes all four difficulty flags across all proteins simultaneously via `tabulate()`, `tapply()`, and `.calculate_gravy_vec()`, replacing ~20 K per-protein subset/GRAVY/`tibble::as_tibble()` cycles.
+* `triage_proteins()` fully vectorized. Row-by-row `vapply` logic replaced with nested `ifelse()` and a `rowSums(matrix < 0.5)` component check, making the function O(n) in a single pass.
+* `S_coverage` scoring no longer uses `IRanges::reduce()`. Overlapping intervals are now merged inline via `order()` + `cummax()` on sorted starts and ends — same result with no S4 dispatch.
+* Scoring helpers (`S_coverage`, `S_count`, `S_hydro`, `S_charge`) accept a pre-computed `valid_digest` argument so callers can extract valid peptides once and share it across all four components instead of calling `.extract_valid_digest()` four times per protein.
+
+## New functions
+
+* Added `batch_compare_enzymes()` to score an entire proteome against multiple enzymes in one call, returning a tidy tibble of class `pepvet_batch_comparison` with one row per protein–enzyme pair. Parallel execution is supported via `parallel::mclapply` on Unix (fork copy-on-write, zero serialization overhead) and `parallel::parLapply` on Windows; both are part of base R. Proteins are split into equal chunks, so all `cores` workers are utilised regardless of the number of enzymes.
+
+## Parallel robustness
+
+* Fixed a bug in `batch_evaluate()` where `parallel::mclapply` worker crashes produced silently corrupted results. Failed chunks are now detected and retried sequentially.
+
+## Amino acid data
+
+* Added `U` (selenocysteine, Sec) to the `aa_properties` reference table. 25 human proteins contain selenocysteine and were previously rejected during input validation.
+* Added `O` (pyrrolysine, Pyl) to the `aa_properties` reference table (row 22). Monoisotopic mass verified from PubChem CID 119813 and ChEBI CHEBI:91273 (C₁₂H₂₁N₃O₃, 255.15829 Da). Hydrophobicity and pKa are `NA`: the Kyte–Doolittle scale predates the discovery of pyrrolysine (1982 vs 2002), and the ε-amino group is tied up in an amide bond and is not titratable. `calculate_gravy()` now passes `na.rm = TRUE` so sequences containing O return a valid GRAVY score computed from the remaining residues.
+
 # pepVet 0.1.2
 
 ## Visualization

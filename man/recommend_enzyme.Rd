@@ -7,7 +7,7 @@
 recommend_enzyme(
   sequence,
   enzymes = c("trypsin", "lysc"),
-  missed_cleavages = 0L,
+  missed_cleavages = 1L,
   proteome = NULL,
   weights = NULL,
   ...
@@ -18,7 +18,7 @@ recommend_enzyme(
 
 \item{enzymes}{Character vector of enzyme names to compare.}
 
-\item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{0L}.}
+\item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{1L}.}
 
 \item{proteome}{Optional proteome digest tibble for uniqueness scoring.}
 

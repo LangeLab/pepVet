@@ -338,10 +338,16 @@
 #'   used for peptide uniqueness scoring. When omitted, `S_unique` is excluded
 #'   and protein-only default weights are used.
 #' @param weights Optional numeric weight vector. In protein-only mode the
-#'   default weights are `c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20,
-#'   S_hydro = 0.15, S_charge = 0.15)`. In proteome-aware mode the
-#'   weights are `c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15,
-#'   S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)`.
+#'   default weights are `c(S_length = 0.200, S_coverage = 0.348,
+#'   S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)`.
+#'   In proteome-aware mode the weights are
+#'   `c(S_length = 0.160, S_coverage = 0.279, S_count = 0.181,
+#'   S_hydro = 0.110, S_charge = 0.070, S_unique = 0.200)`.
+#'   Weights were derived via analytical hierarchy process (AHP) with
+#'   pairwise comparisons grounded in proteomics literature: peptide length
+#'   is the primary MS detectability filter, sequence coverage carries the
+#'   main biological signal, peptide count supports statistical confidence,
+#'   and GRAVY/charge capture independent LC-MS dimensions.
 #' @param gravy_range Numeric vector of length 2 defining the inclusive GRAVY
 #'   range used by `S_hydro`. Defaults to `c(-1.0, 0.6)`.
 #' @param length_range Integer vector of length 2 defining the inclusive valid

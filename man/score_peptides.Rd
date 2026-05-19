@@ -24,8 +24,14 @@ used for peptide uniqueness scoring. When omitted, \code{S_unique} is excluded
 and protein-only default weights are used.}
 
 \item{weights}{Optional numeric weight vector. In protein-only mode the
-default weights are \code{c(S_length = 0.25, S_coverage = 0.25, S_count = 0.20, S_hydro = 0.15, S_charge = 0.15)}. In proteome-aware mode the
-weights are \code{c(S_length = 0.20, S_coverage = 0.20, S_count = 0.15, S_hydro = 0.15, S_charge = 0.10, S_unique = 0.20)}.}
+default weights are \code{c(S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)}.
+In proteome-aware mode the weights are
+\code{c(S_length = 0.160, S_coverage = 0.279, S_count = 0.181, S_hydro = 0.110, S_charge = 0.070, S_unique = 0.200)}.
+Weights were derived via analytical hierarchy process (AHP) with
+pairwise comparisons grounded in proteomics literature: peptide length
+is the primary MS detectability filter, sequence coverage carries the
+main biological signal, peptide count supports statistical confidence,
+and GRAVY/charge capture independent LC-MS dimensions.}
 
 \item{gravy_range}{Numeric vector of length 2 defining the inclusive GRAVY
 range used by \code{S_hydro}. Defaults to \code{c(-1.0, 0.6)}.}
@@ -70,7 +76,7 @@ the inclusive \code{gravy_range}, and \code{S_unique} is only computed when a
 proteome digest is supplied. \code{S_charge} measures the fraction of
 valid peptides that contain at least one non-terminal basic residue,
 capturing extra charge-state richness rather than baseline ionizability.
-Composite verdicts are classified as \code{Good} for scores >= 0.7,
+Composite verdicts are classified as \code{Good} for scores >= 0.65,
 \code{Moderate} for scores >= 0.4, and \code{Poor} otherwise.
 }
 \section{Limitations}{

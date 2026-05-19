@@ -70,29 +70,29 @@
 
 .default_scoring_weights <- list(
   protein_only = c(
-    S_length   = 0.451,
-    S_coverage = 0.239,
-    S_count    = 0.155,
-    S_hydro    = 0.095,
-    S_charge   = 0.060
+    S_length   = 0.200,
+    S_coverage = 0.348,
+    S_count    = 0.226,
+    S_hydro    = 0.138,
+    S_charge   = 0.088
   ),
   proteome_aware = c(
-    S_length   = 0.361,
-    S_coverage = 0.191,
-    S_count    = 0.124,
-    S_hydro    = 0.076,
-    S_charge   = 0.048,
+    S_length   = 0.160,
+    S_coverage = 0.279,
+    S_count    = 0.181,
+    S_hydro    = 0.110,
+    S_charge   = 0.070,
     S_unique   = 0.200
   )
 )
 
 .preset_scoring_weights <- list(
   standard = c(
-    S_length   = 0.451,
-    S_coverage = 0.239,
-    S_count    = 0.155,
-    S_hydro    = 0.095,
-    S_charge   = 0.060,
+    S_length   = 0.200,
+    S_coverage = 0.348,
+    S_count    = 0.226,
+    S_hydro    = 0.138,
+    S_charge   = 0.088,
     S_unique   = 0.000
   ),
   dia = c(
@@ -128,11 +128,11 @@
     S_unique = 0.10
   ),
   fractionated = c(
-    S_length   = 0.451,
-    S_coverage = 0.239,
-    S_count    = 0.155,
-    S_hydro    = 0.095,
-    S_charge   = 0.060,
+    S_length   = 0.200,
+    S_coverage = 0.348,
+    S_count    = 0.226,
+    S_hydro    = 0.138,
+    S_charge   = 0.088,
     S_unique   = 0.000
   )
 )
@@ -145,7 +145,7 @@
     include_pI = FALSE
   ),
   dia = list(
-    gravy_range = c(-1.0, 0.6),
+    gravy_range = c(-1.0, 0.8),
     length_range = c(7L, 30L),
     weights = .preset_scoring_weights$dia,
     include_pI = FALSE
@@ -157,7 +157,7 @@
     include_pI = FALSE
   ),
   membrane = list(
-    gravy_range = c(-1.0, 1.5),
+    gravy_range = c(-1.0, 2.0),
     length_range = c(7L, 30L),
     weights = .preset_scoring_weights$membrane,
     include_pI = FALSE
@@ -332,9 +332,47 @@
 #' `pepvet_preset()` returns a named list containing a GRAVY range, peptide
 #' length range, and scoring weights for a supported proteomics workflow.
 #' Presets are intended as editable starting points rather than hard rules.
+#' Each preset is grounded in workflow-specific proteomics literature.
 #'
-#' Presets with non-zero `S_unique` weights require a comparison proteome at
-#' scoring time so uniqueness can be measured honestly.
+#' ## Preset descriptions
+#'
+#' **`"standard"`** — Routine DDA. Default scoring configuration with default
+#' AHP-derived weights. Length range `[7, 25]` captures ~85% of identified
+#' tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range `[-1.0, 0.6]`
+#' covers the Kyte-Doolittle window for standard C18 LC-MS.
+#'
+#' **`"dia"`** — Data-independent acquisition (DIA / SWATH). Wider length range
+#' `[7, 30]` because DIA fragments all precursors simultaneously and longer
+#' peptides can still be identified from fragment traces (Ludwig et al. 2018,
+#' \emph{Cell Systems}). Wider GRAVY range `[-1.0, 0.8]` since DIA decouples
+#' fragmentation from precursor selection, tolerating more hydrophobic peptides.
+#' Elevated coverage weight reflects the importance of sequence coverage in DIA.
+#'
+#' **`"targeted"`** — SRM / PRM / MRM quantification. Narrow length range
+#' `[8, 20]`; shorter peptides fragment more reproducibly and produce cleaner
+#' transition traces (Lange et al. 2008, \emph{Mol Syst Biol}). Tight GRAVY
+#' range `[-0.8, 0.4]` for reliable LC retention. \code{S_unique} at 30\% —
+#' shared peptides cannot be used for quantification (Picotti & Aebersold 2012,
+#' \emph{Nat Methods}).
+#'
+#' **`"membrane"`** — Hydrophobic and membrane proteins. Extended GRAVY range
+#' `[-1.0, 2.0]` to accommodate transmembrane helices; membrane proteins contain
+#' long hydrophobic stretches with GRAVY values far exceeding soluble proteins
+#' (Vit & Petrak 2017, \emph{J Proteomics}; Helbig et al. 2010). Low
+#' \code{S_hydro} weight (5\%) avoids penalising the very hydrophobicity that
+#' defines this class. Wider length range `[7, 30]` captures longer
+#' transmembrane segments.
+#'
+#' **`"ffpe_degraded"`** — Archived FFPE tissue and degraded samples. Lowered
+#' minimum length `[6, 30]` because FFPE-derived peptides are shorter due to
+#' formalin-induced cross-linking and degradation (Coscia et al. 2020,
+#' \emph{Nat Commun}; Buczak et al. 2023, \emph{Mol Cell Proteomics}).
+#' Elevated \code{S_count} weight prioritises having more quantifiable
+#' peptides to compensate for reduced overall signal.
+#'
+#' **`"fractionated"`** — SCX / high-pH RP fractionation planning. Same
+#' scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
+#' to append peptide-level pI values for fractionation-aware analysis.
 #'
 #' @param type Preset name. Supported values are `"standard"`, `"dia"`,
 #'   `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and `"fractionated"`.

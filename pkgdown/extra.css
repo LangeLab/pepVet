@@ -1,0 +1,44 @@
+/* --- Reference page breadcrumb --- */
+.ref-breadcrumb {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.ref-breadcrumb .breadcrumb {
+  font-size: 0.875rem;
+  background: transparent;
+}
+
+/* --- Prev / Next navigation --- */
+.ref-prevnext {
+  padding: 1rem 0;
+  border-top: 1px solid var(--bs-border-color);
+}
+.ref-nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-decoration: none;
+  color: var(--bs-primary);
+}
+.ref-nav-link:hover {
+  text-decoration: underline;
+}
+.ref-nav-dir {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary);
+}
+.ref-nav-fn code {
+  font-size: 0.95rem;
+}
+
+/* --- Home page: hide logo pkgdown injects into .page-header --- */
+.page-header .logo {
+  display: none;
+}
+
+/* --- Always-visible navbar: disable headroom.js scroll-away behaviour --- */
+.headroom--unpinned {
+  transform: translateY(0) !important;
+}

@@ -215,7 +215,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 # nolint start: object_usage_linter.
 digest_protein <- function(sequence,
                            enzyme = "trypsin",
-                            missed_cleavages = 1L,
+                           missed_cleavages = 1L,
                            include_cleavage_efficiency = FALSE) {
   normalized_input <- .read_input(sequence)
   normalized_enzyme <- .normalize_enzyme(enzyme)
@@ -242,15 +242,15 @@ digest_protein <- function(sequence,
     n_per_protein <- vapply(
       all_digest_ranges, function(dr) length(dr$start), integer(1L)
     )
-    total_rows   <- sum(n_per_protein)
-    offsets      <- c(0L, cumsum(n_per_protein))
+    total_rows <- sum(n_per_protein)
+    offsets <- c(0L, cumsum(n_per_protein))
 
     col_protein_id <- character(total_rows)
-    col_peptide    <- character(total_rows)
-    col_start      <- integer(total_rows)
-    col_end        <- integer(total_rows)
-    col_length     <- integer(total_rows)
-    col_mc         <- integer(total_rows)
+    col_peptide <- character(total_rows)
+    col_start <- integer(total_rows)
+    col_end <- integer(total_rows)
+    col_length <- integer(total_rows)
+    col_mc <- integer(total_rows)
 
     for (index in seq_along(sequence_strings)) {
       k <- offsets[[index]] + 1L
@@ -258,11 +258,11 @@ digest_protein <- function(sequence,
       if (k > e) next
       dr <- all_digest_ranges[[index]]
       col_protein_id[k:e] <- protein_ids[[index]]
-      col_peptide[k:e]    <- substring(sequence_strings[[index]], dr$start, dr$end)
-      col_start[k:e]      <- dr$start
-      col_end[k:e]        <- dr$end
-      col_length[k:e]     <- dr$end - dr$start + 1L
-      col_mc[k:e]         <- dr$missed_cleavages
+      col_peptide[k:e] <- substring(sequence_strings[[index]], dr$start, dr$end)
+      col_start[k:e] <- dr$start
+      col_end[k:e] <- dr$end
+      col_length[k:e] <- dr$end - dr$start + 1L
+      col_mc[k:e] <- dr$missed_cleavages
     }
 
     return(tibble::tibble(

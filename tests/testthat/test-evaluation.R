@@ -1,11 +1,15 @@
 # ── Cross-function consistency ─────────────────────────────────────────────
 
 test_that("evaluate_digest gives the same result as manual pipeline", {
-  result <- evaluate_digest(.bsa_path, enzyme = "trypsin",
-                            missed_cleavages = 0L)
+  result <- evaluate_digest(.bsa_path,
+    enzyme = "trypsin",
+    missed_cleavages = 0L
+  )
 
-  manual_peptides <- digest_protein(.bsa_path, enzyme = "trypsin",
-                                    missed_cleavages = 0L)
+  manual_peptides <- digest_protein(.bsa_path,
+    enzyme = "trypsin",
+    missed_cleavages = 0L
+  )
   manual_scores <- score_peptides(manual_peptides)
   manual_annotations <- annotate_cleavage_sites(.bsa_path, enzyme = "trypsin")
   manual_scores <- tibble::add_column(
@@ -98,6 +102,15 @@ test_that("compare_digests output has enzyme column plus all score columns", {
   )
   expect_true(all(expected_score_cols %in% names(result)))
   expect_identical(nrow(result), 2L)
+})
+
+test_that("subsetted batch_compare_enzymes objects print without error", {
+  result <- suppressWarnings(
+    batch_compare_enzymes(.small_path, enzymes = c("trypsin", "lysc"))
+  )
+  subsetted <- result[result$enzyme == "trypsin", c("protein_id", "composite_score")]
+
+  expect_no_error(print(subsetted))
 })
 
 test_that("compare_digests rejects multi-protein input", {
@@ -315,8 +328,10 @@ test_that("triage_proteins action values are from the expected set", {
   batch <- .fix_batch_small
   triaged <- triage_proteins(batch)
 
-  valid_actions <- c("proceed", "consider_alternative",
-                     "try_other_enzyme", "skip")
+  valid_actions <- c(
+    "proceed", "consider_alternative",
+    "try_other_enzyme", "skip"
+  )
   expect_true(all(triaged$action %in% valid_actions))
 })
 
@@ -336,7 +351,8 @@ test_that("triage_proteins categorizes BSA trypsin (mc=1) as proceed", {
 
 test_that("triage_proteins categorizes Histone H3.1 trypsin as try_other_enzyme", {
   batch <- batch_evaluate(system.file("extdata", "P68431.fasta", package = "pepVet"),
-                          enzyme = "trypsin", missed_cleavages = 0L)
+    enzyme = "trypsin", missed_cleavages = 0L
+  )
   triaged <- triage_proteins(batch)
 
   expect_equal(triaged$action[[1]], "try_other_enzyme")

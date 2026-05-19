@@ -173,7 +173,7 @@ pepVet maps the composite score to three labels.
 
 | Verdict | Threshold |
 |---|---|
-| `Good` | `>= 0.70` |
+| `Good` | `>= 0.65` |
 | `Moderate` | `>= 0.40` |
 | `Poor` | `< 0.40` |
 

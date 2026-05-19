@@ -39,10 +39,10 @@
 #'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
-#'     requireNamespace("patchwork", quietly = TRUE)) {
+#'   requireNamespace("patchwork", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-#'   p   <- plot_digest_profile(res)
+#'   p <- plot_digest_profile(res)
 #'   print(p)
 #' }
 #'
@@ -52,8 +52,8 @@
 
 plot_digest_profile <- function(result,
                                 length_range = c(7L, 25L),
-                                gravy_range  = c(-1.0, 0.6),
-                                title        = NULL) {
+                                gravy_range = c(-1.0, 0.6),
+                                title = NULL) {
   rlang::check_installed(
     "ggplot2",
     reason = "to produce pepVet visualization plots"
@@ -65,13 +65,13 @@ plot_digest_profile <- function(result,
 
   .validate_digest_result_for_plot(result)
 
-  peps   <- result$peptides
+  peps <- result$peptides
   scores <- result$scores
   params <- result$params
 
-  protein_id  <- params$protein_ids[[1L]]
+  protein_id <- params$protein_ids[[1L]]
   enzyme_name <- params$enzyme
-  display_id  <- .tidy_protein_id(protein_id)
+  display_id <- .tidy_protein_id(protein_id)
 
   # Add GRAVY scores to the peptide table (computed from sequences)
   peps$gravy <- .calculate_gravy_vec(peps$peptide)
@@ -79,8 +79,8 @@ plot_digest_profile <- function(result,
   protein_length <- max(peps$end)
 
   # ── Build panels ──────────────────────────────────────────────────────────
-  pa <- .panel_length(peps,   length_range)
-  pb <- .panel_gravy(peps,    gravy_range)
+  pa <- .panel_length(peps, length_range)
+  pb <- .panel_gravy(peps, gravy_range)
   pc <- .panel_coverage(peps, protein_length, length_range)
   pd <- .panel_scores(scores)
 
@@ -101,9 +101,9 @@ plot_digest_profile <- function(result,
 
   figure +
     patchwork::plot_annotation(
-      title      = auto_title,
+      title = auto_title,
       tag_levels = "A",
-      theme      = ggplot2::theme(
+      theme = ggplot2::theme(
         plot.title = ggplot2::element_text(
           face   = "bold",
           size   = .get_param("patchwork_title_size"),
@@ -175,8 +175,8 @@ plot_digest_profile <- function(result,
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1)
-#'   cs  <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
-#'   p   <- plot_coverage_map(res, cleavage_sites = cs)
+#'   cs <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+#'   p <- plot_coverage_map(res, cleavage_sites = cs)
 #'   print(p)
 #' }
 #'
@@ -184,15 +184,18 @@ plot_digest_profile <- function(result,
 #'   [plot_digest_profile()]
 #' @export
 plot_coverage_map <- function(result,
-                              color_by       = c("validity",
-                                                 "length_class",
-                                                 "hydrophobicity"),
-                              length_range   = c(7L, 25L),
+                              color_by = c(
+                                "validity",
+                                "length_class",
+                                "hydrophobicity"
+                              ),
+                              length_range = c(7L, 25L),
                               cleavage_sites = NULL,
-                              domains        = NULL,
-                              title          = NULL) {
+                              domains = NULL,
+                              title = NULL) {
   rlang::check_installed("ggplot2",
-    reason = "to produce pepVet visualization plots")
+    reason = "to produce pepVet visualization plots"
+  )
 
   color_by <- match.arg(color_by)
 
@@ -200,50 +203,63 @@ plot_coverage_map <- function(result,
 
   # ── Input validation for optional args ─────────────────────────────────────
   if (!is.null(cleavage_sites)) {
-    if (!is.data.frame(cleavage_sites) ||
-        !all(c("position", "efficiency") %in% names(cleavage_sites))) {
+    if (
+      !is.data.frame(cleavage_sites) ||
+        !all(c("position", "efficiency") %in% names(cleavage_sites))
+    ) {
       .abort(
-        c("!" = paste0("{.arg cleavage_sites} must be a data.frame from ",
-                       "{.fn annotate_cleavage_sites}."),
-          "i" = "Required columns: {.code position}, {.code efficiency}."),
+        c(
+          "!" = paste0(
+            "{.arg cleavage_sites} must be a data.frame from ",
+            "{.fn annotate_cleavage_sites}."
+          ),
+          "i" = "Required columns: {.code position}, {.code efficiency}."
+        ),
         class = "pepvet_error_invalid_cleavage_sites"
       )
     }
   }
   if (!is.null(domains)) {
-    if (!is.data.frame(domains) ||
-        !all(c("name", "start", "end") %in% names(domains))) {
+    if (
+      !is.data.frame(domains) ||
+        !all(c("name", "start", "end") %in% names(domains))
+    ) {
       .abort(
-        c("!" = paste0("{.arg domains} must be a data.frame with columns ",
-                       "{.code name}, {.code start}, {.code end}."),
-          "i" = "Each row describes one annotated protein domain."),
+        c(
+          "!" = paste0(
+            "{.arg domains} must be a data.frame with columns ",
+            "{.code name}, {.code start}, {.code end}."
+          ),
+          "i" = "Each row describes one annotated protein domain."
+        ),
         class = "pepvet_error_invalid_domains"
       )
     }
   }
 
   # ── Extract data ────────────────────────────────────────────────────────────
-  peps           <- result$peptides
-  params         <- result$params
-  protein_id     <- params$protein_ids[[1L]]
-  enzyme_name    <- params$enzyme
-  display_id     <- .tidy_protein_id(protein_id)
+  peps <- result$peptides
+  params <- result$params
+  protein_id <- params$protein_ids[[1L]]
+  enzyme_name <- params$enzyme
+  display_id <- .tidy_protein_id(protein_id)
   protein_length <- max(peps$end)
 
   # ── GRAVY (computed once, used for coloring or silently ignored) ────────────
   peps$gravy <- .calculate_gravy_vec(peps$peptide)
 
   # ── Determine MC levels present and build lane coordinates ─────────────────
-  has_mc     <- "missed_cleavages" %in% names(peps)
-  mc_levels  <- if (has_mc) sort(unique(peps$missed_cleavages)) else 0L
-  tick_h     <- if (!is.null(cleavage_sites)) 0.11 else 0.0
-  lanes      <- .lane_y_coords(mc_levels, tick_height = tick_h)
+  has_mc <- "missed_cleavages" %in% names(peps)
+  mc_levels <- if (has_mc) sort(unique(peps$missed_cleavages)) else 0L
+  tick_h <- if (!is.null(cleavage_sites)) 0.11 else 0.0
+  lanes <- .lane_y_coords(mc_levels, tick_height = tick_h)
 
   # ── Coverage stats on MC = 0 peptides (for subtitle) ───────────────────────
   cs0 <- .compute_coverage_stats(peps, protein_length, length_range,
-                                  mc_filter = if (has_mc) 0L else NULL)
+    mc_filter = if (has_mc) 0L else NULL
+  )
   pct_cov <- cs0$pct_cov
-  gap_df  <- cs0$gap_df
+  gap_df <- cs0$gap_df
 
   # ── Build fill aesthetic and scale ─────────────────────────────────────────
   #   For "validity"/"length_class": factor column `fill_cat` → scale_fill_manual
@@ -253,10 +269,12 @@ plot_coverage_map <- function(result,
     peps$fill_val <- peps$gravy
   } else {
     # Validity categories (used by both "validity" and "length_class")
-    lo <- length_range[[1L]];  hi <- length_range[[2L]]
+    lo <- length_range[[1L]]
+    hi <- length_range[[2L]]
     peps$fill_cat <- factor(
-      ifelse(peps$length < lo,  "Too short",
-        ifelse(peps$length > hi, "Too long", "Valid")),
+      ifelse(peps$length < lo, "Too short",
+        ifelse(peps$length > hi, "Too long", "Valid")
+      ),
       levels = c("Valid", "Too short", "Too long", "Invalid")
     )
     if (color_by == "validity") {
@@ -273,8 +291,10 @@ plot_coverage_map <- function(result,
 
   # ── Domain backgrounds (behind everything else) ────────────────────────────
   # Pre-defined palette of 8 soft distinguishable fills for domains
-  domain_fills <- c("#D9EAF7", "#FFF0C2", "#D4EDD4", "#F7D9D9",
-                    "#EDD4F7", "#D4F7F0", "#F7ECD4", "#D4D9F7")
+  domain_fills <- c(
+    "#D9EAF7", "#FFF0C2", "#D4EDD4", "#F7D9D9",
+    "#EDD4F7", "#D4F7F0", "#F7ECD4", "#D4D9F7"
+  )
   if (!is.null(domains)) {
     n_dom <- nrow(domains)
     for (k in seq_len(n_dom)) {
@@ -283,14 +303,14 @@ plot_coverage_map <- function(result,
         ggplot2::annotate("rect",
           xmin = domains$start[[k]], xmax = domains$end[[k]],
           ymin = tick_h, ymax = 1.0,
-          fill  = dom_fill, color = NA, alpha = 0.55
+          fill = dom_fill, color = NA, alpha = 0.55
         ) +
         ggplot2::annotate("text",
-          x        = (domains$start[[k]] + domains$end[[k]]) / 2.0,
-          y        = 0.995,
-          label    = domains$name[[k]],
-          size     = 2.8, hjust = 0.5, vjust = 1,
-          color    = "#444444", fontface = "italic"
+          x = (domains$start[[k]] + domains$end[[k]]) / 2.0,
+          y = 0.995,
+          label = domains$name[[k]],
+          size = 2.8, hjust = 0.5, vjust = 1,
+          color = "#444444", fontface = "italic"
         )
     }
   }
@@ -302,21 +322,30 @@ plot_coverage_map <- function(result,
   # completes, so bare loop variables always capture the final iteration value.
   for (k in seq_len(nrow(lanes))) {
     mc_val <- lanes$mc[[k]]
-    y_lo   <- lanes$y_lo[[k]]
-    y_hi   <- lanes$y_hi[[k]]
-    y_mid  <- lanes$y_mid[[k]]
+    y_lo <- lanes$y_lo[[k]]
+    y_hi <- lanes$y_hi[[k]]
+    y_mid <- lanes$y_mid[[k]]
     lane_h <- y_hi - y_lo
 
     # Peptides for this lane
-    lane_peps <- if (has_mc) peps[peps$missed_cleavages == mc_val, ,
-                                   drop = FALSE] else peps
+    lane_peps <- if (has_mc) {
+      peps[peps$missed_cleavages == mc_val, ,
+        drop = FALSE
+      ]
+    } else {
+      peps
+    }
 
-    lane_valid   <- lane_peps[lane_peps$length >= length_range[[1L]] &
-                                lane_peps$length <= length_range[[2L]], ,
-                               drop = FALSE]
-    lane_invalid <- lane_peps[lane_peps$length  < length_range[[1L]] |
-                                lane_peps$length  > length_range[[2L]], ,
-                               drop = FALSE]
+    lane_valid <- lane_peps[
+      lane_peps$length >= length_range[[1L]] &
+        lane_peps$length <= length_range[[2L]], ,
+      drop = FALSE
+    ]
+    lane_invalid <- lane_peps[
+      lane_peps$length < length_range[[1L]] |
+        lane_peps$length > length_range[[2L]], ,
+      drop = FALSE
+    ]
 
     # ── Greedy packing: stack overlapping peptides into sub-rows ─────────────
     # Each peptide gets a `track` integer (1 = bottom, 2 = above, ...).
@@ -324,28 +353,28 @@ plot_coverage_map <- function(result,
     # For MC>=1 merged peptides share residues; packing yields 2-4 tracks.
     # y-bounds are pre-computed into data-frame columns to avoid the closure trap.
     if (nrow(lane_invalid) > 0L) {
-      lane_invalid  <- .pack_peptides(lane_invalid)
-      n_tracks_i    <- max(lane_invalid$track)
-      inv_inner_lo  <- y_mid - 0.28 * lane_h
-      inv_inner_hi  <- y_mid + 0.28 * lane_h
-      track_h_i     <- (inv_inner_hi - inv_inner_lo) / n_tracks_i
-      margin_i      <- 0.05 * track_h_i
+      lane_invalid <- .pack_peptides(lane_invalid)
+      n_tracks_i <- max(lane_invalid$track)
+      inv_inner_lo <- y_mid - 0.28 * lane_h
+      inv_inner_hi <- y_mid + 0.28 * lane_h
+      track_h_i <- (inv_inner_hi - inv_inner_lo) / n_tracks_i
+      margin_i <- 0.05 * track_h_i
       lane_invalid$.y_lo <- inv_inner_lo +
         (lane_invalid$track - 1L) * track_h_i + margin_i
       lane_invalid$.y_hi <- inv_inner_lo +
-        lane_invalid$track       * track_h_i - margin_i
+        lane_invalid$track * track_h_i - margin_i
     }
     if (nrow(lane_valid) > 0L) {
-      lane_valid   <- .pack_peptides(lane_valid)
-      n_tracks_v   <- max(lane_valid$track)
-      inner_lo     <- y_lo + 0.04 * lane_h
-      inner_hi     <- y_hi - 0.04 * lane_h
-      track_h_v    <- (inner_hi - inner_lo) / n_tracks_v
-      margin_v     <- 0.05 * track_h_v
-      lane_valid$.y_lo  <- inner_lo +
+      lane_valid <- .pack_peptides(lane_valid)
+      n_tracks_v <- max(lane_valid$track)
+      inner_lo <- y_lo + 0.04 * lane_h
+      inner_hi <- y_hi - 0.04 * lane_h
+      track_h_v <- (inner_hi - inner_lo) / n_tracks_v
+      margin_v <- 0.05 * track_h_v
+      lane_valid$.y_lo <- inner_lo +
         (lane_valid$track - 1L) * track_h_v + margin_v
-      lane_valid$.y_hi  <- inner_lo +
-        lane_valid$track       * track_h_v - margin_v
+      lane_valid$.y_hi <- inner_lo +
+        lane_valid$track * track_h_v - margin_v
       lane_valid$.y_mid <- (lane_valid$.y_lo + lane_valid$.y_hi) / 2.0
     }
 
@@ -361,7 +390,7 @@ plot_coverage_map <- function(result,
       p <- p + ggplot2::annotate("rect",
         xmin = gap_df$xmin, xmax = gap_df$xmax,
         ymin = y_lo + 0.03 * lane_h, ymax = y_hi - 0.03 * lane_h,
-        fill  = .pepvet_pal$gap, alpha = 0.12
+        fill = .pepvet_pal$gap, alpha = 0.12
       )
     }
 
@@ -421,7 +450,7 @@ plot_coverage_map <- function(result,
       # typical export widths (14 in / 150 dpi).  Also suppress labels when
       # packing produces many tracks and bars become too short vertically.
       min_label_span <- max(5L, as.integer(protein_length * 0.025))
-      label_v        <- lane_valid[
+      label_v <- lane_valid[
         (lane_valid$end - lane_valid$start + 1L) >= min_label_span, ,
         drop = FALSE
       ]
@@ -438,11 +467,11 @@ plot_coverage_map <- function(result,
     # Lane label on the right margin
     mc_label <- if (has_mc) sprintf("MC = %d", mc_val) else "Peptides"
     p <- p + ggplot2::annotate("text",
-      x        = protein_length + 3L,
-      y        = y_mid,
-      label    = mc_label,
-      hjust    = 0, vjust = 0.5,
-      size     = 3.0, color = "#444444", fontface = "bold"
+      x = protein_length + 3L,
+      y = y_mid,
+      label = mc_label,
+      hjust = 0, vjust = 0.5,
+      size = 3.0, color = "#444444", fontface = "bold"
     )
   }
 
@@ -451,8 +480,8 @@ plot_coverage_map <- function(result,
     for (k in seq_len(nrow(lanes) - 1L)) {
       sep_y <- (lanes$y_hi[[k]] + lanes$y_lo[[k + 1L]]) / 2.0
       p <- p + ggplot2::annotate("segment",
-        x    = 0, xend = protein_length,
-        y    = sep_y, yend = sep_y,
+        x = 0, xend = protein_length,
+        y = sep_y, yend = sep_y,
         color = .pepvet_pal$separator, linewidth = 0.4, linetype = "dotted"
       )
     }
@@ -463,8 +492,8 @@ plot_coverage_map <- function(result,
   # to the legend panel alongside the fill legend.
   has_cs <- !is.null(cleavage_sites) && tick_h > 0
   if (has_cs) {
-    cs_df              <- cleavage_sites
-    cs_df$eff_level    <- factor(
+    cs_df <- cleavage_sites
+    cs_df$eff_level <- factor(
       cs_df$efficiency,
       levels = c("high", "medium", "low"),
       labels = c("High", "Medium", "Low")
@@ -474,9 +503,11 @@ plot_coverage_map <- function(result,
     p <- p +
       ggplot2::geom_segment(
         data = cs_df,
-        ggplot2::aes(x    = .data$position, xend = .data$position,
-                     y    = 0,              yend = tick_top,
-                     color = .data$eff_level),
+        ggplot2::aes(
+          x = .data$position, xend = .data$position,
+          y = 0, yend = tick_top,
+          color = .data$eff_level
+        ),
         linewidth = 0.6, alpha = 0.85
       ) +
       # Thin line separating tick zone from lane area
@@ -492,14 +523,16 @@ plot_coverage_map <- function(result,
     # Gradient: brand blue → green → amber → poor red
     # values rescaled over the display range [-2, 2]
     gravy_stops <- c(-2.0, -0.5, 0.6, 2.0)
-    rescaled    <- (gravy_stops - (-2.0)) / 4.0
+    rescaled <- (gravy_stops - (-2.0)) / 4.0
     p <- p + ggplot2::scale_fill_gradientn(
-      colors = c(.pepvet_pal$brand, .pepvet_pal$good,
-                  .pepvet_pal$moderate, .pepvet_pal$poor),
+      colors = c(
+        .pepvet_pal$brand, .pepvet_pal$good,
+        .pepvet_pal$moderate, .pepvet_pal$poor
+      ),
       values = rescaled,
-      name   = "GRAVY",
-      guide  = ggplot2::guide_colorbar(
-        barwidth  = ggplot2::unit(8, "lines"),
+      name = "GRAVY",
+      guide = ggplot2::guide_colorbar(
+        barwidth = ggplot2::unit(8, "lines"),
         barheight = ggplot2::unit(0.55, "lines"),
         direction = "horizontal",
         title.position = "top"
@@ -517,9 +550,9 @@ plot_coverage_map <- function(result,
     }
     p <- p + ggplot2::scale_fill_manual(
       values = color_vals,
-      name   = NULL,
+      name = NULL,
       na.value = "#B8C2CC",
-      guide  = ggplot2::guide_legend(
+      guide = ggplot2::guide_legend(
         override.aes = list(alpha = 1, color = NA, size = 5)
       )
     )
@@ -533,7 +566,7 @@ plot_coverage_map <- function(result,
         "Medium" = .pepvet_pal$moderate,
         "Low"    = .pepvet_pal$poor
       ),
-      name  = "Cleavage efficiency",
+      name = "Cleavage efficiency",
       guide = ggplot2::guide_legend(
         override.aes = list(linewidth = 2, alpha = 1)
       )
@@ -545,7 +578,7 @@ plot_coverage_map <- function(result,
   # ── Scales, axes, theme ────────────────────────────────────────────────────
   n_sites_str <- if (!is.null(cleavage_sites)) {
     eff_tbl <- table(cleavage_sites$efficiency)
-    parts   <- paste0(as.integer(eff_tbl), " ", tolower(names(eff_tbl)))
+    parts <- paste0(as.integer(eff_tbl), " ", tolower(names(eff_tbl)))
     paste0("  \u00b7  ", paste(parts, collapse = " / "), " efficiency sites")
   } else {
     ""
@@ -568,9 +601,12 @@ plot_coverage_map <- function(result,
       expand = ggplot2::expansion(mult = c(0.01, 0.01))
     ) +
     ggplot2::labs(
-      title    = auto_title,
+      title = auto_title,
       subtitle = sprintf(
-        "%.0f%% sequence coverage (MC=0 valid peptides)  \u00b7  %d gap region(s)  \u00b7  protein length %d aa%s",
+        paste(
+          "%.0f%% sequence coverage (MC=0 valid peptides).",
+          "%d gap region(s). Protein length %d aa%s"
+        ),
         pct_cov, nrow(gap_df), protein_length, n_sites_str
       ),
       x = "Residue position",
@@ -584,7 +620,6 @@ plot_coverage_map <- function(result,
       legend.position    = "bottom"
     )
 }
-
 
 
 # ── plot_cleavage_map ─────────────────────────────────────────────────────────
@@ -611,18 +646,19 @@ plot_coverage_map <- function(result,
 #' @export
 plot_cleavage_map <- function(result,
                               cleavage_sites = NULL,
-                              length_range   = c(7L, 25L),
-                              title          = NULL) {
+                              length_range = c(7L, 25L),
+                              title = NULL) {
   rlang::check_installed("ggplot2",
-    reason = "to produce pepVet visualization plots")
+    reason = "to produce pepVet visualization plots"
+  )
 
   .validate_digest_result_for_plot(result)
 
-  peps           <- result$peptides
-  params         <- result$params
-  protein_id     <- params$protein_ids[[1L]]
-  enzyme_name    <- params$enzyme
-  display_id     <- .tidy_protein_id(protein_id)
+  peps <- result$peptides
+  params <- result$params
+  protein_id <- params$protein_ids[[1L]]
+  enzyme_name <- params$enzyme
+  display_id <- .tidy_protein_id(protein_id)
   protein_length <- max(peps$end)
 
   length_lo <- length_range[[1L]]
@@ -630,26 +666,32 @@ plot_cleavage_map <- function(result,
   peps$valid <- peps$length >= length_lo & peps$length <= length_hi
 
   # Build cleavage site table (infer if not provided)
-  if (!is.null(cleavage_sites) &&
-      all(c("position", "efficiency") %in% names(cleavage_sites))) {
+  if (
+    !is.null(cleavage_sites) &&
+      all(c("position", "efficiency") %in% names(cleavage_sites))
+  ) {
     site_df <- cleavage_sites
     # Map efficiency to colors
-    eff_levels <- c("high" = .pepvet_pal$good,
-                    "medium" = .pepvet_pal$moderate,
-                    "low"    = .pepvet_pal$poor)
+    eff_levels <- c(
+      "high" = .pepvet_pal$good,
+      "medium" = .pepvet_pal$moderate,
+      "low" = .pepvet_pal$poor
+    )
     site_df$site_color <- ifelse(
       site_df$efficiency %in% names(eff_levels),
       eff_levels[site_df$efficiency],
       .pepvet_pal$brand
     )
     site_df$efficiency <- factor(
-      site_df$efficiency, levels = c("high", "medium", "low"))
+      site_df$efficiency,
+      levels = c("high", "medium", "low")
+    )
     has_efficiency <- TRUE
   } else {
     # Infer sites from peptide end positions (not including C-terminus)
     site_positions <- unique(peps$end[peps$end < protein_length])
     site_df <- data.frame(
-      position   = sort(site_positions),
+      position = sort(site_positions),
       efficiency = "unknown",
       site_color = .pepvet_pal$brand,
       stringsAsFactors = FALSE
@@ -666,12 +708,13 @@ plot_cleavage_map <- function(result,
 
   # Fill color: valid = brand blue (alpha), invalid = light gray
   mc0$fill_color <- ifelse(mc0$valid, .pepvet_pal$brand, "#CCCCCC")
-  mc0$alpha_val  <- ifelse(mc0$valid, 0.75, 0.35)
+  mc0$alpha_val <- ifelse(mc0$valid, 0.75, 0.35)
 
   # Peptide label: length if valid and wide enough (> 2.5% protein width)
   min_label_width <- ceiling(protein_length * 0.025)
   mc0$label <- ifelse(mc0$valid & mc0$length >= min_label_width,
-                      as.character(mc0$length), "")
+    as.character(mc0$length), ""
+  )
 
   x_step <- max(50L, as.integer(round(protein_length / 10.0 / 50.0) * 50L))
 
@@ -688,13 +731,13 @@ plot_cleavage_map <- function(result,
       data = mc0,
       ggplot2::aes(
         xmin = .data$start - 0.3,
-        xmax = .data$end   + 0.3,
+        xmax = .data$end + 0.3,
         ymin = 0.32, ymax = 0.68
       ),
-      fill      = mc0$fill_color,
-      color     = "white",
+      fill = mc0$fill_color,
+      color = "white",
       linewidth = 0.2,
-      alpha     = mc0$alpha_val
+      alpha = mc0$alpha_val
     )
 
   # Fragment length labels
@@ -719,14 +762,16 @@ plot_cleavage_map <- function(result,
           color = .data$efficiency
         ),
         linewidth = 0.8,
-        alpha     = 0.85
+        alpha = 0.85
       ) +
         ggplot2::scale_color_manual(
-          values = c(high = .pepvet_pal$good,
-                     medium = .pepvet_pal$moderate,
-                     low    = .pepvet_pal$poor),
-          name   = "Cleavage efficiency",
-          guide  = ggplot2::guide_legend(
+          values = c(
+            high = .pepvet_pal$good,
+            medium = .pepvet_pal$moderate,
+            low = .pepvet_pal$poor
+          ),
+          name = "Cleavage efficiency",
+          guide = ggplot2::guide_legend(
             override.aes = list(linewidth = 2)
           )
         )
@@ -737,16 +782,16 @@ plot_cleavage_map <- function(result,
           x = .data$position + 0.5, xend = .data$position + 0.5,
           y = 0.10, yend = 0.88
         ),
-        color     = .pepvet_pal$brand_dark,
+        color = .pepvet_pal$brand_dark,
         linewidth = 1.0,
-        alpha     = 1.0
+        alpha = 1.0
       )
     }
   }
 
-  n_valid   <- sum(mc0$valid)
-  n_total   <- nrow(mc0)
-  n_sites   <- nrow(site_df)
+  n_valid <- sum(mc0$valid)
+  n_total <- nrow(mc0)
+  n_sites <- nrow(site_df)
   auto_title <- title %||% paste0(display_id, "    \u00b7    ", enzyme_name)
 
   p +
@@ -760,14 +805,16 @@ plot_cleavage_map <- function(result,
       expand = ggplot2::expansion(mult = c(0.02, 0.02))
     ) +
     ggplot2::labs(
-      title    = auto_title,
+      title = auto_title,
       subtitle = sprintf(
         "%d cleavage sites  \u00b7  %d / %d valid fragments  \u00b7  protein length %d aa",
         n_sites, n_valid, n_total, protein_length
       ),
-      caption  = if (!has_efficiency)
+      caption = if (!has_efficiency) {
         "Tip: pass annotate_cleavage_sites() output to see efficiency coloring"
-        else NULL,
+      } else {
+        NULL
+      },
       x = "Residue position",
       y = NULL
     ) +
@@ -779,5 +826,3 @@ plot_cleavage_map <- function(result,
       legend.position    = if (has_efficiency) "bottom" else "none"
     )
 }
-
-

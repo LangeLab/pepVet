@@ -16,7 +16,7 @@
     )
   }
   required <- c("enzyme", "composite_score")
-  missing  <- setdiff(required, names(comparison))
+  missing <- setdiff(required, names(comparison))
   if (length(missing) > 0L) {
     .abort(
       c(
@@ -71,11 +71,14 @@
 #'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
-#'     requireNamespace("patchwork", quietly = TRUE)) {
+#'   requireNamespace("patchwork", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   comp <- compare_digests(bsa_path,
-#'                           enzymes = c("trypsin", "lysc",
-#'                                       "glutamyl endopeptidase"))
+#'     enzymes = c(
+#'       "trypsin", "lysc",
+#'       "glutamyl endopeptidase"
+#'     )
+#'   )
 #'   p <- plot_enzyme_comparison(comp)
 #'   print(p)
 #' }
@@ -84,12 +87,12 @@
 #'   [plot_digest_profile()], [plot_coverage_map()]
 #' @export
 plot_enzyme_comparison <- function(
-    comparison,
-    scores    = c("S_coverage", "S_length", "S_count", "S_hydro", "S_charge"),
-    recommend = TRUE,
-    title     = NULL
+  comparison,
+  scores = c("S_coverage", "S_length", "S_count", "S_hydro", "S_charge"),
+  recommend = TRUE,
+  title = NULL
 ) {
-  rlang::check_installed("ggplot2",   reason = "to use plot_enzyme_comparison()")
+  rlang::check_installed("ggplot2", reason = "to use plot_enzyme_comparison()")
   rlang::check_installed("patchwork", reason = "to use plot_enzyme_comparison()")
 
   .validate_comparison_for_plot(comparison)
@@ -123,13 +126,13 @@ plot_enzyme_comparison <- function(
 
   # ── Distinct JCO-inspired colors, one per component ───────────────────────
   component_colors <- c(
-    S_coverage = "#2C5F8A",   # brand blue
-    S_length   = "#27AE60",   # good green
-    S_count    = "#E8A838",   # amber
-    S_hydro    = "#8B5E99",   # purple
-    S_charge   = "#4AAFB0"    # teal
+    S_coverage = "#2C5F8A", # brand blue
+    S_length   = "#27AE60", # good green
+    S_count    = "#E8A838", # amber
+    S_hydro    = "#8B5E99", # purple
+    S_charge   = "#4AAFB0" # teal
   )
-  col_map        <- component_colors[scores]
+  col_map <- component_colors[scores]
   names(col_map) <- display_names
 
   # ── Enzyme factor: sorted worst → best composite (top of chart = best) ────
@@ -139,19 +142,20 @@ plot_enzyme_comparison <- function(
   # ── Reshape to long for Panel A ───────────────────────────────────────────
   long <- do.call(rbind, lapply(seq_along(scores), function(i) {
     data.frame(
-      enzyme     = comparison$enzyme,
+      enzyme = comparison$enzyme,
       score_name = display_names[[i]],
-      value      = comparison[[scores[[i]]]],
+      value = comparison[[scores[[i]]]],
       stringsAsFactors = FALSE
     )
   }))
   long$score_name <- factor(long$score_name, levels = rev(display_names))
-  long$enzyme     <- factor(long$enzyme,     levels = levels(comparison$enzyme))
+  long$enzyme <- factor(long$enzyme, levels = levels(comparison$enzyme))
 
   # ── Verdict tier color for composite lollipop heads ───────────────────────
   tier_color <- function(x) {
     ifelse(x >= .get_param("verdict_good"), .pepvet_pal$good,
-    ifelse(x >= .get_param("verdict_moderate"), .pepvet_pal$moderate, .pepvet_pal$poor))
+      ifelse(x >= .get_param("verdict_moderate"), .pepvet_pal$moderate, .pepvet_pal$poor)
+    )
   }
   comparison$comp_color <- tier_color(comparison$composite_score)
   comparison$comp_label <- sprintf("%.2f", comparison$composite_score)
@@ -201,15 +205,18 @@ plot_enzyme_comparison <- function(
     ) +
     # Threshold region labels
     ggplot2::annotate("text",
-      x = c(0.41, 0.71), y = 0.52,
-      label  = c("Moderate", "Good"),
-      hjust  = 0, size = 2.4,
-      color  = "#999999", fontface = "italic"
+      x = c(
+        .get_param("verdict_moderate") + 0.01,
+        .get_param("verdict_good") + 0.06
+      ), y = 0.52,
+      label = c("Moderate", "Good"),
+      hjust = 0, size = 2.4,
+      color = "#999999", fontface = "italic"
     ) +
     ggplot2::scale_fill_manual(
       values = col_map,
-      name   = "Component",
-      guide  = ggplot2::guide_legend(
+      name = "Component",
+      guide = ggplot2::guide_legend(
         reverse = TRUE,
         override.aes = list(alpha = 1)
       )
@@ -240,7 +247,8 @@ plot_enzyme_comparison <- function(
     comparison$enzyme[which.max(comparison$composite_score)]
   )
   badge_df <- comparison[
-    as.character(comparison$enzyme) == best_enzyme, , drop = FALSE
+    as.character(comparison$enzyme) == best_enzyme, ,
+    drop = FALSE
   ]
 
   pb <- ggplot2::ggplot(
@@ -257,8 +265,10 @@ plot_enzyme_comparison <- function(
     ) +
     # Lollipop stems
     ggplot2::geom_segment(
-      ggplot2::aes(x = 0, xend = .data$composite_score,
-                   y = .data$enzyme, yend = .data$enzyme),
+      ggplot2::aes(
+        x = 0, xend = .data$composite_score,
+        y = .data$enzyme, yend = .data$enzyme
+      ),
       color = .pepvet_pal$separator, linewidth = 0.6
     ) +
     # Lollipop heads colored by verdict tier
@@ -273,40 +283,42 @@ plot_enzyme_comparison <- function(
       color = "#444444", fontface = "bold"
     ) +
     # Recommended badge on the best enzyme
-    {
-      if (recommend) {
-        ggplot2::annotate("label",
-          x        = badge_df$composite_score[[1L]] + 0.01,
-          y        = best_enzyme,
-          label    = "\u2605 Recommended",
-          hjust    = -0.05, vjust = -0.55,
-          size     = 2.6,
-          color    = "#7A5A00",
-          fill     = "#FFF5CC",
-          linewidth = 0,
-          fontface = "bold"
+    if (recommend) {
+      ggplot2::annotate(
+        "label",
+        x = badge_df$composite_score[[1L]] + 0.01,
+        y = best_enzyme,
+        label = "\u2605 Recommended",
+        hjust = -0.05,
+        vjust = -0.55,
+        size = 2.6,
+        color = "#7A5A00",
+        fill = "#FFF5CC",
+        linewidth = 0,
+        fontface = "bold"
+      )
+    } else {
+      NULL +
+        ggplot2::scale_x_continuous(
+          limits = c(0, 1.1),
+          breaks = c(0, 0.25, 0.50, 0.75, 1.0),
+          labels = c("0", ".25", ".50", ".75", "1"),
+          expand = ggplot2::expansion(mult = c(0, 0.28))
+        ) +
+        ggplot2::labs(
+          tag      = "B",
+          x        = "Composite score",
+          y        = NULL,
+          subtitle = "Overall ranking"
+        ) +
+        .pepvet_theme() +
+        ggplot2::theme(
+          axis.text.y = ggplot2::element_blank(),
+          axis.ticks.y = ggplot2::element_blank(),
+          panel.grid.major.y = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank()
         )
-      }
-    } +
-    ggplot2::scale_x_continuous(
-      limits = c(0, 1.1),
-      breaks = c(0, 0.25, 0.50, 0.75, 1.0),
-      labels = c("0", ".25", ".50", ".75", "1"),
-      expand = ggplot2::expansion(mult = c(0, 0.28))
-    ) +
-    ggplot2::labs(
-      tag      = "B",
-      x        = "Composite score",
-      y        = NULL,
-      subtitle = "Overall ranking"
-    ) +
-    .pepvet_theme() +
-    ggplot2::theme(
-      axis.text.y        = ggplot2::element_blank(),
-      axis.ticks.y       = ggplot2::element_blank(),
-      panel.grid.major.y = ggplot2::element_blank(),
-      panel.grid.minor   = ggplot2::element_blank()
-    )
+    }
 
   # ═══════════════════════════════════════════════════════════════════════════
   # Assemble with patchwork
@@ -317,8 +329,8 @@ plot_enzyme_comparison <- function(
       title = auto_title,
       theme = ggplot2::theme(
         plot.title = ggplot2::element_text(
-          size   = 13, face = "bold",
-          color  = .pepvet_pal$brand_dark,
+          size = 13, face = "bold",
+          color = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 6)
         )
       )
@@ -356,10 +368,10 @@ plot_enzyme_comparison <- function(
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-#'   h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
-#'   results  <- list(
+#'   h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
+#'   results <- list(
 #'     BSA = evaluate_digest(bsa_path, enzyme = "trypsin"),
-#'     H3  = evaluate_digest(h3_path,  enzyme = "trypsin")
+#'     H3  = evaluate_digest(h3_path, enzyme = "trypsin")
 #'   )
 #'   p <- plot_protein_comparison(results)
 #'   print(p)
@@ -368,11 +380,13 @@ plot_enzyme_comparison <- function(
 #' @seealso [plot_enzyme_comparison()], [evaluate_digest()], [batch_evaluate()]
 #' @export
 plot_protein_comparison <- function(
-    results,
-    components    = c("S_length", "S_coverage", "S_count",
-                      "S_hydro", "S_charge", "composite_score"),
-    show_verdict  = TRUE,
-    title         = NULL
+  results,
+  components = c(
+    "S_length", "S_coverage", "S_count",
+    "S_hydro", "S_charge", "composite_score"
+  ),
+  show_verdict = TRUE,
+  title = NULL
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_protein_comparison()")
 
@@ -382,8 +396,11 @@ plot_protein_comparison <- function(
     .validate_batch_result(results)
     results
   } else if (.is_named_results_list(results)) {
-    labels <- if (!is.null(names(results))) names(results) else
+    labels <- if (!is.null(names(results))) {
+      names(results)
+    } else {
       vapply(results, .result_label, character(1L))
+    }
     rows <- lapply(seq_along(results), function(i) {
       s <- results[[i]]$scores[1L, , drop = FALSE]
       s$protein_label <- labels[[i]]
@@ -393,7 +410,11 @@ plot_protein_comparison <- function(
   } else {
     .abort(
       c(
-        "{.arg results} must be a named list of {.fn evaluate_digest} results or a {.fn batch_evaluate} tibble.",
+        paste(
+          "{.arg results} must be a named list of",
+          "{.fn evaluate_digest} results or a",
+          "{.fn batch_evaluate} tibble."
+        ),
         "x" = "Got {.cls {class(results)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -423,9 +444,9 @@ plot_protein_comparison <- function(
   # ── Tidy long format ──────────────────────────────────────────────────────
   long <- do.call(rbind, lapply(components, function(comp) {
     data.frame(
-      protein   = factor(score_df$protein_label, levels = protein_levels),
+      protein = factor(score_df$protein_label, levels = protein_levels),
       component = comp,
-      value     = as.numeric(score_df[[comp]]),
+      value = as.numeric(score_df[[comp]]),
       stringsAsFactors = FALSE
     )
   }))
@@ -435,19 +456,20 @@ plot_protein_comparison <- function(
   verdict_df <- NULL
   if (show_verdict && "verdict" %in% names(score_df)) {
     verdict_df <- data.frame(
-      protein  = factor(score_df$protein_label, levels = protein_levels),
-      verdict  = score_df$verdict,
-      score    = if ("composite_score" %in% names(score_df)) score_df$composite_score else NA_real_,
+      protein = factor(score_df$protein_label, levels = protein_levels),
+      verdict = score_df$verdict,
+      score = if ("composite_score" %in% names(score_df)) score_df$composite_score else NA_real_,
       stringsAsFactors = FALSE
     )
   }
 
   # ── Colors: components get brand palette; composite gets brand_dark ───────
-  n_comps    <- length(components)
-  comp_cols  <- grDevices::hcl.colors(n_comps, palette = "viridis", alpha = 0.85)
+  n_comps <- length(components)
+  comp_cols <- grDevices::hcl.colors(n_comps, palette = "viridis", alpha = 0.85)
   names(comp_cols) <- components
-  if ("composite_score" %in% names(comp_cols))
+  if ("composite_score" %in% names(comp_cols)) {
     comp_cols[["composite_score"]] <- .pepvet_pal$brand_dark
+  }
 
   # Verdict label colors
   verdict_colors <- c(
@@ -470,24 +492,27 @@ plot_protein_comparison <- function(
       if (is.data.frame(results)) list() else results,
       function(r) r$params$enzyme
     )))
-    if (length(enzymes) == 1L)
+    if (length(enzymes) == 1L) {
       paste0(enzymes, "  \u00b7  Protein comparison")
-    else
+    } else {
       "Protein comparison"
+    }
   }
 
   # ── Build plot ────────────────────────────────────────────────────────────
   p <- ggplot2::ggplot(
-    long, ggplot2::aes(x = .data$protein, y = .data$value,
-                       fill = .data$component)
+    long, ggplot2::aes(
+      x = .data$protein, y = .data$value,
+      fill = .data$component
+    )
   ) +
     # Threshold reference lines
     ggplot2::geom_hline(
       data = thresholds,
       ggplot2::aes(yintercept = .data$y),
-      color     = thresholds$color,
+      color = thresholds$color,
       linewidth = 0.5,
-      linetype  = "dashed",
+      linetype = "dashed",
       inherit.aes = FALSE
     ) +
     ggplot2::geom_col(
@@ -498,7 +523,7 @@ plot_protein_comparison <- function(
     ) +
     ggplot2::scale_fill_manual(
       values = comp_cols,
-      name   = NULL,
+      name = NULL,
       labels = c(
         S_length        = "Length",
         S_coverage      = "Coverage",
@@ -518,11 +543,13 @@ plot_protein_comparison <- function(
   if (!is.null(verdict_df)) {
     p <- p + ggplot2::geom_text(
       data = verdict_df,
-      ggplot2::aes(x = .data$protein, y = 1.06,
-                   label = .data$verdict,
-                   color = .data$verdict),
-      size        = 2.6,
-      fontface    = "bold",
+      ggplot2::aes(
+        x = .data$protein, y = 1.06,
+        label = .data$verdict,
+        color = .data$verdict
+      ),
+      size = 2.6,
+      fontface = "bold",
       inherit.aes = FALSE
     ) +
       ggplot2::scale_color_manual(
@@ -532,20 +559,24 @@ plot_protein_comparison <- function(
 
   p +
     ggplot2::labs(
-      title    = auto_title,
-      subtitle = sprintf("%d proteins  \u00b7  sorted by composite score",
-                         nrow(score_df)),
-      x        = NULL,
-      y        = "Score"
+      title = auto_title,
+      subtitle = sprintf(
+        "%d proteins  \u00b7  sorted by composite score",
+        nrow(score_df)
+      ),
+      x = NULL,
+      y = "Score"
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position  = "bottom",
-      axis.text.x      = ggplot2::element_text(
-        angle = 35, hjust = 1, size = 9),
-      plot.title       = ggplot2::element_text(
-        size = 13, face = "bold", color = .pepvet_pal$brand_dark),
-      plot.subtitle    = ggplot2::element_text(size = 9, color = "#666666")
+      legend.position = "bottom",
+      axis.text.x = ggplot2::element_text(
+        angle = 35, hjust = 1, size = 9
+      ),
+      plot.title = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark
+      ),
+      plot.subtitle = ggplot2::element_text(size = 9, color = "#666666")
     )
 }
 
@@ -575,20 +606,25 @@ plot_protein_comparison <- function(
 #' @return A `ggplot` object.
 #' @export
 plot_enzyme_protein_heatmap <- function(
-    results,
-    component    = "composite_score",
-    show_verdict = TRUE,
-    title        = NULL) {
-
+  results,
+  component = "composite_score",
+  show_verdict = TRUE,
+  title = NULL
+) {
   rlang::check_installed("ggplot2",
-    reason = "to produce pepVet visualization plots")
+    reason = "to produce pepVet visualization plots"
+  )
 
-  valid_components <- c("composite_score", "S_length", "S_coverage",
-                        "S_count", "S_hydro", "S_charge")
+  valid_components <- c(
+    "composite_score", "S_length", "S_coverage",
+    "S_count", "S_hydro", "S_charge"
+  )
   if (!component %in% valid_components) {
     .abort(
-      c("!" = "{.arg component} must be one of {.val {valid_components}}.",
-        "i" = "Received: {.val {component}}."),
+      c(
+        "!" = "{.arg component} must be one of {.val {valid_components}}.",
+        "i" = "Received: {.val {component}}."
+      ),
       class = "pepvet_error_invalid_component"
     )
   }
@@ -597,18 +633,23 @@ plot_enzyme_protein_heatmap <- function(
   if (is.data.frame(results)) {
     # Pre-built long tibble path
     required_cols <- c("protein_label", "enzyme", component)
-    missing_cols  <- setdiff(required_cols, names(results))
+    missing_cols <- setdiff(required_cols, names(results))
     if (length(missing_cols) > 0L) {
       .abort(
-        c("!" = "When {.arg results} is a data.frame it must contain columns: {.val {required_cols}}.",
-          "i" = "Missing: {.val {missing_cols}}."),
+        c(
+          "!" = paste(
+            "When {.arg results} is a data.frame it must contain columns:",
+            "{.val {required_cols}}."
+          ),
+          "i" = "Missing: {.val {missing_cols}}."
+        ),
         class = "pepvet_error_invalid_digest_result"
       )
     }
     df <- data.frame(
       protein_label = as.character(results$protein_label),
-      enzyme        = as.character(results$enzyme),
-      score         = as.numeric(results[[component]]),
+      enzyme = as.character(results$enzyme),
+      score = as.numeric(results[[component]]),
       stringsAsFactors = FALSE
     )
     # Add verdict column if not present
@@ -617,14 +658,19 @@ plot_enzyme_protein_heatmap <- function(
     } else if ("composite_score" %in% names(results)) {
       cs <- as.numeric(results$composite_score)
       good_thresh <- .get_param("verdict_good")
-      mod_thresh  <- .get_param("verdict_moderate")
+      mod_thresh <- .get_param("verdict_moderate")
       df$verdict <- ifelse(cs >= good_thresh, "Good",
-                      ifelse(cs >= mod_thresh, "Moderate", "Poor"))
+        ifelse(cs >= mod_thresh, "Moderate", "Poor")
+      )
     } else {
       df$verdict <- NA_character_
     }
-  } else if (is.list(results) && !is.null(names(results)) &&
-             is.list(results[[1L]]) && !is.null(names(results[[1L]]))) {
+  } else if (
+    is.list(results) &&
+      !is.null(names(results)) &&
+      is.list(results[[1L]]) &&
+      !is.null(names(results[[1L]]))
+  ) {
     # Nested named list: outer=protein, inner=enzyme
     rows <- list()
     for (prot_name in names(results)) {
@@ -632,13 +678,13 @@ plot_enzyme_protein_heatmap <- function(
       for (enz_name in names(prot_block)) {
         leaf <- prot_block[[enz_name]]
         if (!is.list(leaf) || !"scores" %in% names(leaf)) next
-        sc  <- as.numeric(leaf$scores[[component]][[1L]])
+        sc <- as.numeric(leaf$scores[[component]][[1L]])
         vrd <- as.character(leaf$scores$verdict[[1L]])
         rows[[length(rows) + 1L]] <- data.frame(
           protein_label = prot_name,
-          enzyme        = enz_name,
-          score         = sc,
-          verdict       = vrd,
+          enzyme = enz_name,
+          score = sc,
+          verdict = vrd,
           stringsAsFactors = FALSE
         )
       }
@@ -652,10 +698,14 @@ plot_enzyme_protein_heatmap <- function(
     df <- do.call(rbind, rows)
   } else {
     .abort(
-      c("!" = paste0("{.arg results} must be a nested named list (outer=protein,",
-                     " inner=enzyme) or a data.frame with columns",
-                     " {.code protein_label}, {.code enzyme}, and score columns."),
-        "i" = "See {.fn plot_enzyme_protein_heatmap} documentation."),
+      c(
+        "!" = paste0(
+          "{.arg results} must be a nested named list (outer=protein,",
+          " inner=enzyme) or a data.frame with columns",
+          " {.code protein_label}, {.code enzyme}, and score columns."
+        ),
+        "i" = "See {.fn plot_enzyme_protein_heatmap} documentation."
+      ),
       class = "pepvet_error_invalid_digest_result"
     )
   }
@@ -667,10 +717,10 @@ plot_enzyme_protein_heatmap <- function(
   ))
   enz_order <- names(sort(
     tapply(df$score, df$enzyme, mean, na.rm = TRUE),
-    decreasing = FALSE  # best enzyme on right
+    decreasing = FALSE # best enzyme on right
   ))
   df$protein_label <- factor(df$protein_label, levels = rev(prot_order))
-  df$enzyme        <- factor(df$enzyme, levels = enz_order)
+  df$enzyme <- factor(df$enzyme, levels = enz_order)
 
   # ── Best enzyme per protein (bold border) ───────────────────────────────
   best_df <- do.call(rbind, lapply(split(df, df$protein_label), function(g) {
@@ -681,8 +731,10 @@ plot_enzyme_protein_heatmap <- function(
   df$badge <- ""
   if (show_verdict && "verdict" %in% names(df)) {
     df$badge <- ifelse(df$verdict == "Good", "G",
-                  ifelse(df$verdict == "Moderate", "M",
-                    ifelse(df$verdict == "Poor", "P", "")))
+      ifelse(df$verdict == "Moderate", "M",
+        ifelse(df$verdict == "Poor", "P", "")
+      )
+    )
   }
 
   # ── Component label for subtitle ────────────────────────────────────────
@@ -697,36 +749,41 @@ plot_enzyme_protein_heatmap <- function(
   )
   auto_title <- title %||% paste0("Enzyme \u00d7 Protein Score Matrix  \u00b7  ", comp_label)
 
-  p <- ggplot2::ggplot(df,
-    ggplot2::aes(x = enzyme, y = protein_label, fill = score)) +
+  p <- ggplot2::ggplot(
+    df,
+    ggplot2::aes(x = enzyme, y = protein_label, fill = score)
+  ) +
     ggplot2::geom_tile(color = "white", linewidth = 0.8) +
     # Best-enzyme border highlight
     ggplot2::geom_tile(
       data = best_df,
       ggplot2::aes(x = enzyme, y = protein_label),
-      fill  = NA,
+      fill = NA,
       color = .pepvet_pal$brand_dark,
       linewidth = 1.6
     ) +
     ggplot2::scale_fill_gradient2(
-      low      = .pepvet_pal$poor,
-      mid      = .pepvet_pal$moderate,
-      high     = .pepvet_pal$good,
+      low = .pepvet_pal$poor,
+      mid = .pepvet_pal$moderate,
+      high = .pepvet_pal$good,
       midpoint = 0.5,
-      limits   = c(0, 1),
-      name     = comp_label,
+      limits = c(0, 1),
+      name = comp_label,
       breaks = c(0, 0.25, 0.50, 0.75, 1.0),
       labels = c("0", "0.25", "0.50", "0.75", "1.00"),
-      guide    = ggplot2::guide_colorbar(
-        barwidth  = ggplot2::unit(160, "pt"),
+      guide = ggplot2::guide_colorbar(
+        barwidth = ggplot2::unit(160, "pt"),
         barheight = ggplot2::unit(7, "pt"),
         title.position = "left",
         title.vjust = 0.9
       )
     ) +
     ggplot2::labs(
-      title    = auto_title,
-      subtitle = "Dark border = best enzyme per protein  \u00b7  Badges: G=Good, M=Moderate, P=Poor",
+      title = auto_title,
+      subtitle = paste(
+        "Dark border = best enzyme per protein.",
+        "Badges: G=Good, M=Moderate, P=Poor"
+      ),
       x = "Enzyme",
       y = NULL
     ) +
@@ -740,9 +797,9 @@ plot_enzyme_protein_heatmap <- function(
   if (show_verdict && any(nchar(df$badge) > 0L)) {
     p <- p + ggplot2::geom_text(
       ggplot2::aes(label = badge),
-      size     = 3.5,
+      size = 3.5,
       fontface = "bold",
-      color    = "white"
+      color = "white"
     )
   }
 

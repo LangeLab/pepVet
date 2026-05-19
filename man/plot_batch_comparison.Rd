@@ -25,16 +25,16 @@ enzyme performance across a full proteome, using output from
 \itemize{
 \item \strong{(A) Verdict summary:} 100\% stacked horizontal bars showing the
 Good/Moderate/Poor verdict breakdown per enzyme.  Enzymes are ordered
-by descending Good\%, and the top-performing enzyme is marked with a \u2605.
+by descending Good\%, and the top-performing enzyme is marked with a star.
 \item \strong{(B) Score distributions:} horizontal violin plots for each enzyme,
 showing the full distribution of composite scores.  An IQR boxplot is
 overlaid on each violin.  Violin fill color reflects the enzyme's median
 verdict.
-\item \strong{(C) Component heatmap:} median component scores in an enzyme \u00d7 component
-grid, filled by the verdict gradient (red \u2192 amber \u2192 green).  Reveals which
+\item \strong{(C) Component heatmap:} median component scores in an enzyme-by-component
+grid, filled by the verdict gradient (red to amber to green). Reveals which
 digest quality dimension differentiates the enzymes.
 \item \strong{(D) Per-protein win rate:} bar chart showing the proportion of proteins
-for which each enzyme achieves the highest composite score.  The \u2605 enzyme
+for which each enzyme achieves the highest composite score. The starred enzyme
 matches the recommendation in panel A.
 }
 }

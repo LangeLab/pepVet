@@ -187,10 +187,11 @@
 
   # Compute covered bases without S4 IRanges dispatch: sort intervals by start,
   # then use cummax of prior ends to merge overlaps in one vectorized pass.
-  s   <- valid_digest$start
-  e   <- valid_digest$end
+  s <- valid_digest$start
+  e <- valid_digest$end
   ord <- order(s)
-  s   <- s[ord]; e <- e[ord]
+  s <- s[ord]
+  e <- e[ord]
   prev_max_end <- c(0L, cummax(e[-length(e)]))
   sum(pmax(0L, e - pmax(s - 1L, prev_max_end))) / protein_length
 }
@@ -201,7 +202,10 @@
                          valid_digest = NULL) {
   if (.has_no_cleavage_sites(protein_digest)) {
     cli::cli_warn(
-      "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage sites for {.val {enzyme}}. S_count set to 0."
+      paste(
+        "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage",
+        "sites for {.val {enzyme}}. S_count set to 0."
+      )
     )
 
     return(0)
@@ -309,7 +313,12 @@
   component_scores <- c(
     S_length   = .score_length(protein_digest, length_range),
     S_coverage = .score_coverage(protein_digest, length_range, valid_digest),
-    S_count    = .score_count(protein_digest, enzyme = enzyme, length_range = length_range, valid_digest = valid_digest),
+    S_count    = .score_count(
+      protein_digest,
+      enzyme = enzyme,
+      length_range = length_range,
+      valid_digest = valid_digest
+    ),
     S_hydro    = .score_hydro(protein_digest, gravy_range, length_range, valid_digest),
     S_charge   = .score_charge(protein_digest, length_range, valid_digest)
   )

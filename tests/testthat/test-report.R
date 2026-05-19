@@ -8,8 +8,10 @@ reference_fasta <- function(file_name) {
 # ── Single-protein bar reports ────────────────────────────────────────────
 
 test_that("BSA trypsin report matches snapshot (Good/Moderate verdict)", {
-  ev <- evaluate_digest(reference_fasta("P02769.fasta"), enzyme = "trypsin",
-                        missed_cleavages = 1L)
+  ev <- evaluate_digest(reference_fasta("P02769.fasta"),
+    enzyme = "trypsin",
+    missed_cleavages = 1L
+  )
   expect_snapshot(digest_report(ev))
 })
 
@@ -44,8 +46,10 @@ test_that("report output uses the short S_charge label with clarified meaning", 
 test_that("multi-enzyme comparison report matches snapshot", {
   comp <- compare_digests(
     reference_fasta("P02769.fasta"),
-    enzymes = c("trypsin", "lysc",
-                "glutamyl endopeptidase", "asp-n endopeptidase")
+    enzymes = c(
+      "trypsin", "lysc",
+      "glutamyl endopeptidase", "asp-n endopeptidase"
+    )
   )
   expect_snapshot(digest_report(comp))
 })

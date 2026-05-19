@@ -269,7 +269,7 @@ recommend_enzyme <- function(sequence,
 #'   greater than `1L` split the input into equal chunks and process each
 #'   chunk in a forked worker via `parallel::mclapply` (Unix only; on Windows
 #'   `cores` is silently capped to `1L`). From benchmarks on a 16-core machine,
-#'   efficiency peaks around `4`\u20138 cores for typical proteome sizes; beyond
+#'   efficiency peaks around `4` to `8` cores for typical proteome sizes; beyond
 #'   8 cores memory bandwidth becomes the bottleneck.
 #' @param ... Additional scoring arguments passed to [score_peptides()], such
 #'   as `gravy_range` and `length_range`.
@@ -312,16 +312,19 @@ batch_evaluate <- function(sequences,
   }
 
   normalized_input <- .read_input(sequences)
-  extra_args       <- list(...)
-  n_proteins       <- length(normalized_input)
+  extra_args <- list(...)
+  n_proteins <- length(normalized_input)
 
   # On Windows mclapply is unavailable; silently run serial.
-  effective_cores <- if (.Platform$OS.type == "windows") 1L
-                     else min(cores, n_proteins)
+  effective_cores <- if (.Platform$OS.type == "windows") {
+    1L
+  } else {
+    min(cores, n_proteins)
+  }
 
   if (effective_cores > 1L) {
     idx_list <- parallel::splitIndices(n_proteins, effective_cores)
-    results  <- parallel::mclapply(idx_list, function(idx) {
+    results <- parallel::mclapply(idx_list, function(idx) {
       .batch_evaluate_inner(
         normalized_input[idx], enzyme, missed_cleavages,
         include_cleavage_efficiency, proteome, weights, extra_args
@@ -361,8 +364,8 @@ batch_evaluate <- function(sequences,
 # in serial mode and from within each mclapply worker. Accepts extra scoring
 # arguments as a captured list (extra_args) so they survive fork serialization.
 .batch_evaluate_inner <- function(normalized_input, enzyme, missed_cleavages,
-                                   include_cleavage_efficiency, proteome,
-                                   weights, extra_args) {
+                                  include_cleavage_efficiency, proteome,
+                                  weights, extra_args) {
   protein_ids <- names(normalized_input)
 
   all_peptides <- digest_protein(
@@ -460,21 +463,23 @@ batch_evaluate <- function(sequences,
   pid_factor <- factor(all_peptides$protein_id, levels = protein_ids)
 
   # protein_length and n_peptides
-  protein_length   <- as.integer(tapply(all_peptides$end, pid_factor, max))
-  n_peptides       <- as.integer(tabulate(pid_factor))
+  protein_length <- as.integer(tapply(all_peptides$end, pid_factor, max))
+  n_peptides <- as.integer(tabulate(pid_factor))
 
   # valid peptide mask (length 7–25)
-  valid_mask       <- all_peptides$length >= .get_param("length_lo") & all_peptides$length <= .get_param("length_hi")
+  valid_mask <-
+    all_peptides$length >= .get_param("length_lo") &
+    all_peptides$length <= .get_param("length_hi")
   n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask], nbins = length(protein_ids)))
 
   # flags derivable from counts
-  flag_short_protein    <- protein_length < 100L
+  flag_short_protein <- protein_length < 100L
   flag_no_valid_peptides <- n_valid_peptides == 0L
 
   # flag_hydrophobic: median GRAVY of valid peptides > 0.6 per protein
   flag_hydrophobic <- logical(length(protein_ids))
   if (any(valid_mask)) {
-    gravy_vals   <- .calculate_gravy_vec(all_peptides$peptide[valid_mask])
+    gravy_vals <- .calculate_gravy_vec(all_peptides$peptide[valid_mask])
     median_gravy <- tapply(gravy_vals, pid_factor[valid_mask], stats::median)
     flag_hydrophobic[match(names(median_gravy), protein_ids)] <- median_gravy > 0.6
   }
@@ -482,13 +487,17 @@ batch_evaluate <- function(sequences,
   # flag_low_complexity: dominant AA > 50% in reconstructed MC=0 sequence.
   # Build one concatenated sequence per protein from MC=0 peptides (sorted by
   # start), then check character frequencies.
-  mc0_mask  <- all_peptides$missed_cleavages == 0L
-  mc0_peps  <- all_peptides[mc0_mask, c("protein_id", "start", "peptide"),
-                             drop = FALSE]
-  mc0_peps  <- mc0_peps[order(mc0_peps$protein_id, mc0_peps$start), ,
-                         drop = FALSE]
+  mc0_mask <- all_peptides$missed_cleavages == 0L
+  mc0_peps <- all_peptides[mc0_mask, c("protein_id", "start", "peptide"),
+    drop = FALSE
+  ]
+  mc0_peps <- mc0_peps[order(mc0_peps$protein_id, mc0_peps$start), ,
+    drop = FALSE
+  ]
   prot_seqs <- tapply(mc0_peps$peptide, mc0_peps$protein_id,
-                      paste, collapse = "", simplify = FALSE)
+    paste,
+    collapse = "", simplify = FALSE
+  )
 
   flag_low_complexity <- logical(length(protein_ids))
   names(flag_low_complexity) <- protein_ids
@@ -502,19 +511,21 @@ batch_evaluate <- function(sequences,
   }
 
   list(
-    protein_length        = protein_length,
-    n_peptides            = n_peptides,
-    n_valid_peptides      = n_valid_peptides,
-    flag_short_protein    = flag_short_protein,
+    protein_length = protein_length,
+    n_peptides = n_peptides,
+    n_valid_peptides = n_valid_peptides,
+    flag_short_protein = flag_short_protein,
     flag_no_valid_peptides = flag_no_valid_peptides,
-    flag_hydrophobic      = flag_hydrophobic,
-    flag_low_complexity   = unname(flag_low_complexity)
+    flag_hydrophobic = flag_hydrophobic,
+    flag_low_complexity = unname(flag_low_complexity)
   )
 }
 
 .compute_difficulty_flags <- function(peptides) {
   protein_length <- max(peptides$end)
-  valid_mask <- peptides$length >= .get_param("length_lo") & peptides$length <= .get_param("length_hi")
+  valid_mask <-
+    peptides$length >= .get_param("length_lo") &
+    peptides$length <= .get_param("length_hi")
   n_valid <- sum(valid_mask)
   valid_peps <- peptides[valid_mask, , drop = FALSE]
 
@@ -539,12 +550,12 @@ batch_evaluate <- function(sequences,
   }
 
   list(
-    protein_length        = protein_length,
-    n_valid_peptides      = n_valid,
-    flag_short_protein    = flag_short_protein,
+    protein_length = protein_length,
+    n_valid_peptides = n_valid,
+    flag_short_protein = flag_short_protein,
     flag_no_valid_peptides = flag_no_valid_peptides,
-    flag_hydrophobic      = flag_hydrophobic,
-    flag_low_complexity   = flag_low_complexity
+    flag_hydrophobic = flag_hydrophobic,
+    flag_low_complexity = flag_low_complexity
   )
 }
 
@@ -628,7 +639,8 @@ summarize_batch <- function(batch_result) {
   problem_mask <- flat$composite_score <= threshold
   problem_proteins <- flat[problem_mask, , drop = FALSE]
   problem_proteins <- problem_proteins[
-    order(problem_proteins$composite_score), , drop = FALSE
+    order(problem_proteins$composite_score), ,
+    drop = FALSE
   ]
 
   switch_mask <- flat$verdict %in% c("Moderate", "Poor") &
@@ -705,16 +717,17 @@ summarize_batch <- function(batch_result) {
 #' @export
 # nolint start: object_usage_linter.
 batch_compare_enzymes <- function(
-    sequences,
-    enzymes = c(
-      "trypsin", "lysc", "chymotrypsin-high",
-      "asp-n endopeptidase", "arg-c proteinase"
-    ),
-    cores = 1L,
-    missed_cleavages = 1L,
-    proteome = NULL,
-    weights = NULL,
-    ...) {
+  sequences,
+  enzymes = c(
+    "trypsin", "lysc", "chymotrypsin-high",
+    "asp-n endopeptidase", "arg-c proteinase"
+  ),
+  cores = 1L,
+  missed_cleavages = 1L,
+  proteome = NULL,
+  weights = NULL,
+  ...
+) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
     .abort(
       "{.arg enzymes} must be a non-empty character vector with no NAs.",
@@ -732,11 +745,12 @@ batch_compare_enzymes <- function(
 
   # Parse input once — each per-enzyme batch_evaluate() call receives the
   # same in-memory AAStringSet, which fork workers share via copy-on-write.
-  normalized_input   <- .read_input(sequences)
+  normalized_input <- .read_input(sequences)
   normalized_enzymes <- vapply(enzymes, .normalize_enzyme, character(1L),
-                               USE.NAMES = FALSE)
+    USE.NAMES = FALSE
+  )
   n_proteins <- length(normalized_input)
-  n_enzymes  <- length(normalized_enzymes)
+  n_enzymes <- length(normalized_enzymes)
 
   cli::cli_inform(
     "Scoring {n_proteins} protein{?s} against {n_enzymes} enzyme{?s}."
@@ -762,23 +776,43 @@ batch_compare_enzymes <- function(
     tibble::add_column(row, enzyme = enz, .after = "protein_id")
   })
 
-  combined        <- do.call(rbind, results)
+  combined <- do.call(rbind, results)
   combined$enzyme <- factor(combined$enzyme, levels = normalized_enzymes)
 
   result <- tibble::as_tibble(combined)
-  class(result)              <- c("pepvet_batch_comparison", class(result))
+  class(result) <- c("pepvet_batch_comparison", class(result))
   attr(result, "n_proteins") <- n_proteins
-  attr(result, "n_enzymes")  <- n_enzymes
-  attr(result, "enzymes")    <- normalized_enzymes
+  attr(result, "n_enzymes") <- n_enzymes
+  attr(result, "enzymes") <- normalized_enzymes
   result
 }
 # nolint end
 
 #' @export
 print.pepvet_batch_comparison <- function(x, ...) {
-  n_prot  <- attr(x, "n_proteins")
-  n_enz   <- attr(x, "n_enzymes")
+  has_summary_shape <- all(c("enzyme", "composite_score", "verdict") %in% names(x))
+
+  if (!has_summary_shape) {
+    plain_x <- x
+    class(plain_x) <- setdiff(class(x), "pepvet_batch_comparison")
+    print(plain_x, ...)
+    return(invisible(x))
+  }
+
   enzymes <- attr(x, "enzymes")
+  if (is.null(enzymes) || length(enzymes) == 0L) {
+    enzymes <- unique(as.character(x$enzyme))
+  }
+
+  n_prot <- attr(x, "n_proteins")
+  if (is.null(n_prot) || length(n_prot) != 1L || is.na(n_prot)) {
+    n_prot <- length(unique(x$protein_id))
+  }
+
+  n_enz <- attr(x, "n_enzymes")
+  if (is.null(n_enz) || length(n_enz) != 1L || is.na(n_enz)) {
+    n_enz <- length(enzymes)
+  }
 
   cli::cli_text(
     "pepVet batch enzyme comparison: {n_prot} protein{?s} x {n_enz} enzyme{?s}"
@@ -787,12 +821,12 @@ print.pepvet_batch_comparison <- function(x, ...) {
   summary_rows <- lapply(enzymes, function(enz) {
     sub <- x[as.character(x$enzyme) == enz, , drop = FALSE]
     data.frame(
-      enzyme       = enz,
-      n            = nrow(sub),
-      med_score    = round(stats::median(sub$composite_score), 3),
-      pct_good     = round(100 * mean(sub$verdict == "Good"),     1),
+      enzyme = enz,
+      n = nrow(sub),
+      med_score = round(stats::median(sub$composite_score), 3),
+      pct_good = round(100 * mean(sub$verdict == "Good"), 1),
       pct_moderate = round(100 * mean(sub$verdict == "Moderate"), 1),
-      pct_poor     = round(100 * mean(sub$verdict == "Poor"),     1),
+      pct_poor = round(100 * mean(sub$verdict == "Poor"), 1),
       stringsAsFactors = FALSE
     )
   })

@@ -40,7 +40,7 @@ in the returned tibble.}
 greater than \code{1L} split the input into equal chunks and process each
 chunk in a forked worker via \code{parallel::mclapply} (Unix only; on Windows
 \code{cores} is silently capped to \code{1L}). From benchmarks on a 16-core machine,
-efficiency peaks around \code{4}\u20138 cores for typical proteome sizes; beyond
+efficiency peaks around \code{4} to \code{8} cores for typical proteome sizes; beyond
 8 cores memory bandwidth becomes the bottleneck.}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such

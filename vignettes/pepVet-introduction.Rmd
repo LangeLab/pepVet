@@ -75,9 +75,10 @@ The package ships pinned FASTA fixtures in `inst/extdata/` used throughout this 
 
 ```{r paths}
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-h3_path  <- system.file("extdata", "P68431.fasta", package = "pepVet")
+h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 proteome_path <- system.file(
-  "extdata", "small_proteome_50_proteins.fasta", package = "pepVet"
+  "extdata", "small_proteome_50_proteins.fasta",
+  package = "pepVet"
 )
 ```
 
@@ -133,8 +134,10 @@ These labels are sequence-local only. They do not model structure, PTMs, or exte
 `score_peptides()` summarises a digest tibble into per-protein component scores and a weighted composite verdict.
 
 ```{r score-basic}
-digest_result <- digest_protein(bsa_path, enzyme = "trypsin",
-                                missed_cleavages = 1L)
+digest_result <- digest_protein(bsa_path,
+  enzyme = "trypsin",
+  missed_cleavages = 1L
+)
 score_peptides(digest_result)
 ```
 
@@ -152,7 +155,7 @@ The five standard components:
 
 pepVet also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
 
-Composite score verdict thresholds are `Good` at `>= 0.70`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
+Composite score verdict thresholds are `Good` at `>= 0.65`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
 
 ## Scoring model
 
@@ -283,8 +286,10 @@ The protein-level counts are informational. They are not score components, but t
 ```{r compare}
 comp <- compare_digests(
   bsa_path,
-  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
-              "asp-n endopeptidase", "chymotrypsin-high"),
+  enzymes = c(
+    "trypsin", "lysc", "glutamyl endopeptidase",
+    "asp-n endopeptidase", "chymotrypsin-high"
+  ),
   missed_cleavages = 1L
 )
 comp
@@ -299,8 +304,10 @@ comp
 ```{r recommend}
 recommend_enzyme(
   bsa_path,
-  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
-              "asp-n endopeptidase", "chymotrypsin-high"),
+  enzymes = c(
+    "trypsin", "lysc", "glutamyl endopeptidase",
+    "asp-n endopeptidase", "chymotrypsin-high"
+  ),
   missed_cleavages = 1L
 )
 ```
@@ -310,8 +317,10 @@ recommend_enzyme(
 `batch_evaluate()` runs `evaluate_digest()` independently for every protein in a multi-FASTA file and returns a **flat tibble** with one row per protein. Columns include `protein_id`, `protein_length`, all component scores, `composite_score`, `verdict`, count fields, and four sequence-level difficulty flags.
 
 ```{r batch, eval=FALSE}
-batch <- batch_evaluate(proteome_path, enzyme = "trypsin",
-                        missed_cleavages = 1L)
+batch <- batch_evaluate(proteome_path,
+  enzyme = "trypsin",
+  missed_cleavages = 1L
+)
 
 # How many proteins were evaluated?
 nrow(batch)
@@ -326,8 +335,10 @@ For proteome-aware uniqueness scoring, supply a background proteome digest:
 
 ```{r proteome-onboarding, eval=FALSE}
 proteome_digest <- digest_protein(proteome_path, enzyme = "trypsin")
-batch <- batch_evaluate(proteome_path, enzyme = "trypsin",
-                        proteome = proteome_digest)
+batch <- batch_evaluate(proteome_path,
+  enzyme = "trypsin",
+  proteome = proteome_digest
+)
 ```
 
 ## Step 6a: Summarize a batch
@@ -367,8 +378,10 @@ triaged <- triage_proteins(batch)
 table(triaged$action)
 
 # Proteins that should be tried with a different enzyme
-triaged[triaged$action == "try_other_enzyme",
-        c("protein_id", "verdict", "composite_score")]
+triaged[
+  triaged$action == "try_other_enzyme",
+  c("protein_id", "verdict", "composite_score")
+]
 ```
 
 | Action | Meaning |
@@ -405,7 +418,7 @@ Write directly to a file by passing a path to the `file` argument:
 
 ```{r export-file, eval=FALSE}
 export_peptide_list(peps, format = "skyline", file = "bsa_transitions.csv")
-export_peptide_list(peps, format = "fasta",   file = "bsa_peptides.fasta")
+export_peptide_list(peps, format = "fasta", file = "bsa_peptides.fasta")
 ```
 
 ## Step 7: Quick interactive check
@@ -441,7 +454,8 @@ digest_report(comp)
 ```{r pipe, eval=FALSE}
 # The printed report appears; the tibble flows on to recommend_enzyme
 winner <- compare_digests(bsa_path,
-    enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")) |>
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")
+) |>
   digest_report() |>
   recommend_enzyme()
 ```
@@ -460,8 +474,10 @@ LysC recognises only lysine and cleaves less frequently on H3.1, producing longe
 ```{r h3-compare}
 compare_digests(
   h3_path,
-  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
-              "asp-n endopeptidase")
+  enzymes = c(
+    "trypsin", "lysc", "glutamyl endopeptidase",
+    "asp-n endopeptidase"
+  )
 )
 ```
 

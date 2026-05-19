@@ -12,8 +12,8 @@ expected_free_mass <- c(
   K = 146.10553, L = 131.09463, M = 149.05105, N = 132.05349,
   P = 115.06333, Q = 146.06914, R = 174.11168, S = 105.04259,
   T = 119.05824, V = 117.07898, W = 204.08988, Y = 181.07389,
-  U = 168.96420,  # C3H7NO2Se; 80Se monoisotopic (Unimod)
-  O = 255.15829   # C12H21N3O3; PubChem exact mass 255.15829154
+  U = 168.96420, # C3H7NO2Se; 80Se monoisotopic (Unimod)
+  O = 255.15829 # C12H21N3O3; PubChem exact mass 255.15829154
 )
 
 expected_residue_mass <- c(
@@ -22,8 +22,8 @@ expected_residue_mass <- c(
   K = 128.09496, L = 113.08406, M = 131.04049, N = 114.04293,
   P = 97.05276, Q = 128.05858, R = 156.10111, S = 87.03203,
   T = 101.04768, V = 99.06841, W = 186.07931, Y = 163.06333,
-  U = 150.95364,  # 168.96420 - 18.01056
-  O = 237.14773   # 255.15829 - 18.01056
+  U = 150.95364, # 168.96420 - 18.01056
+  O = 237.14773 # 255.15829 - 18.01056
 )
 
 expected_kd <- c(
@@ -35,7 +35,7 @@ expected_kd <- c(
 
 expected_pka <- c(
   C = 8.3, D = 3.9, E = 4.3, H = 6.0, K = 10.5, R = 12.5, Y = 10.1,
-  U = 5.2  # selenol pKa; analogous to selenocysteine
+  U = 5.2 # selenol pKa; analogous to selenocysteine
 )
 
 water_mass <- 18.01056
@@ -161,7 +161,7 @@ test_that("side-chain pKa values are present only for the ionizable residues", {
     all(is.na(
       observed_pka[setdiff(
         setdiff(expected_amino_acids, ionizable_residues),
-        "O"  # O has no titratable side chain (epsilon-amino in amide bond)
+        "O" # O has no titratable side chain (epsilon-amino in amide bond)
       )]
     ))
   )

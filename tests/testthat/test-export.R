@@ -19,10 +19,10 @@ test_that("charges argument controls the number of rows per valid peptide", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
   valid_count <- sum(bsa_peps$length >= 7L & bsa_peps$length <= 25L)
 
-  result_two   <- export_peptide_list(bsa_peps, format = "skyline", charges = 2:3)
+  result_two <- export_peptide_list(bsa_peps, format = "skyline", charges = 2:3)
   result_three <- export_peptide_list(bsa_peps, format = "skyline", charges = 2:4)
 
-  expect_equal(nrow(result_two),   valid_count * 2L)
+  expect_equal(nrow(result_two), valid_count * 2L)
   expect_equal(nrow(result_three), valid_count * 3L)
 })
 
@@ -93,7 +93,7 @@ test_that("fasta format returns two lines per valid peptide with > headers", {
 })
 
 test_that("fasta headers encode protein_id and start-end coordinates", {
-  peps <- digest_protein("MAAAAAAAKAAAAAAAR")   # two 8-AA tryptic peptides, both valid
+  peps <- digest_protein("MAAAAAAAKAAAAAAAR") # two 8-AA tryptic peptides, both valid
   result <- export_peptide_list(peps, format = "fasta")
 
   header_lines <- result[seq(1L, length(result), by = 2L)]

@@ -81,7 +81,7 @@ Five core components, one optional proteome-aware component, one weighted compos
 | `S_charge`   | Valid peptides with at least one non-terminal basic residue | Proxy for multi-charge potential and richer fragment series |
 | `S_unique`   | Fraction of valid peptides unique in a supplied proteome    | Shared peptides weaken protein-level attribution            |
 
-Verdict thresholds: `Good` >= 0.70, `Moderate` >= 0.40, `Poor` < 0.40. These are heuristic ranking labels, not calibrated probabilities.
+Verdict thresholds: `Good` >= 0.65, `Moderate` >= 0.40, `Poor` < 0.40. These are heuristic ranking labels, not calibrated probabilities.
 
 ## Installation
 

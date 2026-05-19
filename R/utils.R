@@ -319,7 +319,10 @@ NULL
     if (normalized_weights[["S_unique"]] > 0) {
       .abort(
         c(
-          "{.arg weights} assigns a non-zero value to {.field S_unique} but no {.arg proteome} was supplied.",
+          paste(
+            "{.arg weights} assigns a non-zero value to",
+            "{.field S_unique} but no {.arg proteome} was supplied."
+          ),
           "i" = "Provide a proteome digest for uniqueness scoring or set S_unique to 0."
         ),
         class = "pepvet_error_invalid_weights"
@@ -713,7 +716,7 @@ pepvet_preset <- function(type = "standard") {
 
 .build_digest_ranges <- function(strict_ranges, missed_cleavages) {
   range_starts <- IRanges::start(strict_ranges)
-  range_ends   <- IRanges::end(strict_ranges)
+  range_ends <- IRanges::end(strict_ranges)
   peptide_count <- length(strict_ranges)
 
   # Fast path: no missed cleavages — return vectors directly with no loop.
@@ -732,16 +735,16 @@ pepvet_preset <- function(type = "standard") {
     integer(1)
   ))
   out_starts <- integer(total_rows)
-  out_ends   <- integer(total_rows)
-  out_mc     <- integer(total_rows)
+  out_ends <- integer(total_rows)
+  out_mc <- integer(total_rows)
   k <- 1L
 
   for (si in seq_len(peptide_count)) {
     max_mc <- min(missed_cleavages, peptide_count - si)
     for (mc in 0L:max_mc) {
       out_starts[k] <- range_starts[[si]]
-      out_ends[k]   <- range_ends[[si + mc]]
-      out_mc[k]     <- mc
+      out_ends[k] <- range_ends[[si + mc]]
+      out_mc[k] <- mc
       k <- k + 1L
     }
   }
@@ -801,8 +804,8 @@ pepvet_preset <- function(type = "standard") {
 # uppercase, 20-standard-AA sequences (as produced by digest_protein output).
 # Skips per-call validation; uses the cached hydrophobicity lookup.
 .calculate_gravy_vec <- function(peptide_vector) {
-  hydro_lookup  <- .get_hydro_lookup()
-  res_lists     <- strsplit(peptide_vector, "", fixed = TRUE)
+  hydro_lookup <- .get_hydro_lookup()
+  res_lists <- strsplit(peptide_vector, "", fixed = TRUE)
   vapply(res_lists, function(res) mean(hydro_lookup[res]), numeric(1))
 }
 

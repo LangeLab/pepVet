@@ -62,8 +62,10 @@ export_peptide_list <- function(peptides,
     .validate_export_charges(charges)
   }
 
-  if (!is.null(file) &&
-        (!is.character(file) || length(file) != 1L || is.na(file))) {
+  if (
+    !is.null(file) &&
+      (!is.character(file) || length(file) != 1L || is.na(file))
+  ) {
     .abort(
       "{.arg file} must be a single file path string or {.val NULL}.",
       class = "pepvet_error_invalid_file"
@@ -74,8 +76,7 @@ export_peptide_list <- function(peptides,
     peptides$length <= normalized_length_range[[2]]
   valid_peps <- peptides[valid_mask, , drop = FALSE]
 
-  result <- switch(
-    normalized_format,
+  result <- switch(normalized_format,
     skyline = .export_skyline(valid_peps, as.integer(charges)),
     generic = .export_generic(peptides, valid_mask),
     fasta   = .export_fasta(valid_peps)
@@ -201,7 +202,7 @@ export_peptide_list <- function(peptides,
 .export_generic <- function(peptides, valid_mask) {
   result <- peptides
   result$gravy <- .calculate_gravy_vec(peptides$peptide)
-  result$pI    <- as.numeric(calculate_pI(peptides$peptide))
+  result$pI <- as.numeric(calculate_pI(peptides$peptide))
   result$valid <- valid_mask
   result
 }

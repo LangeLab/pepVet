@@ -23,8 +23,8 @@ single-enzyme proteome digest from \code{\link[=batch_evaluate]{batch_evaluate()
 \details{
 \itemize{
 \item \strong{(A) Score distribution:} histogram of composite scores, verdict-colored,
-with background zone shading for the Good (\u2265 0.65), Moderate, and Poor
-(< 0.40, Good \u2265 0.65) regions.  A percentage badge is anchored in the Good zone.
+with background zone shading for the Good (>= 0.65), Moderate, and Poor
+(< 0.40, Good >= 0.65) regions. A percentage badge is anchored in the Good zone.
 \item \strong{(B) Component profile:} horizontal lollipop chart showing the median of
 each component score across all proteins.  Each component uses its
 designated color from the pepVet component palette.  Immediately reveals

@@ -1,4 +1,4 @@
-# ── pepVet Visualization Suite ───────────────────────────────────────────────
+# -- pepVet Visualization Suite ----------------------------------------------
 #
 # All public functions in this file guard their ggplot2 dependency at runtime
 # via rlang::check_installed().  This means ggplot2 (and patchwork for
@@ -7,13 +7,15 @@
 #
 # Internal helpers (.pepvet_pal, .pepvet_theme, etc.) may be called freely by
 # any plotting function in this file.
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 
-#' @importFrom rlang check_installed
+#' @importFrom rlang .data check_installed
+#' @importFrom stats setNames
+#' @importFrom utils head
 NULL
 
 
-# ── Internal color palette ───────────────────────────────────────────────────
+# -- Internal color palette --------------------------------------------------
 
 #' pepVet internal color palette
 #'
@@ -25,32 +27,32 @@ NULL
 #' @noRd
 .pepvet_pal <- list(
   # Brand / primary
-  brand       = "#2C5F8A",  # pepVet blue – valid peptides, primary bars
-  brand_dark  = "#1A3D5C",  # darker blue – borders, contrast text
-  brand_light = "#7BAED4",  # lighter blue – fills, highlights
+  brand = "#2C5F8A", # pepVet blue - valid peptides, primary bars
+  brand_dark = "#1A3D5C", # darker blue - borders, contrast text
+  brand_light = "#7BAED4", # lighter blue - fills, highlights
 
   # Length-class categories
-  valid      = "#2C5F8A",   # valid-length peptides
-  too_short  = "#E8A838",   # amber – too-short peptides
-  too_long   = "#C94040",   # rose-red – too-long peptides
+  valid = "#2C5F8A", # valid-length peptides
+  too_short = "#E8A838", # amber - too-short peptides
+  too_long = "#C94040", # rose-red - too-long peptides
 
   # Scoring tiers
-  good       = "#27AE60",   # green  – score >= 0.65
-  moderate   = "#E8A838",   # amber  – score  0.40–0.69
-  poor       = "#C94040",   # red    – score <  0.40
+  good = "#27AE60", # green  - score >= 0.65
+  moderate = "#E8A838", # amber  - score 0.40-0.69
+  poor = "#C94040", # red    - score < 0.40
 
   # Coverage
-  gap        = "#C94040",   # red – uncovered protein regions
-  covered    = "#2C5F8A",   # blue – covered by valid peptides
+  gap = "#C94040", # red - uncovered protein regions
+  covered = "#2C5F8A", # blue - covered by valid peptides
 
   # Background shading for valid ranges
-  shade      = "#EDF6F0",   # very light green – valid-range backdrop
-  neutral    = "#F4F6F9",   # off-white – panel backgrounds
-  separator  = "#DDDDDD"    # light gray – borders, grid lines
+  shade = "#EDF6F0", # very light green - valid-range backdrop
+  neutral = "#F4F6F9", # off-white - panel backgrounds
+  separator = "#DDDDDD" # light gray - borders, grid lines
 )
 
 
-# ── Internal ggplot2 theme ────────────────────────────────────────────────────
+# -- Internal ggplot2 theme --------------------------------------------------
 
 #' pepVet base ggplot2 theme
 #'
@@ -65,8 +67,8 @@ NULL
     ggplot2::theme(
       # Title / subtitle
       plot.title = ggplot2::element_text(
-        face  = "bold",
-        size  = base_size + 1,
+        face = "bold",
+        size = base_size + 1,
         color = .pepvet_pal$brand_dark,
         margin = ggplot2::margin(b = 3)
       ),
@@ -77,14 +79,14 @@ NULL
       ),
 
       # Axes
-      axis.title   = ggplot2::element_text(size = base_size - 1, color = "#444444"),
-      axis.text    = ggplot2::element_text(size = base_size - 2, color = "#555555"),
-      axis.ticks   = ggplot2::element_line(color = "#CCCCCC", linewidth = 0.3),
+      axis.title = ggplot2::element_text(size = base_size - 1, color = "#444444"),
+      axis.text = ggplot2::element_text(size = base_size - 2, color = "#555555"),
+      axis.ticks = ggplot2::element_line(color = "#CCCCCC", linewidth = 0.3),
 
       # Grid
       panel.grid.major = ggplot2::element_line(color = "#EBEBEB", linewidth = 0.35),
       panel.grid.minor = ggplot2::element_blank(),
-      panel.border     = ggplot2::element_rect(
+      panel.border = ggplot2::element_rect(
         fill      = NA,
         color     = "#DDDDDD",
         linewidth = 0.5
@@ -92,17 +94,17 @@ NULL
 
       # Strip (for faceted plots)
       strip.background = ggplot2::element_rect(fill = "#F0F4F8", color = "#DDDDDD"),
-      strip.text       = ggplot2::element_text(
+      strip.text = ggplot2::element_text(
         face  = "bold",
         size  = base_size - 0.5,
         color = "#2C5F8A"
       ),
 
       # Legend
-      legend.position  = "bottom",
-      legend.key.size  = ggplot2::unit(0.55, "lines"),
-      legend.text      = ggplot2::element_text(size = base_size - 2),
-      legend.title     = ggplot2::element_text(
+      legend.position = "bottom",
+      legend.key.size = ggplot2::unit(0.55, "lines"),
+      legend.text = ggplot2::element_text(size = base_size - 2),
+      legend.title = ggplot2::element_text(
         size = base_size - 1.5,
         face = "bold",
         color = "#444444"
@@ -115,31 +117,33 @@ NULL
 }
 
 
-# ── Internal score-to-color helper ───────────────────────────────────────────
+# -- Internal score-to-color helper ------------------------------------------
 
 #' Map numeric scores to tier colors
 #'
-#' @param x Numeric vector of score values in [0, 1].
+#' @param x Numeric vector of score values between 0 and 1.
 #' @return Character vector of hex color strings.
 #' @noRd
 .score_color <- function(x) {
   colors <- character(length(x))
-  colors[x >= .get_param("verdict_good")]              <- .pepvet_pal$good
-  colors[x >= .get_param("verdict_moderate") &
-           x < .get_param("verdict_good")]             <- .pepvet_pal$moderate
-  colors[x < .get_param("verdict_moderate")]           <- .pepvet_pal$poor
+  colors[x >= .get_param("verdict_good")] <- .pepvet_pal$good
+  colors[
+    x >= .get_param("verdict_moderate") &
+      x < .get_param("verdict_good")
+  ] <- .pepvet_pal$moderate
+  colors[x < .get_param("verdict_moderate")] <- .pepvet_pal$poor
   colors
 }
 
 
-# ── Internal: tidy protein display ID ────────────────────────────────────────
+# -- Internal: tidy protein display ID ---------------------------------------
 
 #' Shorten a FASTA header to an accession + gene label
 #'
 #' Strips the `sp|ACC|GENE` prefix and returns `"ACC (GENE)"`.  For
 #' non-standard headers, falls back to the first 40 characters.
 #'
-#' @param protein_id Character string – the raw protein ID from the pepVet
+#' @param protein_id Character string - the raw protein ID from the pepVet
 #'   peptide table.
 #' @noRd
 .tidy_protein_id <- function(protein_id) {
@@ -152,22 +156,24 @@ NULL
     return(paste0(parts[[2L]], "  (", parts[[3L]], ")"))
   }
   if (nchar(protein_id) > 42L) {
-    paste0(substr(protein_id, 1L, 39L), "\u2026")
+    paste0(substr(protein_id, 1L, 39L), "...")
   } else {
     protein_id
   }
 }
 
 
-# ── Internal: input validation ────────────────────────────────────────────────
+# -- Internal: input validation ----------------------------------------------
 
 #' Validate an evaluate_digest result for plotting
 #'
 #' @param result Object to validate.
 #' @noRd
 .validate_digest_result_for_plot <- function(result) {
-  if (!is.list(result) ||
-      !all(c("scores", "peptides", "params") %in% names(result))) {
+  if (
+    !is.list(result) ||
+      !all(c("scores", "peptides", "params") %in% names(result))
+  ) {
     .abort(
       c(
         "!" = "{.arg result} must be a named list returned by {.fn evaluate_digest}.",
@@ -178,8 +184,10 @@ NULL
   }
   peps <- result$peptides
   required_cols <- c("protein_id", "peptide", "start", "end", "length")
-  if (!is.data.frame(peps) ||
-      !all(required_cols %in% names(peps))) {
+  if (
+    !is.data.frame(peps) ||
+      !all(required_cols %in% names(peps))
+  ) {
     .abort(
       c(
         "!" = "{.code result$peptides} must be a tibble from {.fn digest_protein}.",
@@ -203,9 +211,9 @@ NULL
 }
 
 
-# ── Panel builders (internal) ─────────────────────────────────────────────────
+# -- Panel builders (internal) -----------------------------------------------
 
-#' Panel A – Peptide length distribution
+#' Panel A - Peptide length distribution
 #' @noRd
 .panel_length <- function(peps, length_range) {
   length_lo <- length_range[[1L]]
@@ -213,13 +221,14 @@ NULL
 
   peps$length_class <- factor(
     ifelse(peps$length < length_lo, "Too short",
-      ifelse(peps$length > length_hi, "Too long", "Valid")),
+      ifelse(peps$length > length_hi, "Too long", "Valid")
+    ),
     levels = c("Valid", "Too short", "Too long")
   )
 
   n_valid <- sum(peps$length_class == "Valid")
   n_total <- nrow(peps)
-  pct     <- round(100 * n_valid / n_total, 1)
+  pct <- round(100 * n_valid / n_total, 1)
 
   class_colors <- c(
     "Valid"     = .pepvet_pal$valid,
@@ -240,14 +249,14 @@ NULL
     ) +
     ggplot2::geom_histogram(
       binwidth = 1L,
-      color    = "white",
+      color = "white",
       linewidth = 0.2,
-      alpha    = 0.90
+      alpha = 0.90
     ) +
     ggplot2::scale_fill_manual(
       values = class_colors,
-      name   = NULL,
-      guide  = ggplot2::guide_legend(
+      name = NULL,
+      guide = ggplot2::guide_legend(
         override.aes = list(alpha = 1, color = NA)
       )
     ) +
@@ -257,7 +266,7 @@ NULL
     ggplot2::coord_cartesian(xlim = c(0, x_max + 1)) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.1))) +
     ggplot2::labs(
-      title    = "Peptide Length Distribution",
+      title = "Peptide Length Distribution",
       subtitle = sprintf(
         "%d / %d peptides in valid range [%d\u2013%d aa]  \u00b7  %.0f%% valid",
         n_valid, n_total, length_lo, length_hi, pct
@@ -276,15 +285,16 @@ NULL
 }
 
 
-#' Panel B – GRAVY hydrophobicity distribution
+#' Panel B - GRAVY hydrophobicity distribution
 #' @noRd
 .panel_gravy <- function(peps, gravy_range) {
   gravy_lo <- gravy_range[[1L]]
   gravy_hi <- gravy_range[[2L]]
 
   n_inside <- sum(peps$gravy >= gravy_lo & peps$gravy <= gravy_hi,
-                  na.rm = TRUE)
-  n_total  <- sum(!is.na(peps$gravy))
+    na.rm = TRUE
+  )
+  n_total <- sum(!is.na(peps$gravy))
 
   # Suitable bin count for the data range
   n_bins <- max(15L, min(40L, as.integer(diff(range(peps$gravy, na.rm = TRUE)) / 0.08)))
@@ -298,9 +308,9 @@ NULL
       fill = .pepvet_pal$shade, alpha = 0.70
     ) +
     ggplot2::geom_histogram(
-      bins      = n_bins,
-      fill      = .pepvet_pal$brand,
-      color     = "white",
+      bins = n_bins,
+      fill = .pepvet_pal$brand,
+      color = "white",
       linewidth = 0.2,
       alpha = .get_param("scatter_alpha")
     ) +
@@ -319,7 +329,7 @@ NULL
     ) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.1))) +
     ggplot2::labs(
-      title    = "GRAVY Hydrophobicity",
+      title = "GRAVY Hydrophobicity",
       subtitle = sprintf(
         "LC-friendly range [%.1f, %.1f]  \u00b7  %d / %d peptides inside",
         gravy_lo, gravy_hi, n_inside, n_total
@@ -348,12 +358,14 @@ NULL
 #' @noRd
 .compute_coverage_stats <- function(peps, protein_length,
                                     length_range, mc_filter = NULL) {
-  length_lo    <- length_range[[1L]]
-  length_hi    <- length_range[[2L]]
-  valid_peps   <- peps[peps$length >= length_lo & peps$length <= length_hi, ,
-                       drop = FALSE]
-  invalid_peps <- peps[peps$length  < length_lo | peps$length  > length_hi, ,
-                       drop = FALSE]
+  length_lo <- length_range[[1L]]
+  length_hi <- length_range[[2L]]
+  valid_peps <- peps[peps$length >= length_lo & peps$length <= length_hi, ,
+    drop = FALSE
+  ]
+  invalid_peps <- peps[peps$length < length_lo | peps$length > length_hi, ,
+    drop = FALSE
+  ]
 
   # Restrict coverage calculation to a single MC level when requested
   cov_peps <- if (!is.null(mc_filter) && "missed_cleavages" %in% names(peps)) {
@@ -370,17 +382,17 @@ NULL
   }
   pct_cov <- round(100 * sum(covered) / protein_length, 1L)
 
-  rl        <- rle(covered)
-  rl_ends   <- cumsum(rl$lengths)
+  rl <- rle(covered)
+  rl_ends <- cumsum(rl$lengths)
   rl_starts <- c(1L, head(rl_ends, -1L) + 1L)
-  gap_mask  <- !rl$values
+  gap_mask <- !rl$values
 
   list(
-    valid_peps   = valid_peps,
+    valid_peps = valid_peps,
     invalid_peps = invalid_peps,
-    covered      = covered,
-    pct_cov      = pct_cov,
-    gap_df       = data.frame(
+    covered = covered,
+    pct_cov = pct_cov,
+    gap_df = data.frame(
       xmin = rl_starts[gap_mask],
       xmax = rl_ends[gap_mask]
     )
@@ -391,19 +403,22 @@ NULL
 #' Map GRAVY values to hex colors via a 4-stop gradient (shared helper)
 #'
 #' Color stops follow the pepVet physicochemical story, reusing `.pepvet_pal`:
-#' very hydrophilic (GRAVY << -1) → brand blue; neutral (≈ 0) → good green;
-#' borderline (≈ 0.6) → amber; very hydrophobic (>> 0.6) → poor red.
+#' very hydrophilic (GRAVY << -1) maps to brand blue; neutral (about 0)
+#' maps to good green; borderline (about 0.6) maps to amber; very
+#' hydrophobic (>> 0.6) maps to poor red.
 #'
 #' @param gravy_values Numeric vector.
-#' @param lo,hi       Clamp limits.  Values outside [lo, hi] are clamped.
+#' @param lo,hi       Clamp limits. Values outside the lo-to-hi interval are clamped.
 #' @return Character vector of hex color strings, same length as input.
 #' @noRd
 .gravy_to_color <- function(gravy_values, lo = -2.0, hi = 2.0) {
-  stops  <- c(.pepvet_pal$brand, .pepvet_pal$good,
-               .pepvet_pal$moderate, .pepvet_pal$poor)
-  ramp   <- grDevices::colorRamp(stops, interpolate = "spline")
+  stops <- c(
+    .pepvet_pal$brand, .pepvet_pal$good,
+    .pepvet_pal$moderate, .pepvet_pal$poor
+  )
+  ramp <- grDevices::colorRamp(stops, interpolate = "spline")
   scaled <- pmax(0, pmin(1, (gravy_values - lo) / (hi - lo)))
-  m      <- ramp(scaled)
+  m <- ramp(scaled)
   grDevices::rgb(m[, 1L], m[, 2L], m[, 3L], maxColorValue = 255)
 }
 
@@ -425,23 +440,23 @@ NULL
     peps$track <- integer(0L)
     return(peps)
   }
-  o    <- order(peps$start, peps$end)
+  o <- order(peps$start, peps$end)
   peps <- peps[o, , drop = FALSE]
-  n    <- nrow(peps)
+  n <- nrow(peps)
 
-  track_ends <- integer(0L)   # last 'end' position in each open track
-  tracks     <- integer(n)
+  track_ends <- integer(0L) # last 'end' position in each open track
+  tracks <- integer(n)
 
   for (i in seq_len(n)) {
     # Find tracks where the last end is strictly before this peptide's start
     fit <- which(track_ends < peps$start[[i]])
     if (length(fit) == 0L) {
-      track_ends    <- c(track_ends, peps$end[[i]])
-      tracks[[i]]   <- length(track_ends)
+      track_ends <- c(track_ends, peps$end[[i]])
+      tracks[[i]] <- length(track_ends)
     } else {
-      t             <- min(fit)
+      t <- min(fit)
       track_ends[t] <- peps$end[[i]]
-      tracks[[i]]   <- t
+      tracks[[i]] <- t
     }
   }
   peps$track <- tracks
@@ -451,7 +466,7 @@ NULL
 
 #' Compute y-band coordinates for multi-lane coverage plots (shared helper)
 #'
-#' Divides the plotting area (y in [0, 1]) into equal horizontal lanes, one
+#' Divides the plotting area (y between 0 and 1) into equal horizontal lanes, one
 #' per missed-cleavage level, optionally reserving space at the bottom for
 #' cleavage-site tick marks.
 #'
@@ -460,37 +475,40 @@ NULL
 #' @return A data.frame with columns `mc`, `y_lo`, `y_mid`, `y_hi`.
 #' @noRd
 .lane_y_coords <- function(mc_levels, tick_height = 0.0) {
-  n      <- length(mc_levels)
-  gap    <- 0.03
-  avail  <- 1.0 - tick_height - gap * max(0L, n - 1L)
+  n <- length(mc_levels)
+  gap <- 0.03
+  avail <- 1.0 - tick_height - gap * max(0L, n - 1L)
   lane_h <- avail / n
 
   rows <- lapply(seq_along(mc_levels), function(i) {
     y_lo <- tick_height + (i - 1L) * (lane_h + gap)
     y_hi <- y_lo + lane_h
-    data.frame(mc    = mc_levels[[i]],
-               y_lo  = y_lo,
-               y_mid = (y_lo + y_hi) / 2.0,
-               y_hi  = y_hi,
-               stringsAsFactors = FALSE)
+    data.frame(
+      mc = mc_levels[[i]],
+      y_lo = y_lo,
+      y_mid = (y_lo + y_hi) / 2.0,
+      y_hi = y_hi,
+      stringsAsFactors = FALSE
+    )
   })
   do.call(rbind, rows)
 }
 
 
-#' Panel C – Sequence coverage map
+#' Panel C - Sequence coverage map
 #' @noRd
 .panel_coverage <- function(peps, protein_length, length_range) {
   # Delegate statistics to the shared helper (MC=0 only for coverage %)
   cs <- .compute_coverage_stats(peps, protein_length, length_range,
-                                 mc_filter = 0L)
-  valid_peps   <- cs$valid_peps
+    mc_filter = 0L
+  )
+  valid_peps <- cs$valid_peps
   invalid_peps <- cs$invalid_peps
-  pct_cov      <- cs$pct_cov
-  gap_df       <- cs$gap_df
+  pct_cov <- cs$pct_cov
+  gap_df <- cs$gap_df
 
   # Label peptides >= 8 aa (enough room for a 2-digit number)
-  label_peps         <- valid_peps[valid_peps$length >= 8L, , drop = FALSE]
+  label_peps <- valid_peps[valid_peps$length >= 8L, , drop = FALSE]
   label_peps$label_x <- (label_peps$start + label_peps$end) / 2.0
 
   # x-axis break step
@@ -502,7 +520,7 @@ NULL
       "rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = 0.30, ymax = 0.70,
-      fill  = "#D8DDE6",
+      fill = "#D8DDE6",
       color = "#AAAAAA",
       linewidth = 0.4
     )
@@ -513,13 +531,13 @@ NULL
       data = invalid_peps,
       ggplot2::aes(
         xmin = .data$start - 0.3,
-        xmax = .data$end   + 0.3,
+        xmax = .data$end + 0.3,
         ymin = 0.35, ymax = 0.65
       ),
-      fill      = "#C5CDD8",
-      color     = "white",
+      fill = "#C5CDD8",
+      color = "white",
       linewidth = 0.15,
-      alpha     = 0.60
+      alpha = 0.60
     )
   }
 
@@ -529,11 +547,11 @@ NULL
       data = valid_peps,
       ggplot2::aes(
         xmin = .data$start - 0.4,
-        xmax = .data$end   + 0.4,
+        xmax = .data$end + 0.4,
         ymin = 0.22, ymax = 0.78
       ),
-      fill      = .pepvet_pal$covered,
-      color     = "white",
+      fill = .pepvet_pal$covered,
+      color = "white",
       linewidth = 0.15,
       alpha = .get_param("scatter_alpha")
     )
@@ -544,7 +562,7 @@ NULL
     p <- p + ggplot2::geom_rect(
       data = gap_df,
       ggplot2::aes(xmin = xmin, xmax = xmax, ymin = 0.30, ymax = 0.70),
-      fill  = .pepvet_pal$gap,
+      fill = .pepvet_pal$gap,
       alpha = 0.22
     )
   }
@@ -554,9 +572,9 @@ NULL
     p <- p + ggplot2::geom_text(
       data = label_peps,
       ggplot2::aes(x = .data$label_x, y = 0.50, label = .data$length),
-      size      = 2.3,
-      color     = "white",
-      fontface  = "bold"
+      size = 2.3,
+      color = "white",
+      fontface = "bold"
     )
   }
 
@@ -571,9 +589,12 @@ NULL
       expand = ggplot2::expansion(mult = c(0.05, 0.05))
     ) +
     ggplot2::labs(
-      title    = "Sequence Coverage",
+      title = "Sequence Coverage",
       subtitle = sprintf(
-        "%.0f%% covered by valid-length peptides  \u00b7  %d uncovered region(s)  \u00b7  protein length %d aa",
+        paste(
+          "%.0f%% covered by valid-length peptides.",
+          "%d uncovered region(s). Protein length %d aa"
+        ),
         pct_cov, nrow(gap_df), protein_length
       ),
       x = "Residue position",
@@ -589,7 +610,7 @@ NULL
 }
 
 
-#' Panel D – Component score bar chart
+#' Panel D - Component score bar chart
 #' @noRd
 .panel_scores <- function(scores) {
   score_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
@@ -616,9 +637,10 @@ NULL
     stringsAsFactors = FALSE
   )
   good_thresh <- .get_param("verdict_good")
-  mod_thresh  <- .get_param("verdict_moderate")
-  df$tier  <- ifelse(df$value >= good_thresh, "Good",
-                ifelse(df$value >= mod_thresh, "Moderate", "Poor"))
+  mod_thresh <- .get_param("verdict_moderate")
+  df$tier <- ifelse(df$value >= good_thresh, "Good",
+    ifelse(df$value >= mod_thresh, "Moderate", "Poor")
+  )
   # Ordered factor so highest-priority score is at top of chart
   df$label <- factor(df$label, levels = rev(df$label))
 
@@ -629,7 +651,7 @@ NULL
   )
 
   composite <- as.numeric(scores$composite_score[[1L]])
-  verdict   <- as.character(scores$verdict[[1L]])
+  verdict <- as.character(scores$verdict[[1L]])
 
   # Verdict badge background color
   badge_fill <- switch(verdict,
@@ -651,7 +673,7 @@ NULL
       alpha      = 0.8
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.7,
+      xintercept = .get_param("verdict_good"),
       linetype   = "dotted",
       color      = .pepvet_pal$good,
       linewidth  = 0.55,
@@ -664,9 +686,9 @@ NULL
         label = sprintf("%.3f", value),
         x     = value + 0.015
       ),
-      hjust    = 0,
-      size     = 3.1,
-      color    = "#333333",
+      hjust = 0,
+      size = 3.1,
+      color = "#333333",
       fontface = "bold"
     ) +
     # Composite score reference line
@@ -696,16 +718,19 @@ NULL
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
     ggplot2::labs(
-      title    = "Component Scores",
-      subtitle = "Dotted thresholds at 0.40 (Moderate) and 0.65 (Good)  \u00b7  Dashed line = composite",
-      x        = "Score (0 \u2013 1)",
-      y        = NULL
+      title = "Component Scores",
+      subtitle = paste0(
+        "Dotted thresholds at ", .get_param("verdict_moderate"),
+        " (Moderate) and ", .get_param("verdict_good"),
+        " (Good). Dashed line = composite"
+      ),
+      x = "Score (0 \u2013 1)",
+      y = NULL
     ) +
     .pepvet_theme()
 }
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 # Public API
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# ===========================================================================

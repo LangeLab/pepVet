@@ -174,8 +174,7 @@ test_that("score_peptides includes S_unique in proteome-aware mode", {
     missed_cleavages = 0L
   )
   target_digest <- proteome_digest[
-    proteome_digest$protein_id == "target",
-    ,
+    proteome_digest$protein_id == "target", ,
     drop = FALSE
   ]
   result <- score_peptides(target_digest, proteome = proteome_digest)
@@ -248,8 +247,10 @@ test_that("presets can be applied directly to evaluate_digest", {
   bsa_path <- reference_fasta("P02769.fasta")
   standard_result <- do.call(
     evaluate_digest,
-    c(list(sequence = bsa_path, enzyme = "trypsin",
-           missed_cleavages = 0L), pepvet_preset("standard"))
+    c(list(
+      sequence = bsa_path, enzyme = "trypsin",
+      missed_cleavages = 0L
+    ), pepvet_preset("standard"))
   )
 
   expect_s3_class(standard_result$scores, "tbl_df")
@@ -546,8 +547,10 @@ test_that("uniqueness scoring handles shared and unique peptides", {
 })
 
 test_that("verdict classification respects both decision boundaries", {
+  vg <- pepVet:::.get_param("verdict_good")
+  vm <- pepVet:::.get_param("verdict_moderate")
   expect_identical(
-    pepVet:::.classify_verdict(c(0.65, 0.6499, 0.4, 0.3999, 0, 1)),
+    pepVet:::.classify_verdict(c(vg, vg - 1e-4, vm, vm - 1e-4, 0, 1)),
     c("Good", "Moderate", "Moderate", "Poor", "Poor", "Good")
   )
 })

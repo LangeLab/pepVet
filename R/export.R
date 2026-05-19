@@ -64,7 +64,7 @@ export_peptide_list <- function(peptides,
 
   if (!is.null(file) &&
         (!is.character(file) || length(file) != 1L || is.na(file))) {
-    cli::cli_abort(
+    .abort(
       "{.arg file} must be a single file path string or {.val NULL}.",
       class = "pepvet_error_invalid_file"
     )
@@ -99,7 +99,7 @@ export_peptide_list <- function(peptides,
 
 .validate_export_peptides <- function(peptides) {
   if (!inherits(peptides, "data.frame")) {
-    cli::cli_abort(
+    .abort(
       paste(
         "{.arg peptides} must be a peptide tibble from {.fn digest_protein}",
         "or {.fn evaluate_digest}{.code $peptides}."
@@ -112,7 +112,7 @@ export_peptide_list <- function(peptides,
   missing_cols <- setdiff(required, names(peptides))
 
   if (length(missing_cols) > 0L) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg peptides} is missing required columns.",
         "i" = paste("Missing:", paste(missing_cols, collapse = ", "))
@@ -122,7 +122,7 @@ export_peptide_list <- function(peptides,
   }
 
   if (nrow(peptides) == 0L) {
-    cli::cli_abort(
+    .abort(
       "{.arg peptides} must contain at least one peptide row.",
       class = "pepvet_error_invalid_export_input"
     )
@@ -131,7 +131,7 @@ export_peptide_list <- function(peptides,
 
 .validate_export_format <- function(format) {
   if (!is.character(format) || length(format) != 1L || is.na(format)) {
-    cli::cli_abort(
+    .abort(
       "{.arg format} must be a single string.",
       class = "pepvet_error_invalid_export_format"
     )
@@ -141,7 +141,7 @@ export_peptide_list <- function(peptides,
   supported <- c("skyline", "generic", "fasta")
 
   if (!normalized %in% supported) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg format} {.val {format}} is not supported.",
         "i" = paste("Supported formats:", paste(supported, collapse = ", "))
@@ -161,7 +161,7 @@ export_peptide_list <- function(peptides,
       any(charges < 1L) ||
       any(charges != as.integer(charges))
   ) {
-    cli::cli_abort(
+    .abort(
       paste(
         "{.arg charges} must be a non-empty integer vector of positive",
         "charge states (e.g., {.code 2:3})."

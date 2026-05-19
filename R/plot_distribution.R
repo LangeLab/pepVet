@@ -55,7 +55,7 @@ plot_length_distribution <- function(
   } else if (is.data.frame(result)) {
     peps <- result
   } else {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg result} must be an {.fn evaluate_digest} list or a peptide data.frame.",
         "x" = "Got {.cls {class(result)[[1L]]}}."
@@ -65,7 +65,7 @@ plot_length_distribution <- function(
   }
 
   if (!"length" %in% names(peps)) {
-    cli::cli_abort(
+    .abort(
       "{.arg result} must contain a {.field length} column.",
       class = "pepvet_error_invalid_digest_result"
     )
@@ -152,7 +152,7 @@ plot_length_distribution <- function(
       binwidth  = 1L,
       color     = "white",
       linewidth = 0.15,
-      alpha     = 0.88
+      alpha = .get_param("scatter_alpha")
     ) +
     # Optional density overlay: computed over ALL peptides (one curve,
     # independent of fill grouping) to avoid group-size warnings
@@ -284,7 +284,7 @@ plot_length_distribution <- function(
     ggplot2::geom_vline(xintercept = g_hi + 0.5,
       color = .pepvet_pal$poor, linewidth = 0.5, linetype = "dashed") +
     ggplot2::geom_histogram(binwidth = 1L, color = "white",
-      linewidth = 0.12, alpha = 0.88) +
+      linewidth = 0.12, alpha = .get_param("scatter_alpha")) +
     {
       if (show_density) {
         ggplot2::stat_density(
@@ -380,7 +380,7 @@ plot_gravy_landscape <- function(
   } else if (is.data.frame(result)) {
     peps <- result
   } else {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg result} must be an {.fn evaluate_digest} list or a peptide data.frame.",
         "x" = "Got {.cls {class(result)[[1L]]}}."
@@ -390,7 +390,7 @@ plot_gravy_landscape <- function(
   }
 
   if (!"length" %in% names(peps)) {
-    cli::cli_abort(
+    .abort(
       "{.arg result} must contain a {.field length} column.",
       class = "pepvet_error_invalid_digest_result"
     )
@@ -399,7 +399,7 @@ plot_gravy_landscape <- function(
   # Compute GRAVY if not already present
   if (!"gravy" %in% names(peps)) {
     if (!"peptide" %in% names(peps)) {
-      cli::cli_abort(
+      .abort(
         "Cannot compute GRAVY: {.arg result} needs a {.field gravy} or {.field peptide} column.",
         class = "pepvet_error_invalid_digest_result"
       )
@@ -745,7 +745,7 @@ plot_pI_distribution <- function(
     lr     <- result$params$length_range %||% c(7L, 25L)
     valid  <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], , drop = FALSE]
     if (nrow(valid) == 0L || !"peptide" %in% names(valid)) {
-      cli::cli_abort(
+      .abort(
         "No valid peptides found in {.arg result} to compute pI values.",
         class = "pepvet_error_invalid_digest_result"
       )
@@ -760,14 +760,14 @@ plot_pI_distribution <- function(
     } else if ("pI" %in% names(result)) {
       as.numeric(result$pI[!is.na(result$pI)])
     } else {
-      cli::cli_abort(
+      .abort(
         "{.arg result} data.frame must contain a {.field pI} column.",
         class = "pepvet_error_invalid_digest_result"
       )
     }
 
   } else {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg result} must be an {.fn evaluate_digest} list, a {.fn score_peptides} tibble, a data.frame with a {.field pI} column, or a numeric vector.",
         "x" = "Got {.cls {class(result)[[1L]]}}."
@@ -777,7 +777,7 @@ plot_pI_distribution <- function(
   }
 
   if (length(pI_vals) == 0L) {
-    cli::cli_abort("No pI values to plot.", class = "pepvet_error_invalid_digest_result")
+    .abort("No pI values to plot.", class = "pepvet_error_invalid_digest_result")
   }
 
   # ── Fraction bins ─────────────────────────────────────────────────────────
@@ -937,7 +937,7 @@ plot_pI_distribution <- function(
   pI_list <- Filter(Negate(is.null), pI_list)
 
   if (length(pI_list) == 0L) {
-    cli::cli_abort("No pI values found in any of the supplied results.",
+    .abort("No pI values found in any of the supplied results.",
                    class = "pepvet_error_invalid_digest_result")
   }
   df <- do.call(rbind, pI_list)
@@ -1020,7 +1020,7 @@ plot_missed_cleavage_impact <- function(
     reason = "to produce pepVet visualization plots")
 
   if (!is.list(results) || length(results) < 2L) {
-    cli::cli_abort(
+    .abort(
       c("!" = "{.arg results} must be a list of at least 2 {.fn evaluate_digest} results.",
         "i" = "Create one result per missed-cleavage level, e.g. MC=0, MC=1, MC=2."),
       class = "pepvet_error_invalid_digest_result"
@@ -1035,7 +1035,7 @@ plot_missed_cleavage_impact <- function(
   for (nm in names(results)) {
     r <- results[[nm]]
     if (!is.list(r) || !"scores" %in% names(r)) {
-      cli::cli_abort(
+      .abort(
         c("!" = "Element {.val {nm}} is not a valid {.fn evaluate_digest} result.",
           "i" = "Each element must be a list with a {.code scores} component."),
         class = "pepvet_error_invalid_digest_result"
@@ -1255,7 +1255,7 @@ plot_mz_distribution <- function(
   # ── Validate scan_range ───────────────────────────────────────────────────
   if (!is.numeric(scan_range) || length(scan_range) != 2L ||
       anyNA(scan_range) || scan_range[[1L]] >= scan_range[[2L]]) {
-    cli::cli_abort(
+    .abort(
       "{.arg scan_range} must be a numeric vector of length 2 in ascending order.",
       class = "pepvet_error_invalid_input"
     )
@@ -1291,7 +1291,7 @@ plot_mz_distribution <- function(
     auto_label <- NULL
 
   } else {
-    cli::cli_abort(
+    .abort(
       c(
         paste0("{.arg result} must be an {.fn evaluate_digest} list, a",
           " named list of such results, or a data.frame with a",
@@ -1311,7 +1311,7 @@ plot_mz_distribution <- function(
   } else {
     # Filter to valid length range, compute m/z per charge state
     if (!"peptide" %in% names(peps)) {
-      cli::cli_abort(
+      .abort(
         paste0("{.arg result} must contain a {.field peptide} column",
           " to compute m/z values."),
         class = "pepvet_error_invalid_digest_result"
@@ -1329,7 +1329,7 @@ plot_mz_distribution <- function(
     }
 
     if (nrow(valid_peps) == 0L) {
-      cli::cli_abort(
+      .abort(
         "No valid peptides found in {.arg result} to compute m/z values.",
         class = "pepvet_error_invalid_digest_result"
       )
@@ -1582,7 +1582,7 @@ plot_mz_distribution <- function(
   }))
 
   if (is.null(mz_all) || nrow(mz_all) == 0L) {
-    cli::cli_abort("No valid peptide m/z values could be computed.",
+    .abort("No valid peptide m/z values could be computed.",
       class = "pepvet_error_invalid_digest_result")
   }
 

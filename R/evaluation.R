@@ -155,7 +155,7 @@ compare_digests <- function(sequence,
                             weights = NULL,
                             ...) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
-    cli::cli_abort(
+    .abort(
       paste(
         "{.arg enzymes} must be a non-empty character vector",
         "with no missing values."
@@ -167,7 +167,7 @@ compare_digests <- function(sequence,
   normalized_input <- .read_input(sequence)
 
   if (length(normalized_input) != 1L) {
-    cli::cli_abort(
+    .abort(
       paste(
         "{.arg sequence} must resolve to exactly one protein",
         "for enzyme comparison."
@@ -305,7 +305,7 @@ batch_evaluate <- function(sequences,
                            ...) {
   cores <- suppressWarnings(as.integer(cores))
   if (is.na(cores) || cores < 1L) {
-    cli::cli_abort(
+    .abort(
       "{.arg cores} must be a positive integer.",
       class = "pepvet_error_invalid_cores"
     )
@@ -420,14 +420,14 @@ batch_evaluate <- function(sequences,
 
 .validate_batch_result <- function(batch_result) {
   if (!inherits(batch_result, "data.frame")) {
-    cli::cli_abort(
+    .abort(
       "{.arg batch_result} must be a tibble returned by {.fn batch_evaluate}.",
       class = "pepvet_error_invalid_batch_result"
     )
   }
 
   if (nrow(batch_result) == 0L) {
-    cli::cli_abort(
+    .abort(
       "{.arg batch_result} must contain at least one protein row.",
       class = "pepvet_error_invalid_batch_result"
     )
@@ -441,7 +441,7 @@ batch_evaluate <- function(sequences,
   missing_cols <- setdiff(required_cols, names(batch_result))
 
   if (length(missing_cols) > 0L) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg batch_result} is missing required columns from {.fn batch_evaluate}.",
         "i" = paste("Missing:", paste(missing_cols, collapse = ", "))
@@ -464,7 +464,7 @@ batch_evaluate <- function(sequences,
   n_peptides       <- as.integer(tabulate(pid_factor))
 
   # valid peptide mask (length 7–25)
-  valid_mask       <- all_peptides$length >= 7L & all_peptides$length <= 25L
+  valid_mask       <- all_peptides$length >= .get_param("length_lo") & all_peptides$length <= .get_param("length_hi")
   n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask], nbins = length(protein_ids)))
 
   # flags derivable from counts
@@ -514,7 +514,7 @@ batch_evaluate <- function(sequences,
 
 .compute_difficulty_flags <- function(peptides) {
   protein_length <- max(peptides$end)
-  valid_mask <- peptides$length >= 7L & peptides$length <= 25L
+  valid_mask <- peptides$length >= .get_param("length_lo") & peptides$length <= .get_param("length_hi")
   n_valid <- sum(valid_mask)
   valid_peps <- peptides[valid_mask, , drop = FALSE]
 
@@ -716,7 +716,7 @@ batch_compare_enzymes <- function(
     weights = NULL,
     ...) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
-    cli::cli_abort(
+    .abort(
       "{.arg enzymes} must be a non-empty character vector with no NAs.",
       class = "pepvet_error_invalid_enzymes"
     )
@@ -724,7 +724,7 @@ batch_compare_enzymes <- function(
 
   cores <- suppressWarnings(as.integer(cores))
   if (is.na(cores) || cores < 1L) {
-    cli::cli_abort(
+    .abort(
       "{.arg cores} must be a positive integer.",
       class = "pepvet_error_invalid_cores"
     )

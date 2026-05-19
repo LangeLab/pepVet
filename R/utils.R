@@ -1,6 +1,7 @@
 #' @importFrom tibble tibble as_tibble add_column
 #' @importFrom Biostrings AAString AAStringSet readAAStringSet
 #' @importFrom IRanges start end
+#' @importFrom rlang check_installed caller_env
 #' @importFrom cli cli_abort cli_warn cli_inform cli_text
 #' @importFrom cli cat_line cat_rule symbol
 #' @importFrom cli col_blue col_green col_red col_silver col_yellow
@@ -186,17 +187,28 @@ NULL
 )
 
 .pepvet_params <- list(
-  verdict_good     = 0.65,
-  verdict_moderate = 0.40
+  verdict_good         = 0.65,
+  verdict_moderate     = 0.40,
+  length_lo            = 7L,
+  length_hi            = 25L,
+  gravy_lo             = -2.0,
+  gravy_hi             =  2.0,
+  scatter_alpha        = 0.88,
+  scatter_max_pts      = 5000L,
+  patchwork_title_size = 15
 )
 
 .get_param <- function(name) {
   .pepvet_params[[name]]
 }
 
+.abort <- function(message, ..., class = NULL, call = rlang::caller_env()) {
+  cli::cli_abort(message, ..., class = c(class, "pepvet_error"), call = call, .envir = call)
+}
+
 .validate_gravy_range <- function(gravy_range) {
   if (!is.numeric(gravy_range) || length(gravy_range) != 2L || anyNA(gravy_range)) {
-    cli::cli_abort(
+    .abort(
       "{.arg gravy_range} must be a numeric vector of length 2 with no missing values.",
       class = "pepvet_error_invalid_gravy_range"
     )
@@ -205,7 +217,7 @@ NULL
   normalized_range <- as.numeric(gravy_range)
 
   if (!all(is.finite(normalized_range)) || normalized_range[[1]] > normalized_range[[2]]) {
-    cli::cli_abort(
+    .abort(
       "{.arg gravy_range} must contain finite values in ascending order.",
       class = "pepvet_error_invalid_gravy_range"
     )
@@ -216,7 +228,7 @@ NULL
 
 .validate_length_range <- function(length_range) {
   if (!is.numeric(length_range) || length(length_range) != 2L || anyNA(length_range)) {
-    cli::cli_abort(
+    .abort(
       "{.arg length_range} must be a numeric vector of length 2 with no missing values.",
       class = "pepvet_error_invalid_length_range"
     )
@@ -229,7 +241,7 @@ NULL
       normalized_range[[1]] > normalized_range[[2]] ||
       !isTRUE(all.equal(as.numeric(length_range), as.numeric(normalized_range)))
   ) {
-    cli::cli_abort(
+    .abort(
       "{.arg length_range} must contain positive integers in ascending order.",
       class = "pepvet_error_invalid_length_range"
     )
@@ -240,7 +252,7 @@ NULL
 
 .normalize_weights <- function(weights, defaults) {
   if (!is.numeric(weights) || anyNA(weights)) {
-    cli::cli_abort(
+    .abort(
       "{.arg weights} must be a numeric vector with no missing values.",
       class = "pepvet_error_invalid_weights"
     )
@@ -257,14 +269,14 @@ NULL
   observed_names <- trimws(names(weights))
 
   if (anyNA(observed_names) || any(!nzchar(observed_names))) {
-    cli::cli_abort(
+    .abort(
       "Named {.arg weights} entries must all have non-empty names.",
       class = "pepvet_error_invalid_weights"
     )
   }
 
   if (!setequal(observed_names, expected_names)) {
-    cli::cli_abort(
+    .abort(
       c(
         "Named {.arg weights} must match the scoring component names.",
         "i" = paste("Expected names:", paste(expected_names, collapse = ", "))
@@ -291,7 +303,7 @@ NULL
 
   expected_lengths <- if (isTRUE(has_proteome)) c(6L) else c(5L, 6L)
   if (!length(weights) %in% expected_lengths) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg weights} must contain exactly ",
         paste(expected_lengths, collapse = " or "),
@@ -305,7 +317,7 @@ NULL
     normalized_weights <- .normalize_weights(weights, .default_scoring_weights$proteome_aware)
 
     if (normalized_weights[["S_unique"]] > 0) {
-      cli::cli_abort(
+      .abort(
         c(
           "{.arg weights} assigns a non-zero value to {.field S_unique} but no {.arg proteome} was supplied.",
           "i" = "Provide a proteome digest for uniqueness scoring or set S_unique to 0."
@@ -320,14 +332,14 @@ NULL
   }
 
   if (any(normalized_weights < 0)) {
-    cli::cli_abort(
+    .abort(
       "{.arg weights} must not contain negative values.",
       class = "pepvet_error_invalid_weights"
     )
   }
 
   if (!isTRUE(all.equal(sum(normalized_weights), 1, tolerance = 1e-8))) {
-    cli::cli_abort(
+    .abort(
       "{.arg weights} must sum to 1.",
       class = "pepvet_error_invalid_weights"
     )
@@ -396,7 +408,7 @@ NULL
 #' @export
 pepvet_preset <- function(type = "standard") {
   if (!is.character(type) || length(type) != 1L || is.na(type)) {
-    cli::cli_abort(
+    .abort(
       "{.arg type} must be a single, non-missing character string.",
       class = "pepvet_error_invalid_preset"
     )
@@ -405,7 +417,7 @@ pepvet_preset <- function(type = "standard") {
   normalized_type <- tolower(trimws(type))
 
   if (!normalized_type %in% names(.pepvet_presets)) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg type} must be one of pepVet's supported preset names.",
         "i" = paste("Supported presets:", paste(names(.pepvet_presets), collapse = ", "))
@@ -482,7 +494,7 @@ pepvet_preset <- function(type = "standard") {
 
 .normalize_enzyme <- function(enzyme) {
   if (!is.character(enzyme) || length(enzyme) != 1L || is.na(enzyme)) {
-    cli::cli_abort(
+    .abort(
       "{.arg enzyme} must be a single, non-missing character string.",
       class = "pepvet_error_invalid_enzyme"
     )
@@ -491,14 +503,14 @@ pepvet_preset <- function(type = "standard") {
   enzyme <- tolower(trimws(enzyme))
 
   if (!nzchar(enzyme)) {
-    cli::cli_abort(
+    .abort(
       "{.arg enzyme} must not be empty.",
       class = "pepvet_error_invalid_enzyme"
     )
   }
 
   if (!enzyme %in% .supported_digest_enzymes) {
-    cli::cli_abort(
+    .abort(
       c(
         paste(
           "{.arg enzyme} must be one of pepVet's supported",
@@ -518,14 +530,14 @@ pepvet_preset <- function(type = "standard") {
 
 .validate_missed_cleavages <- function(missed_cleavages) {
   if (!is.numeric(missed_cleavages) || length(missed_cleavages) != 1L) {
-    cli::cli_abort(
+    .abort(
       "{.arg missed_cleavages} must be a single non-negative integer.",
       class = "pepvet_error_invalid_missed_cleavages"
     )
   }
 
   if (is.na(missed_cleavages) || missed_cleavages < 0) {
-    cli::cli_abort(
+    .abort(
       "{.arg missed_cleavages} must be a single non-negative integer.",
       class = "pepvet_error_invalid_missed_cleavages"
     )
@@ -534,7 +546,7 @@ pepvet_preset <- function(type = "standard") {
   missed_cleavages_int <- as.integer(missed_cleavages)
 
   if (!isTRUE(all.equal(missed_cleavages, missed_cleavages_int))) {
-    cli::cli_abort(
+    .abort(
       "{.arg missed_cleavages} must be a single non-negative integer.",
       class = "pepvet_error_invalid_missed_cleavages"
     )
@@ -549,7 +561,7 @@ pepvet_preset <- function(type = "standard") {
       length(include_cleavage_efficiency) != 1L ||
       is.na(include_cleavage_efficiency)
   ) {
-    cli::cli_abort(
+    .abort(
       "{.arg include_cleavage_efficiency} must be a single, non-missing logical value.",
       class = "pepvet_error_invalid_include_cleavage_efficiency"
     )
@@ -576,21 +588,21 @@ pepvet_preset <- function(type = "standard") {
 
 .validate_sequence <- function(sequence, sequence_name = "sequence") {
   if (!is.character(sequence) || length(sequence) != 1L) {
-    cli::cli_abort(
+    .abort(
       "{.arg sequence} must be a single character string.",
       class = "pepvet_error_invalid_sequence"
     )
   }
 
   if (is.na(sequence)) {
-    cli::cli_abort(
+    .abort(
       paste0("Sequence '", sequence_name, "' must not be missing."),
       class = "pepvet_error_invalid_sequence"
     )
   }
 
   if (!nzchar(trimws(sequence))) {
-    cli::cli_abort(
+    .abort(
       paste0("Sequence '", sequence_name, "' must not be empty."),
       class = "pepvet_error_invalid_sequence"
     )
@@ -602,7 +614,7 @@ pepvet_preset <- function(type = "standard") {
   invalid_residues <- unique(residues[!residues %in% allowed_residues])
 
   if (length(invalid_residues) > 0L) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "Sequence '",
         sequence_name,
@@ -627,7 +639,7 @@ pepvet_preset <- function(type = "standard") {
   )
 
   if (is.null(sequence)) {
-    cli::cli_abort(input_error, class = "pepvet_error_invalid_input")
+    .abort(input_error, class = "pepvet_error_invalid_input")
   }
 
   if (inherits(sequence, "AAStringSet")) {
@@ -638,12 +650,12 @@ pepvet_preset <- function(type = "standard") {
     raw_names <- names(Biostrings::AAStringSet(sequence))
   } else if (is.character(sequence)) {
     if (length(sequence) == 0L) {
-      cli::cli_abort(input_error, class = "pepvet_error_invalid_input")
+      .abort(input_error, class = "pepvet_error_invalid_input")
     }
 
     if (length(sequence) == 1L && !is.na(sequence) && file.exists(sequence)) {
       if (dir.exists(sequence)) {
-        cli::cli_abort(
+        .abort(
           paste0(
             "Expected a FASTA file path, but '",
             sequence,
@@ -662,7 +674,7 @@ pepvet_preset <- function(type = "standard") {
           !is.na(sequence) &&
           .looks_like_path(sequence)
       ) {
-        cli::cli_abort(
+        .abort(
           paste0("FASTA file not found: '", sequence, "'."),
           class = "pepvet_error_missing_file"
         )
@@ -672,11 +684,11 @@ pepvet_preset <- function(type = "standard") {
       raw_names <- names(sequence)
     }
   } else {
-    cli::cli_abort(input_error, class = "pepvet_error_invalid_input")
+    .abort(input_error, class = "pepvet_error_invalid_input")
   }
 
   if (length(raw_sequences) == 0L) {
-    cli::cli_abort(
+    .abort(
       "{.arg sequence} must contain at least one sequence entry.",
       class = "pepvet_error_invalid_input"
     )
@@ -739,15 +751,15 @@ pepvet_preset <- function(type = "standard") {
 
 .calculate_gravy <- function(peptide_sequence) {
   if (!is.character(peptide_sequence) || length(peptide_sequence) != 1L) {
-    cli::cli_abort("{.arg peptide_sequence} must be a single character string.")
+    .abort("{.arg peptide_sequence} must be a single character string.")
   }
 
   if (is.na(peptide_sequence)) {
-    cli::cli_abort("{.arg peptide_sequence} must not be missing.")
+    .abort("{.arg peptide_sequence} must not be missing.")
   }
 
   if (!nzchar(peptide_sequence)) {
-    cli::cli_abort("{.arg peptide_sequence} must not be empty.")
+    .abort("{.arg peptide_sequence} must not be empty.")
   }
 
   peptide_sequence <- toupper(peptide_sequence)
@@ -757,7 +769,7 @@ pepvet_preset <- function(type = "standard") {
   residue_index <- match(residues, aa_properties$amino_acid)
 
   if (anyNA(residue_index)) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "Unknown amino acid code(s): ",
         paste(unique(residues[is.na(residue_index)]), collapse = ", "),
@@ -796,7 +808,7 @@ pepvet_preset <- function(type = "standard") {
 
 .normalize_peptide_sequences <- function(sequence, arg_name = "sequence") {
   if (!is.character(sequence) || length(sequence) == 0L) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -829,14 +841,14 @@ pepvet_preset <- function(type = "standard") {
 
 .validate_charge <- function(charge, sequence_count) {
   if (!is.numeric(charge) || anyNA(charge)) {
-    cli::cli_abort(
+    .abort(
       "{.arg charge} must be a numeric vector of non-missing integers.",
       class = "pepvet_error_invalid_charge"
     )
   }
 
   if (!length(charge) %in% c(1L, sequence_count)) {
-    cli::cli_abort(
+    .abort(
       "{.arg charge} must have length 1 or the same length as {.arg sequence}.",
       class = "pepvet_error_invalid_charge"
     )
@@ -848,7 +860,7 @@ pepvet_preset <- function(type = "standard") {
     any(normalized_charge < 0L) ||
       !isTRUE(all.equal(as.numeric(charge), as.numeric(normalized_charge)))
   ) {
-    cli::cli_abort(
+    .abort(
       "{.arg charge} must contain non-negative integers.",
       class = "pepvet_error_invalid_charge"
     )
@@ -863,7 +875,7 @@ pepvet_preset <- function(type = "standard") {
 
 .validate_include_pI <- function(include_pI) {
   if (!is.logical(include_pI) || length(include_pI) != 1L || is.na(include_pI)) {
-    cli::cli_abort(
+    .abort(
       "{.arg include_pI} must be a single, non-missing logical value.",
       class = "pepvet_error_invalid_include_pi"
     )
@@ -996,7 +1008,7 @@ calculate_peptide_mass <- function(sequence, charge = 0L) {
 calculate_pI <- function(sequence) {
   normalized_sequences <- .normalize_peptide_sequences(sequence)
 
-  if (length(normalized_sequences) > 5000L) {
+  if (length(normalized_sequences) > .get_param("scatter_max_pts")) {
     cli::cli_inform(
       paste0(
         "Calculating peptide pI values for ",

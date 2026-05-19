@@ -6,7 +6,7 @@
 #' @noRd
 .validate_comparison_for_plot <- function(comparison) {
   if (!is.data.frame(comparison)) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg comparison} must be a data.frame / tibble returned by
          {.fn compare_digests}.",
@@ -18,7 +18,7 @@
   required <- c("enzyme", "composite_score")
   missing  <- setdiff(required, names(comparison))
   if (length(missing) > 0L) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg comparison} is missing required columns.",
         "x" = "Missing: {.field {missing}}.",
@@ -28,7 +28,7 @@
     )
   }
   if (nrow(comparison) < 2L) {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg comparison} must contain at least 2 enzymes to compare.",
         "x" = "Only {nrow(comparison)} row{?s} found."
@@ -97,7 +97,7 @@ plot_enzyme_comparison <- function(
   # ── Restrict to requested scores that actually exist ──────────────────────
   scores <- intersect(scores, names(comparison))
   if (length(scores) == 0L) {
-    cli::cli_abort(
+    .abort(
       c(
         "None of the requested {.arg scores} columns were found in
          {.arg comparison}.",
@@ -185,7 +185,7 @@ plot_enzyme_comparison <- function(
     ) +
     ggplot2::geom_col(
       position = ggplot2::position_dodge(width = 0.75),
-      width = 0.68, alpha = 0.88
+      width = 0.68, alpha = .get_param("scatter_alpha")
     ) +
     # Composite score: bold dark vertical tick spanning the full enzyme row
     ggplot2::geom_segment(
@@ -391,7 +391,7 @@ plot_protein_comparison <- function(
     })
     do.call(rbind, rows)
   } else {
-    cli::cli_abort(
+    .abort(
       c(
         "{.arg results} must be a named list of {.fn evaluate_digest} results or a {.fn batch_evaluate} tibble.",
         "x" = "Got {.cls {class(results)[[1L]]}}."
@@ -409,7 +409,7 @@ plot_protein_comparison <- function(
   # ── Validate & restrict components ────────────────────────────────────────
   avail_comps <- intersect(components, names(score_df))
   if (length(avail_comps) == 0L) {
-    cli::cli_abort("None of the requested component columns were found in the score data.")
+    .abort("None of the requested component columns were found in the score data.")
   }
   components <- avail_comps
 
@@ -458,7 +458,7 @@ plot_protein_comparison <- function(
 
   # ── Threshold lines ───────────────────────────────────────────────────────
   thresholds <- data.frame(
-    y     = c(0.7, 0.4),
+    y     = c(.get_param("verdict_good"), .get_param("verdict_moderate")),
     color = c(.pepvet_pal$good, .pepvet_pal$moderate),
     label = c("Good", "Moderate")
   )
@@ -586,7 +586,7 @@ plot_enzyme_protein_heatmap <- function(
   valid_components <- c("composite_score", "S_length", "S_coverage",
                         "S_count", "S_hydro", "S_charge")
   if (!component %in% valid_components) {
-    cli::cli_abort(
+    .abort(
       c("!" = "{.arg component} must be one of {.val {valid_components}}.",
         "i" = "Received: {.val {component}}."),
       class = "pepvet_error_invalid_component"
@@ -599,7 +599,7 @@ plot_enzyme_protein_heatmap <- function(
     required_cols <- c("protein_label", "enzyme", component)
     missing_cols  <- setdiff(required_cols, names(results))
     if (length(missing_cols) > 0L) {
-      cli::cli_abort(
+      .abort(
         c("!" = "When {.arg results} is a data.frame it must contain columns: {.val {required_cols}}.",
           "i" = "Missing: {.val {missing_cols}}."),
         class = "pepvet_error_invalid_digest_result"
@@ -644,14 +644,14 @@ plot_enzyme_protein_heatmap <- function(
       }
     }
     if (length(rows) == 0L) {
-      cli::cli_abort(
+      .abort(
         "!" = "No valid leaves found in the nested results list.",
         class = "pepvet_error_invalid_digest_result"
       )
     }
     df <- do.call(rbind, rows)
   } else {
-    cli::cli_abort(
+    .abort(
       c("!" = paste0("{.arg results} must be a nested named list (outer=protein,",
                      " inner=enzyme) or a data.frame with columns",
                      " {.code protein_label}, {.code enzyme}, and score columns."),

@@ -168,7 +168,7 @@ NULL
 .validate_digest_result_for_plot <- function(result) {
   if (!is.list(result) ||
       !all(c("scores", "peptides", "params") %in% names(result))) {
-    cli::cli_abort(
+    .abort(
       c(
         "!" = "{.arg result} must be a named list returned by {.fn evaluate_digest}.",
         "i" = "Expected elements {.code scores}, {.code peptides}, and {.code params}."
@@ -180,7 +180,7 @@ NULL
   required_cols <- c("protein_id", "peptide", "start", "end", "length")
   if (!is.data.frame(peps) ||
       !all(required_cols %in% names(peps))) {
-    cli::cli_abort(
+    .abort(
       c(
         "!" = "{.code result$peptides} must be a tibble from {.fn digest_protein}.",
         "i" = "Missing required columns: {.val {setdiff(required_cols, names(peps))}}."
@@ -190,7 +190,7 @@ NULL
   }
   n_proteins <- length(unique(peps$protein_id))
   if (n_proteins > 1L) {
-    cli::cli_abort(
+    .abort(
       c(
         "!" = "{.fn plot_digest_profile} is designed for single-protein results.",
         "i" = "Found {.val {n_proteins}} distinct protein IDs in {.code result$peptides}.",
@@ -302,7 +302,7 @@ NULL
       fill      = .pepvet_pal$brand,
       color     = "white",
       linewidth = 0.2,
-      alpha     = 0.88
+      alpha = .get_param("scatter_alpha")
     ) +
     # Range boundary lines
     ggplot2::geom_vline(
@@ -535,7 +535,7 @@ NULL
       fill      = .pepvet_pal$covered,
       color     = "white",
       linewidth = 0.15,
-      alpha     = 0.88
+      alpha = .get_param("scatter_alpha")
     )
   }
 
@@ -644,7 +644,7 @@ NULL
   ggplot2::ggplot(df, ggplot2::aes(x = value, y = label, fill = tier)) +
     # Tier boundary guide lines
     ggplot2::geom_vline(
-      xintercept = 0.4,
+      xintercept = .get_param("verdict_moderate"),
       linetype   = "dotted",
       color      = .pepvet_pal$moderate,
       linewidth  = 0.55,

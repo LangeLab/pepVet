@@ -38,7 +38,7 @@ plot_batch_summary <- function(batch,
   required_cols <- c("protein_id", "protein_length", "composite_score", "verdict")
   missing_cols  <- setdiff(required_cols, names(batch))
   if (length(missing_cols) > 0L) {
-    cli::cli_abort(
+    .abort(
       c("!" = "{.arg batch} must be a tibble from {.fn batch_evaluate}.",
         "i" = "Missing columns: {.val {missing_cols}}."),
       class = "pepvet_error_invalid_batch"
@@ -71,7 +71,7 @@ plot_batch_summary <- function(batch,
       binwidth = 0.05,
       color    = "white",
       linewidth = 0.2,
-      alpha    = 0.88,
+      alpha = .get_param("scatter_alpha"),
       position = "stack"
     ) +
     ggplot2::geom_vline(
@@ -249,7 +249,7 @@ plot_component_scatter <- function(
                         "S_count", "S_hydro", "S_charge")
   for (comp in c(x_component, y_component)) {
     if (!comp %in% valid_components) {
-      cli::cli_abort(
+      .abort(
         c("!" = "{.arg {comp}} must be one of {.val {valid_components}}.",
           "i" = "Received: {.val {comp}}."),
         class = "pepvet_error_invalid_component"
@@ -260,7 +260,7 @@ plot_component_scatter <- function(
   required_cols <- c("protein_id", "verdict", x_component, y_component)
   missing_cols  <- setdiff(required_cols, names(batch))
   if (length(missing_cols) > 0L) {
-    cli::cli_abort(
+    .abort(
       c("!" = "{.arg batch} must be a tibble from {.fn batch_evaluate}.",
         "i" = "Missing columns: {.val {missing_cols}}."),
       class = "pepvet_error_invalid_batch"
@@ -430,7 +430,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
   )
   missing_cols <- setdiff(required_cols, names(batch))
   if (length(missing_cols) > 0L) {
-    cli::cli_abort(
+    .abort(
       c("!" = "{.arg batch} must be a tibble from {.fn batch_evaluate}.",
         "i" = "Missing columns: {.val {missing_cols}}."),
       class = "pepvet_error_invalid_batch"
@@ -459,22 +459,22 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ggplot2::aes(x = composite_score, fill = verdict)
   ) +
     ggplot2::annotate(
-      "rect", xmin = 0.65, xmax = 1.01, ymin = -Inf, ymax = Inf,
+      "rect", xmin = .get_param("verdict_good"), xmax = 1.01, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.50
     ) +
     ggplot2::annotate(
-      "rect", xmin = 0.40, xmax = 0.65, ymin = -Inf, ymax = Inf,
+      "rect", xmin = .get_param("verdict_moderate"), xmax = .get_param("verdict_good"), ymin = -Inf, ymax = Inf,
       fill = "#FFF3E0", alpha = 0.45
     ) +
     ggplot2::annotate(
-      "rect", xmin = -0.01, xmax = 0.40, ymin = -Inf, ymax = Inf,
+      "rect", xmin = -0.01, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
       fill = "#FFEBEE", alpha = 0.35
     ) +
     ggplot2::geom_histogram(
       binwidth  = 0.05,
       color     = "white",
       linewidth = 0.2,
-      alpha     = 0.88,
+      alpha = .get_param("scatter_alpha"),
       position  = "stack"
     ) +
     ggplot2::geom_vline(
@@ -606,8 +606,8 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ggplot2::scale_color_manual(values = comp_colors, guide = "none") +
     ggplot2::scale_x_continuous(
       limits = c(0, 1.0),
-      breaks = c(0, 0.40, 0.65, 1.0),
-      labels = c("0", "0.40", "0.65", "1.0"),
+      breaks = c(0, .get_param("verdict_moderate"), .get_param("verdict_good"), 1.0),
+      labels = c("0", format(.get_param("verdict_moderate")), format(.get_param("verdict_good")), "1.0"),
       expand = ggplot2::expansion(add = c(0.02, 0.05))
     ) +
     ggplot2::labs(
@@ -667,7 +667,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       flag_long,
       ggplot2::aes(y = flag, x = pct, fill = category)
     ) +
-      ggplot2::geom_col(alpha = 0.88, width = 0.55) +
+      ggplot2::geom_col(alpha = .get_param("scatter_alpha"), width = 0.55) +
       ggplot2::geom_text(
         data     = flag_long[flag_long$pct >= 5, ],
         ggplot2::aes(
@@ -728,7 +728,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       theme      = ggplot2::theme(
         plot.title = ggplot2::element_text(
           face   = "bold",
-          size   = 15,
+          size   = .get_param("patchwork_title_size"),
           color  = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 8)
         )
@@ -787,7 +787,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   )
   missing_cols <- setdiff(required_cols, names(comparison))
   if (length(missing_cols) > 0L) {
-    cli::cli_abort(
+    .abort(
       c(
         "!" = paste0(
           "{.arg comparison} must be a tibble from ",
@@ -866,7 +866,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::aes(y = enzyme, x = pct, fill = verdict)
   ) +
     ggplot2::geom_col(
-      alpha     = 0.88,
+      alpha = .get_param("scatter_alpha"),
       width     = 0.65,
       color     = "white",
       linewidth = 0.25
@@ -964,8 +964,8 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::scale_fill_manual(values = violin_fills, guide = "none") +
     ggplot2::scale_x_continuous(
       limits = c(0, 1),
-      breaks = c(0, 0.40, 0.65, 1.0),
-      labels = c("0", "0.40", "0.65", "1.0"),
+      breaks = c(0, .get_param("verdict_moderate"), .get_param("verdict_good"), 1.0),
+      labels = c("0", format(.get_param("verdict_moderate")), format(.get_param("verdict_good")), "1.0"),
       expand = ggplot2::expansion(add = c(0.02, 0.02))
     ) +
     ggplot2::labs(
@@ -1024,8 +1024,8 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::scale_fill_gradientn(
       colors = verdict_grad,
       limits = c(0, 1),
-      breaks = c(0, 0.40, 0.65, 1.0),
-      labels = c("0", "0.40", "0.65", "1.0"),
+      breaks = c(0, .get_param("verdict_moderate"), .get_param("verdict_good"), 1.0),
+      labels = c("0", format(.get_param("verdict_moderate")), format(.get_param("verdict_good")), "1.0"),
       name   = "Median\nscore",
       guide  = ggplot2::guide_colorbar(
         barwidth       = 0.8,
@@ -1078,7 +1078,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     win_df,
     ggplot2::aes(y = enzyme, x = pct_wins, fill = is_best)
   ) +
-    ggplot2::geom_col(alpha = 0.88, width = 0.65, color = NA) +
+    ggplot2::geom_col(alpha = .get_param("scatter_alpha"), width = 0.65, color = NA) +
     ggplot2::geom_text(
       ggplot2::aes(
         x     = pct_wins + 0.8,
@@ -1131,7 +1131,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
       theme      = ggplot2::theme(
         plot.title = ggplot2::element_text(
           face   = "bold",
-          size   = 15,
+          size   = .get_param("patchwork_title_size"),
           color  = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 10)
         )

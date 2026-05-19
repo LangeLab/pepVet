@@ -106,7 +106,7 @@ plot_digest_profile <- function(result,
       theme      = ggplot2::theme(
         plot.title = ggplot2::element_text(
           face   = "bold",
-          size   = 15,
+          size   = .get_param("patchwork_title_size"),
           color  = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 10)
         )
@@ -202,7 +202,7 @@ plot_coverage_map <- function(result,
   if (!is.null(cleavage_sites)) {
     if (!is.data.frame(cleavage_sites) ||
         !all(c("position", "efficiency") %in% names(cleavage_sites))) {
-      cli::cli_abort(
+      .abort(
         c("!" = paste0("{.arg cleavage_sites} must be a data.frame from ",
                        "{.fn annotate_cleavage_sites}."),
           "i" = "Required columns: {.code position}, {.code efficiency}."),
@@ -213,7 +213,7 @@ plot_coverage_map <- function(result,
   if (!is.null(domains)) {
     if (!is.data.frame(domains) ||
         !all(c("name", "start", "end") %in% names(domains))) {
-      cli::cli_abort(
+      .abort(
         c("!" = paste0("{.arg domains} must be a data.frame with columns ",
                        "{.code name}, {.code start}, {.code end}."),
           "i" = "Each row describes one annotated protein domain."),

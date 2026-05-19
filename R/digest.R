@@ -132,7 +132,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
   normalized_input <- .read_input(sequence)
 
   if (length(normalized_input) != 1L) {
-    cli::cli_abort(
+    .abort(
       paste(
         "{.arg sequence} must resolve to exactly one protein for cleavage-site",
         "annotation."
@@ -144,7 +144,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
   normalized_enzyme <- .normalize_enzyme(enzyme)
 
   if (!.supports_cleavage_efficiency_annotations(normalized_enzyme)) {
-    cli::cli_abort(
+    .abort(
       c(
         paste(
           "Cleavage-efficiency annotations are currently implemented only for",

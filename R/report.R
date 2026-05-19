@@ -147,7 +147,7 @@ digest_report <- function(x, title = NULL) {
   } else if (is_comparison_result) {
     .report_comparison(x, title)
   } else {
-    cli::cli_abort(
+    .abort(
       paste(
         "{.arg x} must be a list from {.fn evaluate_digest} or a tibble from",
         "{.fn compare_digests}."

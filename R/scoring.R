@@ -9,7 +9,7 @@
 
 .validate_digest_result <- function(digest_result, arg_name = "digest_result") {
   if (!inherits(digest_result, "data.frame")) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -22,7 +22,7 @@
   missing_columns <- setdiff(.required_digest_columns, names(digest_result))
 
   if (length(missing_columns) > 0L) {
-    cli::cli_abort(
+    .abort(
       c(
         paste0(
           "{.arg ",
@@ -36,7 +36,7 @@
   }
 
   if (nrow(digest_result) == 0L) {
-    cli::cli_abort(
+    .abort(
       paste0("{.arg ", arg_name, "} must contain at least one peptide row."),
       class = "pepvet_error_invalid_digest"
     )
@@ -48,7 +48,7 @@
     !is.character(digest_result$protein_id) ||
       !is.character(digest_result$peptide)
   ) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -64,7 +64,7 @@
   numeric_columns <- c("start", "end", "length", "missed_cleavages")
 
   if (!all(vapply(digest_result[numeric_columns], is.numeric, logical(1)))) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -75,7 +75,7 @@
   }
 
   if (anyNA(digest_result)) {
-    cli::cli_abort(
+    .abort(
       paste0("{.arg ", arg_name, "} must not contain missing values."),
       class = "pepvet_error_invalid_digest"
     )
@@ -88,7 +88,7 @@
   row_missed <- as.integer(digest_result$missed_cleavages)
 
   if (any(row_starts < 1L) || any(row_ends < row_starts)) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -102,7 +102,7 @@
     any(row_lengths != peptide_lengths) ||
       any(row_lengths != (row_ends - row_starts + 1L))
   ) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -113,7 +113,7 @@
   }
 
   if (any(row_missed < 0L)) {
-    cli::cli_abort(
+    .abort(
       paste0(
         "{.arg ",
         arg_name,
@@ -263,7 +263,7 @@
   protein_id <- unique(protein_digest$protein_id)
 
   if (length(protein_id) != 1L) {
-    cli::cli_abort(
+    .abort(
       "{.arg protein_digest} must contain rows from exactly one protein.",
       class = "pepvet_error_invalid_digest"
     )

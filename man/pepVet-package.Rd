@@ -21,11 +21,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Enes K. Ergin \email{eneskemalergin@gmail.com}
+\strong{Maintainer}: Enes K. Ergin \email{eneskemalergin@gmail.com} (\href{https://orcid.org/0000-0001-9810-7399}{ORCID})
 
 Authors:
 \itemize{
-  \item Enes K. Ergin \email{eneskemalergin@gmail.com}
+  \item Enes K. Ergin \email{eneskemalergin@gmail.com} (\href{https://orcid.org/0000-0001-9810-7399}{ORCID})
 }
 
 }

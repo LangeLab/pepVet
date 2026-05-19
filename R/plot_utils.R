@@ -9,6 +9,9 @@
 # any plotting function in this file.
 # ─────────────────────────────────────────────────────────────────────────────
 
+#' @importFrom rlang check_installed
+NULL
+
 
 # ── Internal color palette ───────────────────────────────────────────────────
 
@@ -22,8 +25,8 @@
 #' @noRd
 .pepvet_pal <- list(
   # Brand / primary
-  brand      = "#2C5F8A",   # pepVet blue – valid peptides, primary bars
-  brand_dark = "#1A3D5C",   # darker blue – borders, contrast text
+  brand       = "#2C5F8A",  # pepVet blue – valid peptides, primary bars
+  brand_dark  = "#1A3D5C",  # darker blue – borders, contrast text
   brand_light = "#7BAED4",  # lighter blue – fills, highlights
 
   # Length-class categories

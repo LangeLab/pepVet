@@ -3,7 +3,8 @@ Type: Package
 Title: Evaluate Proteolytic Digests for Proteomics Workflows
 Version: 0.1.3
 Authors@R:
-    person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"))
+    person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-9810-7399"))
 Description: Simulates proteolytic digestion, scores the resulting peptides
     for LC-MS/MS suitability, compares candidate enzymes, and reports digest
     quality at the protein level. Includes validated cleavage rules for 40
@@ -23,20 +24,14 @@ Imports:
     cleaver,
     cli,
     IRanges,
+    rlang,
     tibble
 Suggests:
-    S4Vectors,
-    dplyr,
-    rlang,
     ggplot2,
     patchwork,
-    ggrepel,
-    data.table,
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown,
-    vdiffr,
-    covr
+    rmarkdown
 VignetteBuilder: knitr
 biocViews: Proteomics, MassSpectrometry, QualityControl
 Encoding: UTF-8

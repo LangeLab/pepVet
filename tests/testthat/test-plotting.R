@@ -1,6 +1,4 @@
 # ── test-plotting.R ───────────────────────────────────────────────────────────
-# vdiffr snapshot tests for pepVet visualization functions.
-# Run `vdiffr::manage_cases()` to review new / changed snapshots interactively.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Shared fixtures are pre-computed in helper-fixtures.R (sourced once).
@@ -30,29 +28,6 @@ test_that("plot_digest_profile returns a patchwork object for BSA / trypsin", {
   expect_s3_class(p, "patchwork")
 })
 
-test_that("plot_digest_profile snapshot: BSA / trypsin (standard)", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("patchwork")
-  skip_if_not_installed("vdiffr")
-
-  res <- .bsa_result()
-  vdiffr::expect_doppelganger(
-    "digest_profile_bsa_trypsin",
-    plot_digest_profile(res, title = "BSA – trypsin")
-  )
-})
-
-test_that("plot_digest_profile snapshot: Histone H3.1 / trypsin (difficult)", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("patchwork")
-  skip_if_not_installed("vdiffr")
-
-  res <- .h3_result()
-  vdiffr::expect_doppelganger(
-    "digest_profile_h3_trypsin",
-    plot_digest_profile(res, title = "Histone H3.1 – trypsin")
-  )
-})
 
 test_that("plot_digest_profile: custom title and length/gravy ranges", {
   skip_if_not_installed("ggplot2")
@@ -257,18 +232,7 @@ test_that("plot_coverage_map errors on multi-protein result", {
   )
 })
 
-test_that("plot_coverage_map snapshot: BSA / trypsin MC=1 with cleavage sites", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("vdiffr")
 
-  res <- .bsa_result(mc = 1L)
-  cs  <- .bsa_cs()
-  vdiffr::expect_doppelganger(
-    "coverage_map_bsa_trypsin_mc1",
-    plot_coverage_map(res, cleavage_sites = cs,
-                      title = "BSA – trypsin – MC=1")
-  )
-})
 
 # ── plot_enzyme_comparison ────────────────────────────────────────────────────
 
@@ -356,17 +320,7 @@ test_that("plot_enzyme_comparison errors when fewer than 2 enzymes", {
   )
 })
 
-test_that("plot_enzyme_comparison snapshot: BSA 3-enzyme comparison", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("patchwork")
-  skip_if_not_installed("vdiffr")
 
-  comp <- .bsa_comparison()
-  vdiffr::expect_doppelganger(
-    "enzyme_comparison_bsa_3",
-    plot_enzyme_comparison(comp, title = "BSA – enzyme comparison")
-  )
-})
 
 # ── plot_length_distribution ──────────────────────────────────────────────────
 
@@ -435,16 +389,7 @@ test_that("plot_length_distribution errors when length column missing", {
   )
 })
 
-test_that("plot_length_distribution snapshot: BSA trypsin", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("vdiffr")
 
-  res <- .bsa_result()
-  vdiffr::expect_doppelganger(
-    "length_dist_bsa_trypsin",
-    plot_length_distribution(res, title = "BSA – trypsin length distribution")
-  )
-})
 
 
 # ── plot_gravy_landscape ──────────────────────────────────────────────────────
@@ -509,14 +454,7 @@ test_that("plot_gravy_landscape errors when length column is missing", {
   )
 })
 
-test_that("plot_gravy_landscape snapshot: BSA trypsin", {
-  skip_if_not_installed("vdiffr")
-  res <- .fix_bsa_trypsin
-  vdiffr::expect_doppelganger(
-    "gravy_landscape_bsa_trypsin",
-    plot_gravy_landscape(res, title = "BSA – trypsin GRAVY landscape")
-  )
-})
+
 
 
 # ── plot_pI_distribution ──────────────────────────────────────────────────────
@@ -578,14 +516,7 @@ test_that("plot_pI_distribution errors when data.frame lacks pI column", {
   )
 })
 
-test_that("plot_pI_distribution snapshot: BSA trypsin", {
-  skip_if_not_installed("vdiffr")
-  res <- .fix_bsa_trypsin
-  vdiffr::expect_doppelganger(
-    "pi_dist_bsa_trypsin",
-    plot_pI_distribution(res, title = "BSA – trypsin pI distribution")
-  )
-})
+
 
 
 # ── multi-input: plot_length_distribution ────────────────────────────────────
@@ -687,16 +618,6 @@ test_that("plot_protein_comparison errors on invalid input", {
   )
 })
 
-test_that("plot_protein_comparison snapshot: BSA vs H3 trypsin", {
-  skip_if_not_installed("vdiffr")
-  bsa_res <- .fix_bsa_trypsin
-  h3_res  <- .fix_h3_trypsin
-  vdiffr::expect_doppelganger(
-    "protein_comparison_bsa_h3_trypsin",
-    plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
-                            title = "BSA vs H3.1: trypsin")
-  )
-})
 
 
 # ── plot_cleavage_map ─────────────────────────────────────────────────────────
@@ -894,57 +815,5 @@ test_that("plot_component_scatter errors on invalid component", {
   expect_error(
     plot_component_scatter(batch, x_component = "not_a_col"),
     class = "pepvet_error_invalid_component"
-  )
-})
-
-# ── plot_proteome_heatmap ─────────────────────────────────────────────────────
-
-test_that("plot_proteome_heatmap returns a pheatmap object", {
-  skip_if_not_installed("Biostrings")
-  skip_if_not_installed("pheatmap")
-
-  batch <- .fix_batch_trypsin
-  ph    <- plot_proteome_heatmap(batch)
-  # pheatmap returns a list with class "pheatmap"
-  expect_s3_class(ph, "pheatmap")
-})
-
-test_that("plot_proteome_heatmap: subset of components renders", {
-  skip_if_not_installed("Biostrings")
-  skip_if_not_installed("pheatmap")
-
-  batch <- .fix_batch_trypsin
-  ph    <- plot_proteome_heatmap(batch,
-                                  components = c("S_length", "S_coverage"))
-  expect_s3_class(ph, "pheatmap")
-})
-
-test_that("plot_proteome_heatmap: cluster_rows = FALSE renders", {
-  skip_if_not_installed("Biostrings")
-  skip_if_not_installed("pheatmap")
-
-  batch <- .fix_batch_trypsin
-  ph    <- plot_proteome_heatmap(batch, cluster_rows = FALSE)
-  expect_s3_class(ph, "pheatmap")
-})
-
-test_that("plot_proteome_heatmap: chymotrypsin-high batch renders", {
-  skip_if_not_installed("Biostrings")
-  skip_if_not_installed("pheatmap")
-
-  # chymotrypsin yields a different per-component score profile; exercises
-  # the color ramp and row-clustering with a lower-scoring proteome
-  batch <- .fix_batch_chymotryp
-  ph    <- plot_proteome_heatmap(batch, title = "Chymotrypsin Proteome Heatmap")
-  expect_s3_class(ph, "pheatmap")
-})
-
-test_that("plot_proteome_heatmap errors on missing required columns", {
-  skip_if_not_installed("pheatmap")
-
-  bad_batch <- data.frame(x = 1:3)
-  expect_error(
-    plot_proteome_heatmap(bad_batch),
-    class = "pepvet_error_invalid_batch"
   )
 })

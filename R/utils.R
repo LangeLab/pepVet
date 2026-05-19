@@ -1,3 +1,12 @@
+#' @importFrom tibble tibble as_tibble add_column
+#' @importFrom Biostrings AAString AAStringSet readAAStringSet
+#' @importFrom IRanges start end
+#' @importFrom cli cli_abort cli_warn cli_inform cli_text
+#' @importFrom cli cat_line cat_rule symbol
+#' @importFrom cli col_blue col_green col_red col_silver col_yellow
+#' @importFrom cli style_bold style_italic
+NULL
+
 .get_aa_properties <- local({
   aa_properties_cache <- NULL
 

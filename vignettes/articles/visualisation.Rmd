@@ -1,0 +1,200 @@
+---
+title: "Visualising Digest Quality"
+description: >
+  Use pepVet's plotting functions to inspect single-protein digests,
+  compare enzymes, explore physicochemical distributions, and assess
+  proteome-scale performance.
+---
+
+## Overview
+
+pepVet provides 11 visualisation functions organised by analytical scope.
+Every function returns a `ggplot` or `patchwork` object that can be
+further customised, combined, or saved with `pepvet_save_figure()`.
+
+```{r setup, eval = requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("patchwork", quietly = TRUE)}
+library(pepVet)
+library(patchwork)
+```
+
+---
+
+## Single-protein diagnostics
+
+### Four-panel digest profile
+
+`plot_digest_profile()` is the flagship function. It assembles length
+distribution, GRAVY hydrophobicity, sequence coverage, and component
+scores into one publication-ready figure.
+
+```{r digest-profile, fig.width=12, fig.height=10}
+bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+bsa_trypsin <- evaluate_digest(bsa_path, enzyme = "trypsin")
+plot_digest_profile(bsa_trypsin)
+```
+
+### Coverage map
+
+`plot_coverage_map()` shows how peptides map onto the protein sequence,
+with separate lanes for each missed-cleavage level.
+
+```{r coverage-map, fig.width=10, fig.height=6}
+plot_coverage_map(bsa_trypsin, color_by = "length_class")
+```
+
+### Cleavage map
+
+`plot_cleavage_map()` marks every cleavage site and highlights
+efficiency when annotation data is available.
+
+```{r cleavage-map, fig.width=10, fig.height=4}
+cs <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+plot_cleavage_map(bsa_trypsin, cleavage_sites = cs)
+```
+
+### Peptide overlap map
+
+`plot_peptide_overlap_map()` colours each residue by how many
+detected peptides cover it — useful for assessing redundancy.
+
+```{r overlap-map, fig.width=12, fig.height=8}
+plot_peptide_overlap_map(bsa_trypsin)
+```
+
+---
+
+## Enzyme & protein comparison
+
+### Enzyme comparison
+
+`plot_enzyme_comparison()` compares multiple enzymes on the same
+protein using component-score bars and a composite lollipop.
+
+```{r enzyme-comp, fig.width=10, fig.height=7}
+comp <- compare_digests(bsa_path,
+  enzymes = c("trypsin", "lysc", "chymotrypsin-high"))
+plot_enzyme_comparison(comp)
+```
+
+---
+
+## Physicochemical distributions
+
+### Peptide length distribution
+
+```{r length-dist, fig.width=8, fig.height=6}
+plot_length_distribution(bsa_trypsin)
+```
+
+### GRAVY landscape
+
+The 2D scatter of length vs. GRAVY reveals physicochemical outliers.
+
+```{r gravy-landscape, fig.width=10, fig.height=8}
+plot_gravy_landscape(bsa_trypsin)
+```
+
+### pI distribution
+
+Preview fractionation outcomes with SCX fraction bins.
+
+```{r pi-dist, fig.width=8, fig.height=6}
+pi_data <- score_peptides(bsa_trypsin$peptides,
+  enzyme = "trypsin", include_pI = TRUE)
+plot_pI_distribution(pi_data)
+```
+
+### m/z distribution
+
+Check whether your peptides fall within the instrument scan range.
+
+```{r mz-dist, fig.width=8, fig.height=6}
+plot_mz_distribution(bsa_trypsin)
+```
+
+### Missed-cleavage impact
+
+See how allowing more missed cleavages changes each score component.
+
+```{r mc-impact, fig.width=8, fig.height=6}
+mc0 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 0)
+mc1 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1)
+mc2 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 2)
+plot_missed_cleavage_impact(list("MC=0" = mc0, "MC=1" = mc1, "MC=2" = mc2))
+```
+
+---
+
+## Proteome-scale views
+
+Load the 50-protein test proteome and evaluate it with 10 diverse enzymes.
+`batch_evaluate()` uses parallel workers when available (set `cores` to your
+CPU count for faster execution).
+
+```{r batch, message=FALSE, eval = requireNamespace("Biostrings", quietly = TRUE)}
+library(Biostrings)
+fasta_path <- system.file("extdata", "small_proteome_50_proteins.fasta",
+                           package = "pepVet")
+proteome <- readAAStringSet(fasta_path)
+cat(sprintf("Loaded %d proteins\n", length(proteome)))
+
+enzymes <- c("trypsin", "lysc", "chymotrypsin-high",
+             "asp-n endopeptidase", "glutamyl endopeptidase",
+             "arg-c proteinase", "thermolysin", "pepsin",
+             "staphylococcal peptidase i", "proteinase k")
+cat(sprintf("Evaluating %d enzymes ...\n", length(enzymes)))
+
+# Evaluate one enzyme for the proteome overview
+batch_trypsin <- batch_evaluate(proteome, enzyme = "trypsin",
+                                cores = 1L)
+```
+
+### Proteome overview
+
+Three-panel portrait for trypsin: score distribution, component profile,
+and difficulty flags.
+
+```{r proteome-overview, fig.width=12, fig.height=10, eval = exists("batch_trypsin")}
+plot_proteome_overview(batch_trypsin)
+```
+
+### Batch enzyme comparison
+
+Compare all 10 enzymes across the 50-protein proteome.
+For production use, increase `cores` to match your CPU count.
+
+```{r batch-comp, fig.width=16, fig.height=12, eval = exists("proteome")}
+batch_comp <- batch_compare_enzymes(proteome, enzymes = enzymes, cores = 1L)
+plot_batch_comparison(batch_comp,
+  title = sprintf("50-Protein Proteome  \u00b7  %d Enzymes", length(enzymes)))
+```
+
+---
+
+## Customising and exporting plots
+
+All pepVet plots return standard ggplot2 objects. Add theme layers,
+modify scales, or compose with patchwork.
+
+```{r custom, fig.width=10, fig.height=7}
+plot_length_distribution(bsa_trypsin) +
+  ggplot2::labs(subtitle = "My custom subtitle") +
+  pepvet_theme_presentation()
+```
+
+Use `pepvet_save_figure()` for publication-ready output:
+
+```{r save, eval=FALSE}
+p <- plot_digest_profile(bsa_trypsin)
+pepvet_save_figure(p, "bsa_digest.png")
+```
+
+Override colors and thresholds globally with `pepvet_plot_config()`:
+
+```{r config, eval=FALSE}
+pepvet_plot_config(
+  palette = list(brand = "#004488"),
+  params  = list(verdict_good = 0.70)
+)
+pepvet_plot_config_reset()
+```

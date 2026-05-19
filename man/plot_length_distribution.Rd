@@ -39,7 +39,7 @@ annotations, and an optional density-curve overlay.
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  p   <- plot_length_distribution(res)
+  p <- plot_length_distribution(res)
   print(p)
 }
 
@@ -47,4 +47,11 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_digest_profile]{plot_digest_profile()}},
 \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}}
+
+Other plot-distribution:
+\code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
+\code{\link[=plot_missed_cleavage_impact]{plot_missed_cleavage_impact()}},
+\code{\link[=plot_mz_distribution]{plot_mz_distribution()}},
+\code{\link[=plot_pI_distribution]{plot_pI_distribution()}}
 }
+\concept{plot-distribution}

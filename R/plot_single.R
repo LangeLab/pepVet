@@ -48,6 +48,7 @@
 #'
 #' @seealso [evaluate_digest()], [plot_coverage_map()],
 #'   [plot_enzyme_comparison()]
+#' @family plot-single
 #' @export
 
 plot_digest_profile <- function(result,
@@ -65,18 +66,21 @@ plot_digest_profile <- function(result,
 
   .validate_digest_result_for_plot(result)
 
-  peps <- result$peptides
+  length_range <- .validate_length_range(length_range)
+  gravy_range  <- .validate_gravy_range(gravy_range)
+
+  peps   <- result$peptides
   scores <- result$scores
   params <- result$params
 
-  protein_id <- params$protein_ids[[1L]]
+  protein_id  <- params$protein_ids[[1L]]
   enzyme_name <- params$enzyme
   display_id <- .tidy_protein_id(protein_id)
 
   # Add GRAVY scores to the peptide table (computed from sequences)
   peps$gravy <- .calculate_gravy_vec(peps$peptide)
 
-  protein_length <- max(peps$end)
+  protein_length <- max(peps$end, na.rm = TRUE)
 
   # ── Build panels ──────────────────────────────────────────────────────────
   pa <- .panel_length(peps, length_range)
@@ -182,6 +186,7 @@ plot_digest_profile <- function(result,
 #'
 #' @seealso [evaluate_digest()], [annotate_cleavage_sites()],
 #'   [plot_digest_profile()]
+#' @family plot-single
 #' @export
 plot_coverage_map <- function(result,
                               color_by = c(
@@ -200,6 +205,8 @@ plot_coverage_map <- function(result,
   color_by <- match.arg(color_by)
 
   .validate_digest_result_for_plot(result)
+
+  length_range <- .validate_length_range(length_range)
 
   # ── Input validation for optional args ─────────────────────────────────────
   if (!is.null(cleavage_sites)) {
@@ -243,14 +250,14 @@ plot_coverage_map <- function(result,
   protein_id <- params$protein_ids[[1L]]
   enzyme_name <- params$enzyme
   display_id <- .tidy_protein_id(protein_id)
-  protein_length <- max(peps$end)
+  protein_length <- max(peps$end, na.rm = TRUE)
 
   # ── GRAVY (computed once, used for coloring or silently ignored) ────────────
   peps$gravy <- .calculate_gravy_vec(peps$peptide)
 
   # ── Determine MC levels present and build lane coordinates ─────────────────
   has_mc <- "missed_cleavages" %in% names(peps)
-  mc_levels <- if (has_mc) sort(unique(peps$missed_cleavages)) else 0L
+  mc_levels <- if (has_mc) sort(unique(peps$missed_cleavages[!is.na(peps$missed_cleavages)])) else 0L
   tick_h <- if (!is.null(cleavage_sites)) 0.11 else 0.0
   lanes <- .lane_y_coords(mc_levels, tick_height = tick_h)
 
@@ -310,7 +317,7 @@ plot_coverage_map <- function(result,
           y = 0.995,
           label = domains$name[[k]],
           size = 2.8, hjust = 0.5, vjust = 1,
-          color = "#444444", fontface = "italic"
+          color = .pepvet_pal$text_axis_title, fontface = "italic"
         )
     }
   }
@@ -382,7 +389,7 @@ plot_coverage_map <- function(result,
     p <- p + ggplot2::annotate("rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = y_mid - 0.07 * lane_h, ymax = y_mid + 0.07 * lane_h,
-      fill = "#D0D6E0", color = "#A8AEBA", linewidth = 0.35
+      fill = .pepvet_pal$backbone_fill, color = .pepvet_pal$backbone_brd, linewidth = 0.35
     )
 
     # ── Gap overlays (annotate() is eager, safe with loop vars) ──────────────
@@ -471,7 +478,7 @@ plot_coverage_map <- function(result,
       y = y_mid,
       label = mc_label,
       hjust = 0, vjust = 0.5,
-      size = 3.0, color = "#444444", fontface = "bold"
+      size = 3.0, color = .pepvet_pal$text_axis_title, fontface = "bold"
     )
   }
 
@@ -532,8 +539,8 @@ plot_coverage_map <- function(result,
       values = rescaled,
       name = "GRAVY",
       guide = ggplot2::guide_colorbar(
-        barwidth = ggplot2::unit(8, "lines"),
-        barheight = ggplot2::unit(0.55, "lines"),
+        barwidth = ggplot2::unit(160, "pt"),
+        barheight = ggplot2::unit(7, "pt"),
         direction = "horizontal",
         title.position = "top"
       )
@@ -543,7 +550,7 @@ plot_coverage_map <- function(result,
       "Valid"     = .pepvet_pal$valid,
       "Too short" = .pepvet_pal$too_short,
       "Too long"  = .pepvet_pal$too_long,
-      "Invalid"   = "#B8C2CC"
+      "Invalid"   = .pepvet_pal$na_gray
     )
     if (color_by == "validity") {
       color_vals <- color_vals[c("Valid", "Invalid")]
@@ -551,7 +558,7 @@ plot_coverage_map <- function(result,
     p <- p + ggplot2::scale_fill_manual(
       values = color_vals,
       name = NULL,
-      na.value = "#B8C2CC",
+      na.value = .pepvet_pal$na_gray,
       guide = ggplot2::guide_legend(
         override.aes = list(alpha = 1, color = NA, size = 5)
       )
@@ -622,6 +629,212 @@ plot_coverage_map <- function(result,
 }
 
 
+#' Amino-Acid Peptide Overlap Map
+#'
+#' `plot_peptide_overlap_map()` renders a wrapped residue-level view of a
+#' single protein and colors each amino-acid tile by how many peptides
+#' cover that residue (MC=0 only by default). Uncovered residues are white;
+#' increasing overlap depth gets progressively stronger blue fills.
+#' The subtitle reports the maximum overlap, which helps gauge whether the
+#' 6-color scale (0, 1, 2-3, 4-7, 8-15, 16+) is sufficient for your data.
+#'
+#' @param result A named list returned by [evaluate_digest()]. Must describe a
+#'   single protein.
+#' @param length_range Optional integer vector of length 2 defining which
+#'   peptide lengths count toward overlap. Defaults to `c(7L, 25L)`. Peptides
+#'   are counted from the MC level specified by `missed_cleavages`. Use
+#'   `length_range = NULL` to count all digested peptides at all
+#'   missed-cleavage levels.
+#' @param missed_cleavages Integer. Which missed-cleavage level to use for
+#'   the overlap count. Defaults to `1L` (standard bottom-up practice).
+#'   Pass `0L` for strict non-overlapping fragments, or `NULL` to count
+#'   all MC levels (automatically set when `length_range = NULL`).
+#' @param residues_per_line Positive integer. Number of residues to show before
+#'   wrapping to the next display row. Defaults to `50L`.
+#' @param title Optional character string for the plot title. Auto-generated
+#'   from the protein accession and enzyme when `NULL` (default).
+#'
+#' @return A `ggplot` object showing one tile per residue.
+#'
+#' @details The plotted letters are reconstructed from the MC=0 peptide set in
+#' `result$peptides`, so the plot can be generated directly from an
+#' [evaluate_digest()] result without re-reading the original FASTA input.
+#' Overlap counts are computed from valid-length MC=1 peptides by default
+#' (configurable via `missed_cleavages`). Pass `missed_cleavages = 0L` for
+#' strict non-overlapping fragments, or `length_range = NULL` to count all
+#' digested peptides at all missed-cleavage levels.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1)
+#'   p <- plot_peptide_overlap_map(res)
+#'   print(p)
+#' }
+#'
+#' @seealso [evaluate_digest()], [plot_coverage_map()], [plot_cleavage_map()]
+#' @family plot-single
+#' @export
+plot_peptide_overlap_map <- function(result,
+                                     length_range = c(7L, 25L),
+                                     missed_cleavages = 1L,
+                                     residues_per_line = 50L,
+                                     title = NULL) {
+  rlang::check_installed("ggplot2",
+    reason = "to produce pepVet visualization plots"
+  )
+
+  .validate_digest_result_for_plot(result)
+
+  normalized_length_range <- if (is.null(length_range)) {
+    NULL
+  } else {
+    .validate_length_range(length_range)
+  }
+
+  if (
+    !is.numeric(residues_per_line) ||
+      length(residues_per_line) != 1L ||
+      is.na(residues_per_line)
+  ) {
+    .abort(
+      "{.arg residues_per_line} must be a single positive integer.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  normalized_wrap <- as.integer(residues_per_line)
+  if (
+    normalized_wrap < 1L ||
+      !isTRUE(all.equal(as.numeric(residues_per_line), as.numeric(normalized_wrap)))
+  ) {
+    .abort(
+      "{.arg residues_per_line} must be a single positive integer.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  peps <- result$peptides
+  params <- result$params
+  protein_id <- params$protein_ids[[1L]]
+  enzyme_name <- params$enzyme
+  display_id <- .tidy_protein_id(protein_id)
+  protein_length <- max(peps$end, na.rm = TRUE)
+
+  tile_df <- .build_peptide_overlap_df(
+    peps,
+    protein_length = protein_length,
+    length_range = normalized_length_range,
+    missed_cleavages = if (is.null(normalized_length_range)) NULL else missed_cleavages,
+    residues_per_line = normalized_wrap
+  )
+
+  n_detected <- sum(tile_df$overlap_count > 0L)
+  pct_detected <- round(100 * n_detected / nrow(tile_df), 1)
+  n_overlapped <- sum(tile_df$overlap_count >= 2L)
+  max_overlap <- max(tile_df$overlap_count)
+  overlap_source <- if (is.null(normalized_length_range)) {
+    "all digested peptides"
+  } else {
+    paste0(
+      "valid peptides [",
+      normalized_length_range[[1L]],
+      "-",
+      normalized_length_range[[2L]],
+      " aa]"
+    )
+  }
+
+  auto_title <- if (is.null(title)) {
+    paste0(display_id, "    \u00b7    ", enzyme_name)
+  } else {
+    title
+  }
+
+  letter_size <- if (normalized_wrap <= 40L) {
+    3.4
+  } else if (normalized_wrap <= 60L) {
+    3.0
+  } else if (normalized_wrap <= 80L) {
+    2.4
+  } else {
+    1.9
+  }
+
+  ggplot2::ggplot(
+    tile_df,
+    ggplot2::aes(x = .data$column_index, y = 1, fill = .data$overlap_class)
+  ) +
+    ggplot2::geom_tile(
+      width = 0.98,
+      height = 0.92,
+      color = .pepvet_pal$separator,
+      linewidth = 0.25
+    ) +
+    ggplot2::geom_text(
+      ggplot2::aes(label = .data$residue, color = .data$letter_color),
+      size = letter_size,
+      fontface = "bold"
+    ) +
+    ggplot2::facet_grid(
+      rows = ggplot2::vars(.data$line_label),
+      switch = "y"
+    ) +
+    ggplot2::scale_fill_manual(
+      values = .pepvet_pal$overlap,
+      drop = FALSE,
+      name = "Peptide overlaps"
+    ) +
+    ggplot2::scale_color_manual(
+      values = c(dark = .pepvet_pal$brand_dark, light = "white"),
+      guide = "none"
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(1L, normalized_wrap, by = 10L),
+      expand = ggplot2::expansion(add = c(0, 0))
+    ) +
+    ggplot2::scale_y_continuous(
+      breaks = NULL,
+      expand = ggplot2::expansion(add = c(0, 0))
+    ) +
+    ggplot2::coord_fixed(ratio = 1) +
+    ggplot2::labs(
+      title = auto_title,
+      subtitle = sprintf(
+        paste(
+          "%.0f%% residues detected by %s.",
+          "%d residues have overlapping support; max overlap = %d."
+        ),
+        pct_detected,
+        overlap_source,
+        n_overlapped,
+        max_overlap
+      ),
+      x = "Residue position within wrapped line",
+      y = NULL
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      panel.grid = ggplot2::element_blank(),
+      panel.border = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_blank(),
+      axis.ticks = ggplot2::element_blank(),
+      strip.placement = "outside",
+      strip.background = ggplot2::element_rect(
+        fill = .pepvet_pal$neutral,
+        color = .pepvet_pal$separator
+      ),
+      strip.text.y.left = ggplot2::element_text(
+        angle = 0,
+        hjust = 0,
+        face = "bold",
+        color = .pepvet_pal$brand_dark
+      ),
+      legend.position = "bottom"
+    )
+}
+
+
 # ── plot_cleavage_map ─────────────────────────────────────────────────────────
 
 #' Cleavage Site Map
@@ -643,6 +856,9 @@ plot_coverage_map <- function(result,
 #' @param title Optional character title.  Auto-generated when `NULL`.
 #'
 #' @return A `ggplot` object.
+#' @seealso [evaluate_digest()], [annotate_cleavage_sites()],
+#'   [plot_coverage_map()]
+#' @family plot-single
 #' @export
 plot_cleavage_map <- function(result,
                               cleavage_sites = NULL,
@@ -654,12 +870,14 @@ plot_cleavage_map <- function(result,
 
   .validate_digest_result_for_plot(result)
 
+  length_range <- .validate_length_range(length_range)
+
   peps <- result$peptides
   params <- result$params
   protein_id <- params$protein_ids[[1L]]
   enzyme_name <- params$enzyme
   display_id <- .tidy_protein_id(protein_id)
-  protein_length <- max(peps$end)
+  protein_length <- max(peps$end, na.rm = TRUE)
 
   length_lo <- length_range[[1L]]
   length_hi <- length_range[[2L]]
@@ -706,10 +924,6 @@ plot_cleavage_map <- function(result,
     peps
   }
 
-  # Fill color: valid = brand blue (alpha), invalid = light gray
-  mc0$fill_color <- ifelse(mc0$valid, .pepvet_pal$brand, "#CCCCCC")
-  mc0$alpha_val <- ifelse(mc0$valid, 0.75, 0.35)
-
   # Peptide label: length if valid and wide enough (> 2.5% protein width)
   min_label_width <- ceiling(protein_length * 0.025)
   mc0$label <- ifelse(mc0$valid & mc0$length >= min_label_width,
@@ -724,7 +938,7 @@ plot_cleavage_map <- function(result,
       "rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = 0.28, ymax = 0.72,
-      fill = "#E8EDF3", color = "#AAAAAA", linewidth = 0.4
+      fill = .pepvet_pal$cleavage_bg, color = .pepvet_pal$protein_brd, linewidth = 0.4
     ) +
     # Fragment blocks
     ggplot2::geom_rect(
@@ -732,12 +946,21 @@ plot_cleavage_map <- function(result,
       ggplot2::aes(
         xmin = .data$start - 0.3,
         xmax = .data$end + 0.3,
-        ymin = 0.32, ymax = 0.68
+        ymin = 0.32, ymax = 0.68,
+        fill = .data$valid,
+        alpha = .data$valid
       ),
-      fill = mc0$fill_color,
       color = "white",
-      linewidth = 0.2,
-      alpha = mc0$alpha_val
+      linewidth = 0.2
+    ) +
+    ggplot2::scale_fill_manual(
+      values = c(`TRUE` = .pepvet_pal$brand, `FALSE` = .pepvet_pal$invalid_pep),
+      labels = c(`TRUE` = "Valid", `FALSE` = "Invalid"),
+      name = NULL
+    ) +
+    ggplot2::scale_alpha_manual(
+      values = c(`TRUE` = 0.75, `FALSE` = 0.35),
+      guide = "none"
     )
 
   # Fragment length labels

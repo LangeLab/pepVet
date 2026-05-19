@@ -39,6 +39,10 @@ navbar:
           href: articles/workflow-presets.html
         - text: Understanding the Scoring Model
           href: articles/scoring-model.html
+        - text: "---"
+        - text: "Visualisation"
+        - text: Visualising Digest Quality
+          href: articles/visualisation.html
     reference:
       text: Reference
       href: reference/index.html
@@ -93,19 +97,31 @@ reference:
   - title: "Visualisation"
     desc: >
       Plot digest quality, score components, enzyme comparisons,
-      and proteome-level overviews.
+      residue-level overlap maps, and proteome-level overviews.
     contents:
       - plot_digest_profile
-      - plot_length_distribution
-      - plot_gravy_landscape
-      - plot_mz_distribution
-      - plot_pI_distribution
       - plot_coverage_map
       - plot_cleavage_map
+      - plot_peptide_overlap_map
+      - plot_length_distribution
+      - plot_gravy_landscape
+      - plot_pI_distribution
+      - plot_mz_distribution
       - plot_missed_cleavage_impact
       - plot_enzyme_comparison
       - plot_proteome_overview
       - plot_batch_comparison
+
+  - title: "Plot Configuration & Output"
+    desc: >
+      Customise colours, thresholds, and theme defaults for all pepVet
+      plots, and export figures with publication-ready defaults.
+    contents:
+      - pepvet_plot_config
+      - pepvet_plot_config_reset
+      - pepvet_theme_manuscript
+      - pepvet_theme_presentation
+      - pepvet_save_figure
 
   - title: "Reporting"
     desc: >

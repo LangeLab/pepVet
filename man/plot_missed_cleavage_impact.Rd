@@ -32,3 +32,11 @@ named list.  Each component score is drawn as a connected line; the
 composite score is drawn as a bold line.  An annotation marks the MC count
 that maximizes the composite.
 }
+\seealso{
+Other plot-distribution:
+\code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
+\code{\link[=plot_length_distribution]{plot_length_distribution()}},
+\code{\link[=plot_mz_distribution]{plot_mz_distribution()}},
+\code{\link[=plot_pI_distribution]{plot_pI_distribution()}}
+}
+\concept{plot-distribution}

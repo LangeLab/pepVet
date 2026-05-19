@@ -9,11 +9,11 @@
 # any plotting function in this file.
 # ---------------------------------------------------------------------------
 
-#' @importFrom rlang .data check_installed
+#' @importFrom rlang .data check_installed %||%
 #' @importFrom stats setNames
 #' @importFrom utils head
+#' @importFrom tools file_ext
 NULL
-
 
 # -- Internal color palette --------------------------------------------------
 
@@ -27,30 +27,87 @@ NULL
 #' @noRd
 .pepvet_pal <- list(
   # Brand / primary
-  brand = "#2C5F8A", # pepVet blue - valid peptides, primary bars
-  brand_dark = "#1A3D5C", # darker blue - borders, contrast text
-  brand_light = "#7BAED4", # lighter blue - fills, highlights
+  brand       = "#2C5F8A",
+  brand_dark  = "#1A3D5C",
+  brand_light = "#7BAED4",
 
   # Length-class categories
-  valid = "#2C5F8A", # valid-length peptides
-  too_short = "#E8A838", # amber - too-short peptides
-  too_long = "#C94040", # rose-red - too-long peptides
+  valid      = "#2C5F8A",
+  too_short  = "#E8A838",
+  too_long   = "#C94040",
 
   # Scoring tiers
-  good = "#27AE60", # green  - score >= 0.65
-  moderate = "#E8A838", # amber  - score 0.40-0.69
-  poor = "#C94040", # red    - score < 0.40
+  good       = "#27AE60",
+  moderate   = "#E8A838",
+  poor       = "#C94040",
 
-  # Coverage
-  gap = "#C94040", # red - uncovered protein regions
-  covered = "#2C5F8A", # blue - covered by valid peptides
+  # Verdict colors (named, matches the tier values above)
+  verdict = c(
+    Good     = "#27AE60",
+    Moderate = "#E8A838",
+    Poor     = "#C94040"
+  ),
+
+  # Component score colors (5 + S_unique)
+  component = c(
+    S_coverage = "#2C5F8A",
+    S_length   = "#27AE60",
+    S_count    = "#E8A838",
+    S_hydro    = "#8B5E99",
+    S_charge   = "#4AAFB0",
+    S_unique   = "#B8C2CC"
+  ),
+
+  # Coverage / cleavage map structural elements
+  protein_bg  = "#D8DDE6",
+  protein_brd = "#AAAAAA",
+  backbone_fill = "#D0D6E0",
+  backbone_brd  = "#A8AEBA",
+  invalid_pep   = "#C5CDD8",
+  covered       = "#2C5F8A",
+  gap           = "#C94040",
+  cleavage_bg   = "#E8EDF3",
+  na_gray       = "#B8C2CC",
+  overlap = c(
+    "Not detected"      = "#FFFFFF",
+    "Detected once"     = "#DCEAF5",
+    "Detected twice"    = "#7BAED4",
+    "Detected 3+ times" = "#2C5F8A"
+  ),
 
   # Background shading for valid ranges
-  shade = "#EDF6F0", # very light green - valid-range backdrop
-  neutral = "#F4F6F9", # off-white - panel backgrounds
-  separator = "#DDDDDD" # light gray - borders, grid lines
+  shade      = "#EDF6F0",
+  neutral    = "#F4F6F9",
+  separator  = "#DDDDDD",
+
+  # Theme element colors
+  text_subtitle   = "#666666",
+  text_axis_title = "#444444",
+  text_axis_tick  = "#555555",
+  axis_tick       = "#CCCCCC",
+  grid_major      = "#EBEBEB",
+  strip_bg        = "#F0F4F8",
+  text_secondary  = "#999999",
+  text_dark       = "#333333",
+
+  # Zone shading (verdict background bands)
+  zone_moderate = "#FFF3E0",
+  zone_poor     = "#FFEBEE",
+
+  # Badge colors
+  badge_gold_text = "#7A5A00",
+  badge_gold_fill = "#FFF5CC",
+
+  # Heatmap gradient midpoint
+  heatmap_mid = "#FFFAEC"
 )
 
+# Snapshot defaults at build time for pepvet_plot_config_reset()
+# Store in an environment (not locked like namespace bindings)
+.pepvet_config_env <- new.env(parent = emptyenv())
+.pepvet_config_env$pal_default <- .pepvet_pal
+.pepvet_config_env$params_default <- NULL  # set after .pepvet_params loads
+.pepvet_config_env$theme_overrides <- list()
 
 # -- Internal ggplot2 theme --------------------------------------------------
 
@@ -63,7 +120,7 @@ NULL
 #' @param base_size Numeric base font size.  Defaults to `11`.
 #' @noRd
 .pepvet_theme <- function(base_size = 11) {
-  ggplot2::theme_minimal(base_size = base_size) +
+  out <- ggplot2::theme_minimal(base_size = base_size) +
     ggplot2::theme(
       # Title / subtitle
       plot.title = ggplot2::element_text(
@@ -74,30 +131,30 @@ NULL
       ),
       plot.subtitle = ggplot2::element_text(
         size   = base_size - 1.5,
-        color  = "#666666",
+        color  = .pepvet_pal$text_subtitle,
         margin = ggplot2::margin(b = 6)
       ),
 
       # Axes
-      axis.title = ggplot2::element_text(size = base_size - 1, color = "#444444"),
-      axis.text = ggplot2::element_text(size = base_size - 2, color = "#555555"),
-      axis.ticks = ggplot2::element_line(color = "#CCCCCC", linewidth = 0.3),
+      axis.title = ggplot2::element_text(size = base_size - 1, color = .pepvet_pal$text_axis_title),
+      axis.text = ggplot2::element_text(size = base_size - 2, color = .pepvet_pal$text_axis_tick),
+      axis.ticks = ggplot2::element_line(color = .pepvet_pal$axis_tick, linewidth = 0.3),
 
       # Grid
-      panel.grid.major = ggplot2::element_line(color = "#EBEBEB", linewidth = 0.35),
+      panel.grid.major = ggplot2::element_line(color = .pepvet_pal$grid_major, linewidth = 0.35),
       panel.grid.minor = ggplot2::element_blank(),
       panel.border = ggplot2::element_rect(
         fill      = NA,
-        color     = "#DDDDDD",
+        color     = .pepvet_pal$separator,
         linewidth = 0.5
       ),
 
       # Strip (for faceted plots)
-      strip.background = ggplot2::element_rect(fill = "#F0F4F8", color = "#DDDDDD"),
+      strip.background = ggplot2::element_rect(fill = .pepvet_pal$strip_bg, color = .pepvet_pal$separator),
       strip.text = ggplot2::element_text(
         face  = "bold",
         size  = base_size - 0.5,
-        color = "#2C5F8A"
+        color = .pepvet_pal$brand
       ),
 
       # Legend
@@ -107,15 +164,72 @@ NULL
       legend.title = ggplot2::element_text(
         size = base_size - 1.5,
         face = "bold",
-        color = "#444444"
+        color = .pepvet_pal$text_axis_title
       ),
       legend.background = ggplot2::element_rect(fill = NA, color = NA),
 
       # Plot margins
       plot.margin = ggplot2::margin(8, 10, 6, 10)
     )
+
+  # Apply user theme overrides if set
+  overrides <- .pepvet_config_env$theme_overrides
+  if (length(overrides) > 0L) {
+    out <- out + do.call(ggplot2::theme, overrides)
+  }
+
+  out
 }
 
+
+# -- Shared classification helpers -------------------------------------------
+
+#' Classify peptide lengths into validity categories
+#' @noRd
+.classify_length <- function(lengths, length_range) {
+  lo <- length_range[[1L]]
+  hi <- length_range[[2L]]
+  factor(
+    ifelse(lengths < lo, "Too short",
+      ifelse(lengths > hi, "Too long", "Valid")),
+    levels = c("Valid", "Too short", "Too long")
+  )
+}
+
+#' Length-class color map
+#' @noRd
+.length_class_colors <- function() {
+  c(
+    "Valid"     = .pepvet_pal$valid,
+    "Too short" = .pepvet_pal$too_short,
+    "Too long"  = .pepvet_pal$too_long
+  )
+}
+
+#' Classify numeric scores into verdict tiers
+#' @noRd
+.classify_verdict <- function(x) {
+  ifelse(x >= .get_param("verdict_good"), "Good",
+    ifelse(x >= .get_param("verdict_moderate"), "Moderate", "Poor"))
+}
+
+#' Nice x-axis step for protein-length scales
+#' @noRd
+.nice_x_step <- function(protein_length) {
+  max(50L, as.integer(round(protein_length / 10.0 / 50.0) * 50L))
+}
+
+#' Guard against empty peptide tables
+#' @noRd
+.validate_nonempty <- function(data, name = "data", class = "pepvet_error_invalid_input") {
+  if (is.data.frame(data) && nrow(data) == 0L) {
+    .abort(
+      "{.arg {name}} must have at least one row.",
+      class = class
+    )
+  }
+  invisible(data)
+}
 
 # -- Internal: tidy protein display ID ---------------------------------------
 
@@ -128,14 +242,26 @@ NULL
 #'   peptide table.
 #' @noRd
 .tidy_protein_id <- function(protein_id) {
+  # UniProt format: sp|ACC|GENE or tr|ACC|GENE
   m <- regmatches(
     protein_id,
-    regexpr("^[a-z]+\\|([A-Z0-9]+)\\|([A-Z0-9_]+)", protein_id)
+    regexpr("^[a-z]+\\|([A-Z0-9]+)\\|([A-Z0-9_./-]+)", protein_id)
   )
   if (length(m) == 1L && nchar(m) > 0L) {
     parts <- strsplit(m, "\\|")[[1L]]
     return(paste0(parts[[2L]], "  (", parts[[3L]], ")"))
   }
+  # NCBI RefSeq: NP_001234.1 or XP_...
+  m2 <- regmatches(protein_id, regexpr("^([A-Z]{2}_[0-9]+(\\.[0-9]+)?)", protein_id))
+  if (length(m2) == 1L && nchar(m2) > 0L) {
+    return(m2)
+  }
+  # Generic: take first space-delimited token (FASTA >header convention)
+  m3 <- regmatches(protein_id, regexpr("^[^ ]+", protein_id))
+  if (length(m3) == 1L && nchar(m3) > 0L && nchar(m3) <= 42L) {
+    return(m3)
+  }
+  # Truncate as last resort
   if (nchar(protein_id) > 42L) {
     paste0(substr(protein_id, 1L, 39L), "...")
   } else {
@@ -188,6 +314,12 @@ NULL
       class = "pepvet_error_multi_protein"
     )
   }
+  if (nrow(peps) == 0L) {
+    .abort(
+      "No peptides found in {.arg result}. The digest produced zero peptides.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
   invisible(NULL)
 }
 
@@ -200,25 +332,16 @@ NULL
   length_lo <- length_range[[1L]]
   length_hi <- length_range[[2L]]
 
-  peps$length_class <- factor(
-    ifelse(peps$length < length_lo, "Too short",
-      ifelse(peps$length > length_hi, "Too long", "Valid")
-    ),
-    levels = c("Valid", "Too short", "Too long")
-  )
+  peps$length_class <- .classify_length(peps$length, length_range)
 
   n_valid <- sum(peps$length_class == "Valid")
   n_total <- nrow(peps)
   pct <- round(100 * n_valid / n_total, 1)
 
-  class_colors <- c(
-    "Valid"     = .pepvet_pal$valid,
-    "Too short" = .pepvet_pal$too_short,
-    "Too long"  = .pepvet_pal$too_long
-  )
+  class_colors <- .length_class_colors()
 
   # Sensible x-axis upper limit
-  x_max <- max(peps$length) + 1L
+  x_max <- max(peps$length, na.rm = TRUE) + 1L
 
   ggplot2::ggplot(peps, ggplot2::aes(x = length, fill = length_class)) +
     # Valid-range shading
@@ -277,8 +400,14 @@ NULL
   )
   n_total <- sum(!is.na(peps$gravy))
 
-  # Suitable bin count for the data range
-  n_bins <- max(15L, min(40L, as.integer(diff(range(peps$gravy, na.rm = TRUE)) / 0.08)))
+  # Suitable bin count for the data range (Freedman-Diaconis rule, clamped)
+  gravy_iqr <- diff(stats::quantile(peps$gravy, c(0.25, 0.75), na.rm = TRUE, names = FALSE))
+  fd_bw <- 2 * gravy_iqr / length(peps$gravy)^(1/3)
+  n_bins <- if (is.finite(fd_bw) && fd_bw > 0) {
+    max(15L, min(40L, as.integer(diff(range(peps$gravy, na.rm = TRUE)) / fd_bw)))
+  } else {
+    30L
+  }
 
   ggplot2::ggplot(peps, ggplot2::aes(x = gravy)) +
     # LC-friendly range shading
@@ -381,18 +510,160 @@ NULL
 }
 
 
-#' Map GRAVY values to hex colors via a 4-stop gradient (shared helper)
+#' Reconstruct a full single-protein sequence from MC=0 peptides
 #'
-#' Color stops follow the pepVet physicochemical story, reusing `.pepvet_pal`:
-#' very hydrophilic (GRAVY << -1) maps to brand blue; neutral (about 0)
-#' maps to good green; borderline (about 0.6) maps to amber; very
-#' hydrophobic (>> 0.6) maps to poor red.
+#' Uses the non-overlapping MC=0 digest fragments to rebuild the original
+#' sequence so residue-level plots do not need the raw FASTA input again.
 #'
-#' @param gravy_values Numeric vector.
-#' @param lo,hi       Clamp limits. Values outside the lo-to-hi interval are clamped.
-#' @return Character vector of hex color strings, same length as input.
+#' @param peps Peptide tibble from [evaluate_digest()].
+#' @return Length-1 character string containing the full protein sequence.
 #' @noRd
+.reconstruct_sequence_from_peptides <- function(peps) {
+  protein_length <- max(peps$end, na.rm = TRUE)
+  mc0_peps <- if ("missed_cleavages" %in% names(peps)) {
+    peps[peps$missed_cleavages == 0L, , drop = FALSE]
+  } else {
+    peps
+  }
+
+  if (nrow(mc0_peps) == 0L) {
+    .abort(
+      paste(
+        "Could not reconstruct the full protein sequence because no MC=0",
+        "peptides were available."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  mc0_peps <- mc0_peps[order(mc0_peps$start, mc0_peps$end), , drop = FALSE]
+  sequence_chars <- rep(NA_character_, protein_length)
+
+  for (index in seq_len(nrow(mc0_peps))) {
+    peptide_chars <- strsplit(mc0_peps$peptide[[index]], "", fixed = TRUE)[[1L]]
+    residue_positions <- seq.int(mc0_peps$start[[index]], mc0_peps$end[[index]])
+
+    if (length(peptide_chars) != length(residue_positions)) {
+      .abort(
+        paste(
+          "Peptide coordinates do not match peptide sequence length during",
+          "sequence reconstruction."
+        ),
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+
+    existing_chars <- sequence_chars[residue_positions]
+    has_mismatch <- !is.na(existing_chars) & existing_chars != peptide_chars
+    if (any(has_mismatch)) {
+      .abort(
+        paste(
+          "Peptide table contains inconsistent residue assignments and cannot",
+          "be rendered as a sequence map."
+        ),
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+
+    sequence_chars[residue_positions] <- peptide_chars
+  }
+
+  if (anyNA(sequence_chars)) {
+    .abort(
+      paste(
+        "Could not reconstruct a complete protein sequence from the peptide",
+        "table."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  paste(sequence_chars, collapse = "")
+}
+
+
+#' Build wrapped residue tiles with peptide overlap counts
 #'
+#' Counts how many peptides cover each residue, then formats the sequence into
+#' wrapped display rows for residue-letter heatmap style plots.
+#'
+#' @param peps Peptide tibble from [evaluate_digest()].
+#' @param protein_length Integer protein length.
+#' @param length_range Optional integer vector of length 2. When `NULL`, all
+#'   peptides at all MC levels are counted.
+#' @param missed_cleavages Integer MC level to filter to when `length_range`
+#'   is not `NULL`. Default `1L`.
+#' @param residues_per_line Positive integer wrap width.
+#' @return Data frame with one row per residue and columns for plotting.
+#' @noRd
+.build_peptide_overlap_df <- function(peps, protein_length,
+                                      length_range = NULL,
+                                      missed_cleavages = 1L,
+                                      residues_per_line = 50L) {
+  protein_sequence <- .reconstruct_sequence_from_peptides(peps)
+  overlap_counts <- integer(protein_length)
+
+  # When length_range is NULL, count all MC levels (user opted in).
+  # Otherwise filter to the specified MC level (default 1L).
+  has_mc <- "missed_cleavages" %in% names(peps)
+  count_all_mc <- is.null(length_range) && has_mc
+
+  overlap_peps <- if (count_all_mc) {
+    peps
+  } else if (has_mc) {
+    peps[peps$missed_cleavages == missed_cleavages, , drop = FALSE]
+  } else {
+    peps
+  }
+
+  if (!is.null(length_range)) {
+    normalized_length_range <- .validate_length_range(length_range)
+    overlap_peps <- overlap_peps[
+      overlap_peps$length >= normalized_length_range[[1L]] &
+        overlap_peps$length <= normalized_length_range[[2L]],
+      ,
+      drop = FALSE
+    ]
+  }
+
+  if (nrow(overlap_peps) > 0L) {
+    for (index in seq_len(nrow(overlap_peps))) {
+      residue_positions <- seq.int(overlap_peps$start[[index]], overlap_peps$end[[index]])
+      overlap_counts[residue_positions] <- overlap_counts[residue_positions] + 1L
+    }
+  }
+
+  residue_positions <- seq_len(protein_length)
+  residues <- strsplit(protein_sequence, "", fixed = TRUE)[[1L]]
+  line_index <- ((residue_positions - 1L) %/% residues_per_line) + 1L
+  column_index <- ((residue_positions - 1L) %% residues_per_line) + 1L
+
+  line_start <- ((line_index - 1L) * residues_per_line) + 1L
+  line_end <- pmin(line_index * residues_per_line, protein_length)
+  line_label <- paste0("Residues ", line_start, "-", line_end)
+
+  overlap_class <- ifelse(
+    overlap_counts >= 3L, "Detected 3+ times",
+    ifelse(
+      overlap_counts == 2L, "Detected twice",
+      ifelse(overlap_counts == 1L, "Detected once", "Not detected")
+    )
+  )
+
+  data.frame(
+    position = residue_positions,
+    residue = residues,
+    overlap_count = overlap_counts,
+    overlap_class = factor(overlap_class, levels = names(.pepvet_pal$overlap)),
+    letter_color = ifelse(overlap_counts >= 2L, "light", "dark"),
+    line_label = factor(line_label, levels = unique(line_label)),
+    column_index = column_index,
+    stringsAsFactors = FALSE
+  )
+}
+
+# -- Greedy interval packing for non-overlapping peptide display (shared helper)
+
 #' Assigns each peptide to the lowest-numbered "track" (sub-row) where it does
 #' not overlap any previously placed peptide.  Peptides are processed in order
 #' of start position.  The result is a new column `track` (1-based integer).
@@ -480,7 +751,7 @@ NULL
   label_peps$label_x <- (label_peps$start + label_peps$end) / 2.0
 
   # x-axis break step
-  x_step <- max(50L, as.integer(round(protein_length / 10.0 / 50.0) * 50L))
+  x_step <- .nice_x_step(protein_length)
 
   p <- ggplot2::ggplot() +
     # Full protein background bar
@@ -488,8 +759,8 @@ NULL
       "rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = 0.30, ymax = 0.70,
-      fill = "#D8DDE6",
-      color = "#AAAAAA",
+      fill = .pepvet_pal$protein_bg,
+      color = .pepvet_pal$protein_brd,
       linewidth = 0.4
     )
 
@@ -502,7 +773,7 @@ NULL
         xmax = .data$end + 0.3,
         ymin = 0.35, ymax = 0.65
       ),
-      fill = "#C5CDD8",
+      fill = .pepvet_pal$invalid_pep,
       color = "white",
       linewidth = 0.15,
       alpha = 0.60
@@ -548,7 +819,7 @@ NULL
 
   p +
     ggplot2::scale_x_continuous(
-      breaks = seq(0L, protein_length + x_step, by = x_step),
+      breaks = seq(0L, protein_length, by = x_step),
       limits = c(0, protein_length + 1),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
@@ -656,7 +927,7 @@ NULL
       ),
       hjust = 0,
       size = 3.1,
-      color = "#333333",
+      color = .pepvet_pal$text_dark,
       fontface = "bold"
     ) +
     # Composite score reference line
@@ -681,7 +952,7 @@ NULL
     ) +
     ggplot2::scale_fill_manual(values = tier_colors, guide = "none") +
     ggplot2::scale_x_continuous(
-      limits = c(0, 1.18),
+      limits = c(0, max(max(vals) + 0.08, 1.05)),
       breaks = seq(0, 1, by = 0.2),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
@@ -702,3 +973,254 @@ NULL
 # ===========================================================================
 # Public API
 # ===========================================================================
+
+#' Configure pepVet plot appearance
+#'
+#' Override default colors, numeric parameters, and theme elements used by
+#' all pepVet plotting functions. Changes persist for the session.
+#' Call with no arguments to view the current configuration.
+#'
+#' @param palette Named list of color overrides. Names must match existing
+#'   `.pepvet_pal` entries (e.g. `list(brand = "#004488", good = "#2ECC71")`).
+#'   Sub-lists like `verdict`, `component`, and `overlap` are replaced entirely.
+#' @param params Named list of parameter overrides. Names must match existing
+#'   `.pepvet_params` entries (e.g. `list(verdict_good = 0.70, scatter_alpha = 0.90)`).
+#' @param theme Named list of ggplot2 theme element overrides. Passed directly
+#'   to [ggplot2::theme()] and applied on top of the base `.pepvet_theme()`.
+#'   (e.g. `list(legend.position = "right", plot.title = element_text(size = 14))`).
+#'
+#' @return Invisibly returns a list with current `palette`, `params`, and `theme`.
+#' @family plot-utils
+#' @export
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   # View current config
+#'   pepvet_plot_config()
+#'
+#'   # Customize brand color and Good threshold
+#'   pepvet_plot_config(
+#'     palette = list(brand = "#004488", good = "#2ECC71"),
+#'     params  = list(verdict_good = 0.70)
+#'   )
+#'
+#'   # Reset to defaults
+#'   pepvet_plot_config_reset()
+#' }
+pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
+  env <- .pepvet_config_env
+
+  if (is.null(palette) && is.null(params) && is.null(theme)) {
+    return(invisible(list(
+      palette = env$pal,
+      params  = env$params,
+      theme   = env$theme_overrides
+    )))
+  }
+
+  if (!is.null(palette)) {
+    if (!is.list(palette) || is.null(names(palette))) {
+      .abort(
+        "{.arg palette} must be a named list.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    unknown <- setdiff(names(palette), names(env$pal))
+    if (length(unknown) > 0L) {
+      .abort(
+        "Unknown palette {.field {unknown}}.",
+        "i" = "Valid names: {.val {names(env$pal)}}.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    env$pal[names(palette)] <- palette
+  }
+
+  if (!is.null(params)) {
+    if (!is.list(params) || is.null(names(params))) {
+      .abort(
+        "{.arg params} must be a named list.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    unknown <- setdiff(names(params), names(env$params))
+    if (length(unknown) > 0L) {
+      .abort(
+        "Unknown param {.field {unknown}}.",
+        "i" = "Valid names: {.val {names(env$params)}}.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    env$params[names(params)] <- params
+  }
+
+  if (!is.null(theme)) {
+    if (!is.list(theme) || is.null(names(theme))) {
+      .abort(
+        "{.arg theme} must be a named list.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    env$theme_overrides <- theme
+  }
+
+  invisible(list(
+    palette = env$pal,
+    params  = env$params,
+    theme   = env$theme_overrides
+  ))
+}
+
+
+#' Reset pepVet plot configuration to defaults
+#'
+#' Restores all colors, parameters, and theme overrides to the package defaults.
+#'
+#' @return Invisibly returns a list with current `palette`, `params`, and `theme`.
+#' @family plot-utils
+#' @export
+pepvet_plot_config_reset <- function() {
+  env <- .pepvet_config_env
+  env$pal[] <- env$pal_default
+  if (!is.null(env$params_default)) env$params[] <- env$params_default
+  env$theme_overrides <- list()
+  invisible(list(
+    palette = env$pal,
+    params  = env$params,
+    theme   = env$theme_overrides
+  ))
+}
+
+
+#' Save a pepVet figure with publication-ready defaults
+#'
+#' Wraps [ggplot2::ggsave()] with pepVet's recommended defaults: auto-sizing
+#' based on whether the plot is a multi-panel patchwork or a single panel,
+#' 300 DPI, anti-aliased PNG via ragg when available, and white background.
+#' All arguments in `...` are passed to [ggplot2::ggsave()] and can override
+#' the defaults.
+#'
+#' @param plot A ggplot or patchwork object produced by any pepVet plot function.
+#' @param filename Character path for the output file. Extensions `.png`, `.pdf`,
+#'   `.svg`, etc. are handled by [ggplot2::ggsave()]. Defaults to `"pepvet_plot.png"`
+#'   in the working directory.
+#' @param width,height Numeric. Plot dimensions in inches. When `NULL` (default),
+#'   auto-sized: single-panel = 10x7, multi-panel patchwork = 14x10.
+#' @param dpi Numeric. Resolution in dots per inch. Defaults to `300` (publication).
+#' @param bg Character. Background color. Defaults to `"white"`.
+#' @param device Device to use. When `NULL` (default) and the filename extension
+#'   is `.png`, tries [ragg::agg_png()] for anti-aliased output, falling back
+#'   to `"png"`. For other extensions, the device is inferred from the filename.
+#' @param ... Additional arguments passed to [ggplot2::ggsave()].
+#'
+#' @return The saved file path invisibly.
+#' @family plot-utils
+#' @export
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE) &&
+#'     requireNamespace("patchwork", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   p <- plot_digest_profile(res)
+#'   tmp <- tempfile(fileext = ".png")
+#'   pepvet_save_figure(p, tmp)
+#' }
+pepvet_save_figure <- function(plot,
+                               filename = "pepvet_plot.png",
+                               width    = NULL,
+                               height   = NULL,
+                               dpi      = 300,
+                               bg       = "white",
+                               device   = NULL,
+                               ...) {
+  # Auto-size: patchwork gets larger default canvas
+  if (is.null(width) || is.null(height)) {
+    is_patchwork <- inherits(plot, "patchwork")
+    if (is_patchwork) {
+      if (is.null(width))  width  <- 14
+      if (is.null(height)) height <- 10
+    } else {
+      if (is.null(width))  width  <- 10
+      if (is.null(height)) height <- 7
+    }
+  }
+
+  # Auto-device: prefer ragg for anti-aliased PNG
+  if (is.null(device)) {
+    ext <- tolower(tools::file_ext(filename))
+    if (identical(ext, "png") &&
+        requireNamespace("ragg", quietly = TRUE)) {
+      device <- ragg::agg_png
+    }
+  }
+
+  ggplot2::ggsave(
+    filename = filename,
+    plot     = plot,
+    width    = width,
+    height   = height,
+    dpi      = dpi,
+    bg       = bg,
+    device   = device,
+    ...
+  )
+
+  invisible(normalizePath(filename, mustWork = FALSE))
+}
+
+
+#' pepVet manuscript theme
+#'
+#' A compact theme for journal figures. Smaller base text (9pt), thinner grid
+#' lines, tighter margins. Use by adding to any pepVet plot:
+#' `plot + pepvet_theme_manuscript()`.
+#'
+#' @return A ggplot2 theme object.
+#' @family plot-utils
+#' @export
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   plot_length_distribution(res) + pepvet_theme_manuscript()
+#' }
+pepvet_theme_manuscript <- function() {
+  .pepvet_theme(base_size = 9) +
+    ggplot2::theme(
+      panel.grid.major = ggplot2::element_line(linewidth = 0.25),
+      plot.margin = ggplot2::margin(4, 6, 4, 6),
+      legend.key.size = ggplot2::unit(0.4, "lines")
+    )
+}
+
+
+#' pepVet presentation theme
+#'
+#' A bold theme for talks and posters. Larger base text (14pt), thicker grid
+#' lines, wider margins. Use by adding to any pepVet plot:
+#' `plot + pepvet_theme_presentation()`.
+#'
+#' @return A ggplot2 theme object.
+#' @family plot-utils
+#' @export
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   plot_length_distribution(res) + pepvet_theme_presentation()
+#' }
+pepvet_theme_presentation <- function() {
+  .pepvet_theme(base_size = 14) +
+    ggplot2::theme(
+      panel.grid.major = ggplot2::element_line(linewidth = 0.5),
+      plot.margin = ggplot2::margin(12, 14, 10, 14),
+      legend.key.size = ggplot2::unit(0.7, "lines"),
+      axis.ticks = ggplot2::element_line(linewidth = 0.5),
+      panel.border = ggplot2::element_rect(
+        fill = NA, color = "#DDDDDD", linewidth = 0.8
+      )
+    )
+}

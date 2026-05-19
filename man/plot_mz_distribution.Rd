@@ -63,7 +63,7 @@ This function makes that problem immediately visible.
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  p   <- plot_mz_distribution(res)
+  p <- plot_mz_distribution(res)
   print(p)
 }
 
@@ -72,4 +72,11 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}},
 \code{\link[=plot_length_distribution]{plot_length_distribution()}}, \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
 \code{\link[=plot_pI_distribution]{plot_pI_distribution()}}
+
+Other plot-distribution:
+\code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
+\code{\link[=plot_length_distribution]{plot_length_distribution()}},
+\code{\link[=plot_missed_cleavage_impact]{plot_missed_cleavage_impact()}},
+\code{\link[=plot_pI_distribution]{plot_pI_distribution()}}
 }
+\concept{plot-distribution}

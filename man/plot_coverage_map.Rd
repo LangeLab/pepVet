@@ -72,8 +72,8 @@ GRAVY calculator and requires no additional input columns.
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1)
-  cs  <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
-  p   <- plot_coverage_map(res, cleavage_sites = cs)
+  cs <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
+  p <- plot_coverage_map(res, cleavage_sites = cs)
   print(p)
 }
 
@@ -81,4 +81,10 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}},
 \code{\link[=plot_digest_profile]{plot_digest_profile()}}
+
+Other plot-single:
+\code{\link[=plot_cleavage_map]{plot_cleavage_map()}},
+\code{\link[=plot_digest_profile]{plot_digest_profile()}},
+\code{\link[=plot_peptide_overlap_map]{plot_peptide_overlap_map()}}
 }
+\concept{plot-single}

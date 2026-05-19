@@ -40,4 +40,8 @@ matches the recommendation in panel A.
 }
 \seealso{
 \code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}}, \code{\link[=plot_proteome_overview]{plot_proteome_overview()}}
+
+Other plot-batch:
+\code{\link[=plot_proteome_overview]{plot_proteome_overview()}}
 }
+\concept{plot-batch}

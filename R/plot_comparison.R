@@ -84,7 +84,8 @@
 #' }
 #'
 #' @seealso [compare_digests()], [recommend_enzyme()],
-#'   [plot_digest_profile()], [plot_coverage_map()]
+#'   [plot_digest_profile()], [plot_coverage_map()], [plot_batch_comparison()]
+#' @family plot-comparison
 #' @export
 plot_enzyme_comparison <- function(
   comparison,
@@ -125,13 +126,7 @@ plot_enzyme_comparison <- function(
   )
 
   # ── Distinct JCO-inspired colors, one per component ───────────────────────
-  component_colors <- c(
-    S_coverage = "#2C5F8A", # brand blue
-    S_length   = "#27AE60", # good green
-    S_count    = "#E8A838", # amber
-    S_hydro    = "#8B5E99", # purple
-    S_charge   = "#4AAFB0" # teal
-  )
+  component_colors <- .pepvet_pal$component
   col_map <- component_colors[scores]
   names(col_map) <- display_names
 
@@ -211,7 +206,7 @@ plot_enzyme_comparison <- function(
       ), y = 0.52,
       label = c("Moderate", "Good"),
       hjust = 0, size = 2.4,
-      color = "#999999", fontface = "italic"
+      color = .pepvet_pal$text_secondary, fontface = "italic"
     ) +
     ggplot2::scale_fill_manual(
       values = col_map,
@@ -280,45 +275,45 @@ plot_enzyme_comparison <- function(
     ggplot2::geom_text(
       ggplot2::aes(label = .data$comp_label),
       hjust = -0.35, size = 3.0,
-      color = "#444444", fontface = "bold"
+      color = .pepvet_pal$text_axis_title, fontface = "bold"
     ) +
     # Recommended badge on the best enzyme
-    if (recommend) {
-      ggplot2::annotate(
-        "label",
-        x = badge_df$composite_score[[1L]] + 0.01,
-        y = best_enzyme,
-        label = "\u2605 Recommended",
-        hjust = -0.05,
-        vjust = -0.55,
-        size = 2.6,
-        color = "#7A5A00",
-        fill = "#FFF5CC",
-        linewidth = 0,
-        fontface = "bold"
-      )
-    } else {
-      NULL +
-        ggplot2::scale_x_continuous(
-          limits = c(0, 1.1),
-          breaks = c(0, 0.25, 0.50, 0.75, 1.0),
-          labels = c("0", ".25", ".50", ".75", "1"),
-          expand = ggplot2::expansion(mult = c(0, 0.28))
-        ) +
-        ggplot2::labs(
-          tag      = "B",
-          x        = "Composite score",
-          y        = NULL,
-          subtitle = "Overall ranking"
-        ) +
-        .pepvet_theme() +
-        ggplot2::theme(
-          axis.text.y = ggplot2::element_blank(),
-          axis.ticks.y = ggplot2::element_blank(),
-          panel.grid.major.y = ggplot2::element_blank(),
-          panel.grid.minor = ggplot2::element_blank()
+    {
+      if (recommend) {
+        ggplot2::annotate(
+          "label",
+          x = badge_df$composite_score[[1L]] + 0.01,
+          y = best_enzyme,
+          label = "\u2605 Recommended",
+          hjust = -0.05,
+          vjust = -0.55,
+          size = 2.6,
+          color = .pepvet_pal$badge_gold_text,
+          fill = .pepvet_pal$badge_gold_fill,
+          linewidth = 0,
+          fontface = "bold"
         )
-    }
+      }
+    } +
+    ggplot2::scale_x_continuous(
+      limits = c(0, 1.1),
+      breaks = c(0, 0.25, 0.50, 0.75, 1.0),
+      labels = c("0", ".25", ".50", ".75", "1"),
+      expand = ggplot2::expansion(mult = c(0, 0.28))
+    ) +
+    ggplot2::labs(
+      tag      = "B",
+      x        = "Composite score",
+      y        = NULL,
+      subtitle = "Overall ranking"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      axis.text.y = ggplot2::element_blank(),
+      axis.ticks.y = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank()
+    )
 
   # ═══════════════════════════════════════════════════════════════════════════
   # Assemble with patchwork
@@ -329,7 +324,7 @@ plot_enzyme_comparison <- function(
       title = auto_title,
       theme = ggplot2::theme(
         plot.title = ggplot2::element_text(
-          size = 13, face = "bold",
+          size = 15, face = "bold",
           color = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 6)
         )

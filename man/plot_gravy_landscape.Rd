@@ -43,10 +43,11 @@ density panels show the 1D distributions on each axis.  Outlier peptides
 fewer than \code{label_outliers_n} of them.
 }
 \examples{
-if (requireNamespace("ggplot2", quietly = TRUE)) {
+if (requireNamespace("ggplot2", quietly = TRUE) &&
+    requireNamespace("patchwork", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  p   <- plot_gravy_landscape(res)
+  p <- plot_gravy_landscape(res)
   print(p)
 }
 
@@ -54,4 +55,11 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_length_distribution]{plot_length_distribution()}},
 \code{\link[=plot_digest_profile]{plot_digest_profile()}}
+
+Other plot-distribution:
+\code{\link[=plot_length_distribution]{plot_length_distribution()}},
+\code{\link[=plot_missed_cleavage_impact]{plot_missed_cleavage_impact()}},
+\code{\link[=plot_mz_distribution]{plot_mz_distribution()}},
+\code{\link[=plot_pI_distribution]{plot_pI_distribution()}}
 }
+\concept{plot-distribution}

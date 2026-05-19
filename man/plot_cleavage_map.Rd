@@ -35,3 +35,13 @@ sites are drawn as colored blocks, with invalid peptides dimmed.  When
 \code{cleavage_sites} data is not available, sites are inferred from the peptide
 boundaries and all rendered as the same default color.
 }
+\seealso{
+\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}},
+\code{\link[=plot_coverage_map]{plot_coverage_map()}}
+
+Other plot-single:
+\code{\link[=plot_coverage_map]{plot_coverage_map()}},
+\code{\link[=plot_digest_profile]{plot_digest_profile()}},
+\code{\link[=plot_peptide_overlap_map]{plot_peptide_overlap_map()}}
+}
+\concept{plot-single}

@@ -47,11 +47,14 @@ gold "* Recommended" badge is appended next to the top-ranked enzyme.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
-    requireNamespace("patchwork", quietly = TRUE)) {
+  requireNamespace("patchwork", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   comp <- compare_digests(bsa_path,
-                          enzymes = c("trypsin", "lysc",
-                                      "glutamyl endopeptidase"))
+    enzymes = c(
+      "trypsin", "lysc",
+      "glutamyl endopeptidase"
+    )
+  )
   p <- plot_enzyme_comparison(comp)
   print(p)
 }
@@ -59,5 +62,6 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
 }
 \seealso{
 \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=recommend_enzyme]{recommend_enzyme()}},
-\code{\link[=plot_digest_profile]{plot_digest_profile()}}, \code{\link[=plot_coverage_map]{plot_coverage_map()}}
+\code{\link[=plot_digest_profile]{plot_digest_profile()}}, \code{\link[=plot_coverage_map]{plot_coverage_map()}}, \code{\link[=plot_batch_comparison]{plot_batch_comparison()}}
 }
+\concept{plot-comparison}

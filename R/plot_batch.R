@@ -31,6 +31,7 @@
 #' @return A `patchwork` object.
 #' @seealso [batch_evaluate()],
 #'   [plot_batch_comparison()]
+#' @family plot-batch
 #' @export
 plot_proteome_overview <- function(batch, title = NULL) {
   rlang::check_installed("ggplot2",
@@ -55,17 +56,15 @@ plot_proteome_overview <- function(batch, title = NULL) {
     )
   }
 
+  .validate_nonempty(batch, "batch", class = "pepvet_error_invalid_batch")
+
   batch$composite_score <- as.numeric(batch$composite_score)
   batch$verdict <- factor(
     as.character(batch$verdict),
     levels = c("Good", "Moderate", "Poor")
   )
 
-  verdict_colors <- c(
-    Good     = .pepvet_pal$good,
-    Moderate = .pepvet_pal$moderate,
-    Poor     = .pepvet_pal$poor
-  )
+  verdict_colors <- .pepvet_pal$verdict
 
   n_total <- nrow(batch)
   n_good <- sum(batch$verdict == "Good", na.rm = TRUE)
@@ -89,12 +88,12 @@ plot_proteome_overview <- function(batch, title = NULL) {
       xmax = .get_param("verdict_good"),
       ymin = -Inf,
       ymax = Inf,
-      fill = "#FFF3E0", alpha = 0.45
+      fill = .pepvet_pal$zone_moderate, alpha = 0.45
     ) +
     ggplot2::annotate(
       "rect",
       xmin = -0.01, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
-      fill = "#FFEBEE", alpha = 0.35
+      fill = .pepvet_pal$zone_poor, alpha = 0.35
     ) +
     ggplot2::geom_histogram(
       binwidth = 0.05,
@@ -159,13 +158,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
     S_hydro    = "Hydrophobicity",
     S_charge   = "Charge"
   )
-  comp_colors <- c(
-    S_length   = "#27AE60",
-    S_coverage = "#2C5F8A",
-    S_count    = "#E8A838",
-    S_hydro    = "#8B5E99",
-    S_charge   = "#4AAFB0"
-  )
+  comp_colors <- .pepvet_pal$component
 
   comp_medians <- vapply(
     comp_cols,
@@ -194,12 +187,12 @@ plot_proteome_overview <- function(batch, title = NULL) {
       xmax = .get_param("verdict_good"),
       ymin = -Inf,
       ymax = Inf,
-      fill = "#FFF3E0", alpha = 0.40
+      fill = .pepvet_pal$zone_moderate, alpha = 0.40
     ) +
     ggplot2::annotate(
       "rect",
       xmin = 0, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
-      fill = "#FFEBEE", alpha = 0.30
+      fill = .pepvet_pal$zone_poor, alpha = 0.30
     ) +
     ggplot2::geom_vline(
       xintercept = .get_param("verdict_moderate"),
@@ -419,6 +412,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #'
 #' @return A `patchwork` object.
 #' @seealso [batch_compare_enzymes()], [plot_proteome_overview()]
+#' @family plot-batch
 #' @export
 plot_batch_comparison <- function(comparison, title = NULL) {
   rlang::check_installed("ggplot2",
@@ -446,6 +440,8 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     )
   }
 
+  .validate_nonempty(comparison, "comparison", class = "pepvet_error_invalid_batch")
+
   comparison$composite_score <- as.numeric(comparison$composite_score)
   comparison$enzyme <- as.character(comparison$enzyme)
   comparison$verdict <- factor(
@@ -461,11 +457,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   n_enz <- length(enz_levels)
   n_proteins <- length(unique(comparison$protein_id))
 
-  verdict_colors <- c(
-    Good     = .pepvet_pal$good,
-    Moderate = .pepvet_pal$moderate,
-    Poor     = .pepvet_pal$poor
-  )
+  verdict_colors <- .pepvet_pal$verdict
 
   # ── Per-enzyme verdict summary table ─────────────────────────────────────
   enz_stats <- do.call(rbind, lapply(enz_levels, function(enz) {
@@ -588,7 +580,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::annotate(
       "rect",
       xmin = 0, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
-      fill = "#FFEBEE", alpha = 0.25
+      fill = .pepvet_pal$zone_poor, alpha = 0.25
     ) +
     ggplot2::geom_violin(
       alpha = 0.78,
@@ -670,7 +662,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   tile_rows$component <- factor(tile_rows$component, levels = comp_labels[comp_cols])
 
   verdict_grad <- grDevices::colorRampPalette(
-    c(.pepvet_pal$poor, "#FFFAEC", .pepvet_pal$good)
+    c(.pepvet_pal$poor, .pepvet_pal$heatmap_mid, .pepvet_pal$good)
   )(100)
 
   pc <- ggplot2::ggplot(

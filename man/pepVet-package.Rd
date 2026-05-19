@@ -6,10 +6,15 @@
 \alias{pepVet-package}
 \title{pepVet: Evaluate Proteolytic Digests for Proteomics Workflows}
 \description{
-\code{pepVet} provides tools for proteolytic digest simulation, peptide-set scoring, enzyme comparison, workflow preset selection, and console reporting for bottom-up proteomics.
+\code{pepVet} provides tools for proteolytic digest simulation,
+peptide-set scoring, enzyme comparison, workflow preset
+selection, and console reporting for bottom-up proteomics.
 }
 \details{
-Version 0.1.3 adds the Phase 3 usability and visualization layers, including batch enzyme comparison, proteome-scale plotting, export helpers, and the current AHP-derived default scoring thresholds.
+Version 0.1.3 adds the Phase 3 usability and visualization
+layers, including batch enzyme comparison, proteome-scale
+plotting, export helpers, and the current AHP-derived
+default scoring thresholds.
 }
 \seealso{
 Useful links:

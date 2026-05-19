@@ -31,6 +31,7 @@
 #'
 #' @seealso [evaluate_digest()], [plot_digest_profile()],
 #'   [plot_gravy_landscape()]
+#' @family plot-distribution
 #' @export
 plot_length_distribution <- function(
   result,
@@ -80,12 +81,7 @@ plot_length_distribution <- function(
   length_hi <- as.integer(length_range[[2L]])
 
   # ── Classify peptides ─────────────────────────────────────────────────────
-  peps$length_class <- factor(
-    ifelse(peps$length < length_lo, "Too short",
-      ifelse(peps$length > length_hi, "Too long", "Valid")
-    ),
-    levels = c("Valid", "Too short", "Too long")
-  )
+  peps$length_class <- .classify_length(peps$length, length_range)
 
   n_total <- nrow(peps)
   tbl <- table(peps$length_class)
@@ -93,14 +89,10 @@ plot_length_distribution <- function(
   pct_short <- round(100 * sum(peps$length_class == "Too short") / n_total, 1)
   pct_long <- round(100 * sum(peps$length_class == "Too long") / n_total, 1)
 
-  class_colors <- c(
-    "Valid"     = .pepvet_pal$valid,
-    "Too short" = .pepvet_pal$too_short,
-    "Too long"  = .pepvet_pal$too_long
-  )
+  class_colors <- .length_class_colors()
 
-  x_max <- max(peps$length) + 1L
-  x_min <- max(0L, min(peps$length) - 1L)
+  x_max <- max(peps$length, na.rm = TRUE) + 1L
+  x_min <- max(0L, min(peps$length, na.rm = TRUE) - 1L)
 
   # ── Category annotation positions: each label sits at the centre of its
   #    x-range, just below the top of the panel ─────────────────────────────
@@ -170,71 +162,65 @@ plot_length_distribution <- function(
       linewidth = 0.15,
       alpha = .get_param("scatter_alpha")
     ) +
-    # Optional density overlay: computed over ALL peptides (one curve,
-    # independent of fill grouping) to avoid group-size warnings
-    if (show_density) {
-      ggplot2::stat_density(
-        ggplot2::aes(
-          x = .data$length,
-          y = ggplot2::after_stat(count)
-        ),
-        data = peps,
-        geom = "line",
-        color = .pepvet_pal$brand_dark,
-        linewidth = 0.8,
-        linetype = "solid",
-        adjust = 1.2,
-        inherit.aes = FALSE
-      )
-    } else {
-      NULL +
-        # Per-category annotation labels
-        ggplot2::geom_text(
-          data = cat_labels,
-          ggplot2::aes(x = .data$x, label = .data$label),
-          y = Inf,
-          vjust = 1.2,
-          size = 2.8,
-          fontface = "bold",
-          color = cat_labels$color,
-          inherit.aes = FALSE
-        ) +
-        # Scales
-        ggplot2::scale_fill_manual(
-          values = class_colors,
-          name = NULL,
-          guide = ggplot2::guide_legend(
-            override.aes = list(alpha = 1, color = NA)
-          )
-        ) +
-        ggplot2::scale_x_continuous(
-          breaks = seq(0L, x_max + 4L, by = 5L),
-          expand = ggplot2::expansion(add = c(0.5, 1))
-        ) +
-        ggplot2::scale_y_continuous(
-          expand = ggplot2::expansion(mult = c(0, 0.25))
-        ) +
-        ggplot2::coord_cartesian(xlim = c(x_min, x_max + 1), clip = "off") +
-        ggplot2::labs(
-          title = auto_title,
-          subtitle = sprintf(
-            "%d peptides total  \u00b7  %d valid (%.0f%%)  \u00b7  range [%d\u2013%d aa]",
-            n_total,
-            as.integer(tbl[["Valid"]]),
-            pct_valid,
-            length_lo, length_hi
+    # Optional density overlay
+    {
+      if (show_density) {
+        ggplot2::stat_density(
+          ggplot2::aes(
+            x = .data$length,
+            y = ggplot2::after_stat(count)
           ),
-          x = "Peptide length (aa)",
-          y = "Count"
-        ) +
-        .pepvet_theme() +
-        ggplot2::theme(
-          legend.position = "bottom",
-          plot.title = ggplot2::element_text(
-            size = 13, face = "bold", color = .pepvet_pal$brand_dark
-          )
+          data = peps,
+          geom = "line",
+          color = .pepvet_pal$brand_dark,
+          linewidth = 0.8,
+          linetype = "solid",
+          adjust = 1.2,
+          inherit.aes = FALSE
         )
-    }
+      }
+    } +
+    # Per-category annotation labels
+    ggplot2::geom_text(
+      data = cat_labels,
+      ggplot2::aes(x = .data$x, y = Inf, label = .data$label, color = I(.data$color)),
+      vjust = 1.2,
+      size = 2.8,
+      fontface = "bold",
+      inherit.aes = FALSE
+    ) +
+    # Scales
+    ggplot2::scale_fill_manual(
+      values = class_colors,
+      name = NULL,
+      guide = ggplot2::guide_legend(
+        override.aes = list(alpha = 1, color = NA)
+      )
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0L, x_max + 4L, by = 5L),
+      expand = ggplot2::expansion(add = c(0.5, 1))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.25))
+    ) +
+    ggplot2::coord_cartesian(xlim = c(x_min, x_max + 1), clip = "off") +
+    ggplot2::labs(
+      title = auto_title,
+      subtitle = sprintf(
+        "%d peptides total  \u00b7  %d valid (%.0f%%)  \u00b7  range [%d\u2013%d aa]",
+        n_total,
+        as.integer(tbl[["Valid"]]),
+        pct_valid,
+        length_lo, length_hi
+      ),
+      x = "Peptide length (aa)",
+      y = "Count"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom"
+    )
 
   p
 }
@@ -292,14 +278,10 @@ plot_length_distribution <- function(
     ),
     levels = c("Valid", "Too short", "Too long")
   )
-  class_colors <- c(
-    "Valid" = .pepvet_pal$valid,
-    "Too short" = .pepvet_pal$too_short,
-    "Too long" = .pepvet_pal$too_long
-  )
+  class_colors <- .length_class_colors()
 
-  x_lo <- max(0L, min(peps$length) - 1L)
-  x_hi <- max(peps$length) + 1L
+  x_lo <- max(0L, min(peps$length, na.rm = TRUE) - 1L)
+  x_hi <- max(peps$length, na.rm = TRUE) + 1L
 
   auto_title <- title %||% "Peptide length distribution: comparison"
 
@@ -321,44 +303,41 @@ plot_length_distribution <- function(
       binwidth = 1L, color = "white",
       linewidth = 0.12, alpha = .get_param("scatter_alpha")
     ) +
-    if (show_density) {
-      ggplot2::stat_density(
-        ggplot2::aes(x = .data$length, y = ggplot2::after_stat(count)),
-        data = peps, geom = "line",
-        color = .pepvet_pal$brand_dark, linewidth = 0.7,
-        adjust = 1.2, inherit.aes = FALSE
-      )
-    } else {
-      NULL +
-        ggplot2::facet_wrap(ggplot2::vars(.data$.label), scales = "free_y") +
-        ggplot2::scale_fill_manual(
-          values = class_colors, name = NULL,
-          guide = ggplot2::guide_legend(override.aes = list(alpha = 1, color = NA))
-        ) +
-        ggplot2::scale_x_continuous(
-          breaks = seq(0L, x_hi + 4L, by = 5L),
-          expand = ggplot2::expansion(add = c(0.5, 1))
-        ) +
-        ggplot2::scale_y_continuous(
-          expand = ggplot2::expansion(mult = c(0, 0.12))
-        ) +
-        ggplot2::coord_cartesian(xlim = c(x_lo, x_hi + 1L), clip = "off") +
-        ggplot2::labs(
-          title = auto_title,
-          x = "Peptide length (aa)", y = "Count"
-        ) +
-        .pepvet_theme() +
-        ggplot2::theme(
-          legend.position = "bottom",
-          strip.text = ggplot2::element_text(
-            size = 9, face = "bold", color = .pepvet_pal$brand_dark
-          ),
-          plot.title = ggplot2::element_text(
-            size = 13, face = "bold", color = .pepvet_pal$brand_dark
-          )
+    {
+      if (show_density) {
+        ggplot2::stat_density(
+          ggplot2::aes(x = .data$length, y = ggplot2::after_stat(count)),
+          data = peps, geom = "line",
+          color = .pepvet_pal$brand_dark, linewidth = 0.7,
+          adjust = 1.2, inherit.aes = FALSE
         )
-    }
-}
+      }
+    } +
+    ggplot2::facet_wrap(ggplot2::vars(.data$.label), scales = "free_y") +
+    ggplot2::scale_fill_manual(
+      values = class_colors, name = NULL,
+      guide = ggplot2::guide_legend(override.aes = list(alpha = 1, color = NA))
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0L, x_hi + 4L, by = 5L),
+      expand = ggplot2::expansion(add = c(0.5, 1))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.12))
+    ) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi + 1L), clip = "off") +
+    ggplot2::labs(
+      title = auto_title,
+      x = "Peptide length (aa)", y = "Count"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      strip.text = ggplot2::element_text(
+        size = 9, face = "bold", color = .pepvet_pal$brand_dark
+      )
+    )
+  }
 
 
 # ── plot_gravy_landscape ──────────────────────────────────────────────────────
@@ -389,7 +368,8 @@ plot_length_distribution <- function(
 #' @return A `patchwork` composite `ggplot` object.
 #'
 #' @examples
-#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#' if (requireNamespace("ggplot2", quietly = TRUE) &&
+#'     requireNamespace("patchwork", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
 #'   p <- plot_gravy_landscape(res)
@@ -398,6 +378,7 @@ plot_length_distribution <- function(
 #'
 #' @seealso [evaluate_digest()], [plot_length_distribution()],
 #'   [plot_digest_profile()]
+#' @family plot-distribution
 #' @export
 plot_gravy_landscape <- function(
   result,
@@ -497,7 +478,7 @@ plot_gravy_landscape <- function(
   # ── Axis limits with padding ──────────────────────────────────────────────
   x_pad <- 1.5
   y_pad <- 0.15
-  x_lims <- c(max(0, min(peps$length) - x_pad), max(peps$length) + x_pad)
+  x_lims <- c(max(0, min(peps$length, na.rm = TRUE) - x_pad), max(peps$length, na.rm = TRUE) + x_pad)
   y_lims <- c(
     min(peps$gravy, na.rm = TRUE) - y_pad,
     max(peps$gravy, na.rm = TRUE) + y_pad
@@ -562,49 +543,46 @@ plot_gravy_landscape <- function(
       alpha  = 0.80
     ) +
     # Outlier sequence labels when count <= label_outliers_n
-    if (do_label) {
-      ggplot2::geom_text(
-        data = outliers,
-        ggplot2::aes(label = .data$peptide),
-        size = 1.9,
-        fontface = "italic",
-        nudge_y = 0.06,
-        check_overlap = TRUE,
-        inherit.aes = TRUE
+    {
+      if (do_label) {
+        ggplot2::geom_text(
+          data = outliers,
+          ggplot2::aes(label = .data$peptide),
+          size = 1.9,
+          fontface = "italic",
+          nudge_y = 0.06,
+          check_overlap = TRUE,
+          inherit.aes = TRUE
+        )
+      }
+    } +
+    ggplot2::scale_color_manual(
+      values = class_colors, name = NULL,
+      guide = "none"
+    ) +
+    ggplot2::scale_fill_manual(
+      values = class_colors, name = NULL,
+      guide = ggplot2::guide_legend(
+        override.aes = list(
+          shape = 21, size = 3, alpha = 1,
+          stroke = 0.5, color = "white"
+        )
       )
-    } else {
-      NULL +
-        ggplot2::scale_color_manual(
-          values = class_colors, name = NULL,
-          guide = "none"
-        ) +
-        ggplot2::scale_fill_manual(
-          values = class_colors, name = NULL,
-          guide = ggplot2::guide_legend(
-            override.aes = list(
-              shape = 21, size = 3, alpha = 1,
-              stroke = 0.5, color = "white"
-            )
-          )
-        ) +
-        ggplot2::scale_x_continuous(
-          breaks = seq(0L, ceiling(x_lims[[2L]] / 5) * 5L, by = 5L)
-        ) +
-        ggplot2::coord_cartesian(xlim = x_lims, ylim = y_lims) +
-        ggplot2::labs(
-          x = "Peptide length (aa)",
-          y = "GRAVY score",
-          subtitle = sprintf(
-            paste(
-              "%d / %d peptides fully valid (%.0f%%).",
-              "Valid region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]"
-            ),
-            n_valid, n_total, pct_valid, length_lo, length_hi, gravy_lo, gravy_hi
-          )
-        ) +
-        .pepvet_theme() +
-        ggplot2::theme(legend.position = "bottom")
-    }
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0L, ceiling(x_lims[[2L]] / 5) * 5L, by = 5L)
+    ) +
+    ggplot2::coord_cartesian(xlim = x_lims, ylim = y_lims) +
+    ggplot2::labs(
+      x = "Peptide length (aa)",
+      y = "GRAVY score",
+      subtitle = sprintf(
+        "%d / %d peptides fully valid (%.0f%%). Valid region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]",
+        n_valid, n_total, pct_valid, length_lo, length_hi, gravy_lo, gravy_hi
+      )
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(legend.position = "bottom")
 
   # ── Top marginal: length density by class ────────────────────────────────
   p_top <- ggplot2::ggplot(
@@ -771,9 +749,6 @@ plot_gravy_landscape <- function(
       legend.position = "bottom",
       strip.text = ggplot2::element_text(
         size = 9, face = "bold", color = .pepvet_pal$brand_dark
-      ),
-      plot.title = ggplot2::element_text(
-        size = 13, face = "bold", color = .pepvet_pal$brand_dark
       )
     )
 }
@@ -814,6 +789,7 @@ plot_gravy_landscape <- function(
 #'
 #' @seealso [evaluate_digest()], [score_peptides()], [plot_length_distribution()],
 #'   [plot_gravy_landscape()]
+#' @family plot-distribution
 #' @export
 plot_pI_distribution <- function(
   result,
@@ -989,7 +965,7 @@ plot_pI_distribution <- function(
       vjust = 1.4,
       size = 2.7,
       fontface = "bold",
-      color = "#555555"
+      color = .pepvet_pal$text_axis_tick
     )
   }
 
@@ -1009,11 +985,7 @@ plot_pI_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "right",
-      plot.subtitle = ggplot2::element_text(size = 9, color = "#666666"),
-      plot.title = ggplot2::element_text(
-        size = 13, face = "bold", color = .pepvet_pal$brand_dark
-      )
+      legend.position = "right"
     )
 }
 
@@ -1098,10 +1070,7 @@ plot_pI_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom",
-      plot.title = ggplot2::element_text(
-        size = 13, face = "bold", color = .pepvet_pal$brand_dark
-      )
+      legend.position = "bottom"
     )
 }
 
@@ -1126,6 +1095,7 @@ plot_pI_distribution <- function(
 #' @param title Optional character title.  Auto-generated when `NULL`.
 #'
 #' @return A `ggplot` object.
+#' @family plot-distribution
 #' @export
 plot_missed_cleavage_impact <- function(
   results,
@@ -1372,6 +1342,7 @@ plot_missed_cleavage_impact <- function(
 #' @seealso [evaluate_digest()], [calculate_peptide_mass()],
 #'   [plot_length_distribution()], [plot_gravy_landscape()],
 #'   [plot_pI_distribution()]
+#' @family plot-distribution
 #' @export
 plot_mz_distribution <- function(
   result,
@@ -1570,13 +1541,13 @@ plot_mz_distribution <- function(
       "rect",
       xmin = x_lo, xmax = scan_lo,
       ymin = -Inf, ymax = Inf,
-      fill = "#FFF3E0", alpha = 0.45
+      fill = .pepvet_pal$zone_moderate, alpha = 0.45
     ) +
     ggplot2::annotate(
       "rect",
       xmin = scan_hi, xmax = x_hi,
       ymin = -Inf, ymax = Inf,
-      fill = "#FFF3E0", alpha = 0.45
+      fill = .pepvet_pal$zone_moderate, alpha = 0.45
     ) +
     # ── Valid window shading (green) ──────────────────────────────────────
     ggplot2::annotate(
@@ -1637,50 +1608,45 @@ plot_mz_distribution <- function(
       color = .pepvet_pal$poor
     ) +
     # ── Rug marks ─────────────────────────────────────────────────────────
-    if (isTRUE(show_rug)) {
-      ggplot2::geom_rug(
-        sides  = "b",
-        alpha  = 0.30,
-        length = ggplot2::unit(0.02, "npc")
-      )
-    } else {
-      NULL +
-        # ── Scales ────────────────────────────────────────────────────────────
-        ggplot2::scale_color_manual(
-          values = z_colors,
-          name = "Charge state",
-          guide = ggplot2::guide_legend(
-            override.aes = list(fill = z_colors, alpha = 1, linewidth = 1.2)
-          )
-        ) +
-        ggplot2::scale_fill_manual(
-          values = z_colors,
-          name   = "Charge state"
-        ) +
-        ggplot2::scale_x_continuous(
-          breaks = seq(0, x_hi + 200, by = 200),
-          expand = ggplot2::expansion(add = c(0, 0))
-        ) +
-        ggplot2::scale_y_continuous(
-          expand = ggplot2::expansion(mult = c(0, 0.22))
-        ) +
-        ggplot2::coord_cartesian(xlim = c(x_lo, x_hi), clip = "off") +
-        ggplot2::labs(
-          title    = auto_title,
-          subtitle = subtitle_text,
-          x        = "Precursor m/z",
-          y        = "Density"
-        ) +
-        .pepvet_theme() +
-        ggplot2::theme(
-          legend.position = "bottom",
-          plot.title = ggplot2::element_text(
-            size  = 13,
-            face  = "bold",
-            color = .pepvet_pal$brand_dark
-          )
+    {
+      if (isTRUE(show_rug)) {
+        ggplot2::geom_rug(
+          sides  = "b",
+          alpha  = 0.30,
+          length = ggplot2::unit(0.02, "npc")
         )
-    }
+      }
+    } +
+    # ── Scales ────────────────────────────────────────────────────────────
+    ggplot2::scale_color_manual(
+      values = z_colors,
+      name   = "Charge state",
+      guide  = ggplot2::guide_legend(
+        override.aes = list(fill = z_colors, alpha = 1, linewidth = 1.2)
+      )
+    ) +
+    ggplot2::scale_fill_manual(
+      values = z_colors,
+      name   = "Charge state"
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0, x_hi + 200, by = 200),
+      expand = ggplot2::expansion(add = c(0, 0))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.22))
+    ) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi), clip = "off") +
+    ggplot2::labs(
+      title    = auto_title,
+      subtitle = subtitle_text,
+      x        = "Precursor m/z",
+      y        = "Density"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom"
+    )
 
   p
 }
@@ -1771,11 +1737,11 @@ plot_mz_distribution <- function(
   ) +
     ggplot2::annotate("rect",
       xmin = x_lo, xmax = scan_lo, ymin = -Inf, ymax = Inf,
-      fill = "#FFF3E0", alpha = 0.40
+      fill = .pepvet_pal$zone_moderate, alpha = 0.40
     ) +
     ggplot2::annotate("rect",
       xmin = scan_hi, xmax = x_hi, ymin = -Inf, ymax = Inf,
-      fill = "#FFF3E0", alpha = 0.40
+      fill = .pepvet_pal$zone_moderate, alpha = 0.40
     ) +
     ggplot2::annotate("rect",
       xmin = scan_lo, xmax = scan_hi, ymin = -Inf, ymax = Inf,
@@ -1790,48 +1756,45 @@ plot_mz_distribution <- function(
       color = .pepvet_pal$poor, linewidth = 0.55, linetype = "dashed"
     ) +
     ggplot2::geom_density(alpha = 0.38, linewidth = 0.75, adjust = 0.9) +
-    if (isTRUE(show_rug)) {
-      ggplot2::geom_rug(
-        sides = "b", alpha = 0.20,
-        length = ggplot2::unit(0.025, "npc")
-      )
-    } else {
-      NULL +
-        ggplot2::facet_wrap(ggplot2::vars(.data$.label), scales = "free_y") +
-        ggplot2::scale_color_manual(
-          values = z_colors, name = "Charge state",
-          guide = ggplot2::guide_legend(
-            override.aes = list(fill = z_colors, alpha = 1, linewidth = 1.2)
-          )
-        ) +
-        ggplot2::scale_fill_manual(values = z_colors, name = "Charge state") +
-        ggplot2::scale_x_continuous(
-          breaks = seq(0, x_hi + 200, by = 200),
-          expand = ggplot2::expansion(add = c(0, 0))
-        ) +
-        ggplot2::scale_y_continuous(
-          expand = ggplot2::expansion(mult = c(0, 0.20))
-        ) +
-        ggplot2::coord_cartesian(xlim = c(x_lo, x_hi)) +
-        ggplot2::labs(
-          title = auto_title,
-          subtitle = sprintf(
-            "Scan window %.0f\u2013%.0f m/z  \u00b7  z = %s",
-            scan_lo, scan_hi,
-            paste(gsub("z = \\+", "+", z_levels), collapse = " & ")
-          ),
-          x = "Precursor m/z",
-          y = "Density"
-        ) +
-        .pepvet_theme() +
-        ggplot2::theme(
-          legend.position = "bottom",
-          strip.text = ggplot2::element_text(
-            size = 9, face = "bold", color = .pepvet_pal$brand_dark
-          ),
-          plot.title = ggplot2::element_text(
-            size = 13, face = "bold", color = .pepvet_pal$brand_dark
-          )
+    {
+      if (isTRUE(show_rug)) {
+        ggplot2::geom_rug(
+          sides = "b", alpha = 0.20,
+          length = ggplot2::unit(0.025, "npc")
         )
-    }
+      }
+    } +
+    ggplot2::facet_wrap(ggplot2::vars(.data$.label), scales = "free_y") +
+    ggplot2::scale_color_manual(
+      values = z_colors, name = "Charge state",
+      guide = ggplot2::guide_legend(
+        override.aes = list(fill = z_colors, alpha = 1, linewidth = 1.2)
+      )
+    ) +
+    ggplot2::scale_fill_manual(values = z_colors, name = "Charge state") +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0, x_hi + 200, by = 200),
+      expand = ggplot2::expansion(add = c(0, 0))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.20))
+    ) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi)) +
+    ggplot2::labs(
+      title = auto_title,
+      subtitle = sprintf(
+        "Scan window %.0f\u2013%.0f m/z  \u00b7  z = %s",
+        scan_lo, scan_hi,
+        paste(gsub("z = \\+", "+", z_levels), collapse = " & ")
+      ),
+      x = "Precursor m/z",
+      y = "Density"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      strip.text = ggplot2::element_text(
+        size = 9, face = "bold", color = .pepvet_pal$brand_dark
+      )
+    )
 }

@@ -44,7 +44,7 @@ annotations are optionally overlaid.
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  p   <- plot_pI_distribution(res)
+  p <- plot_pI_distribution(res)
   print(p)
 }
 
@@ -52,4 +52,11 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=score_peptides]{score_peptides()}}, \code{\link[=plot_length_distribution]{plot_length_distribution()}},
 \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}}
+
+Other plot-distribution:
+\code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
+\code{\link[=plot_length_distribution]{plot_length_distribution()}},
+\code{\link[=plot_missed_cleavage_impact]{plot_missed_cleavage_impact()}},
+\code{\link[=plot_mz_distribution]{plot_mz_distribution()}}
 }
+\concept{plot-distribution}

@@ -243,6 +243,62 @@ test_that("plot_coverage_map errors on multi-protein result", {
 })
 
 
+# ── plot_peptide_overlap_map ─────────────────────────────────────────────────
+
+test_that("plot_peptide_overlap_map returns a ggplot for BSA / trypsin MC=1", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .bsa_result(mc = 1L)
+  p <- plot_peptide_overlap_map(res)
+
+  expect_s3_class(p, "gg")
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("plot_peptide_overlap_map supports wrapped rows and all-peptide mode", {
+  skip_if_not_installed("ggplot2")
+
+  res <- .h3_result(mc = 1L)
+
+  expect_no_error(
+    plot_peptide_overlap_map(
+      res,
+      length_range = NULL,
+      residues_per_line = 20L
+    )
+  )
+})
+
+test_that("plot_peptide_overlap_map overlap helper counts residue support", {
+  peps <- data.frame(
+    protein_id = rep("synthetic", 4L),
+    peptide = c("AB", "CD", "EF", "ABCD"),
+    start = c(1L, 3L, 5L, 1L),
+    end = c(2L, 4L, 6L, 4L),
+    length = c(2L, 2L, 2L, 4L),
+    missed_cleavages = c(0L, 0L, 0L, 1L),
+    stringsAsFactors = FALSE
+  )
+
+  tile_df <- .build_peptide_overlap_df(
+    peps,
+    protein_length = 6L,
+    length_range = NULL,
+    residues_per_line = 4L
+  )
+
+  expect_equal(tile_df$residue, c("A", "B", "C", "D", "E", "F"))
+  expect_equal(tile_df$overlap_count, c(2L, 2L, 2L, 2L, 1L, 1L))
+  expect_equal(
+    as.character(tile_df$overlap_class),
+    c(
+      rep("Detected twice", 4L),
+      rep("Detected once", 2L)
+    )
+  )
+})
+
+
 # ── plot_enzyme_comparison ────────────────────────────────────────────────────
 
 # Shared fixture helper
@@ -656,5 +712,175 @@ test_that("plot_missed_cleavage_impact errors on single-element list", {
   )
 })
 
+# ── pepvet_plot_config ─────────────────────────────────────────────────────────
 
+test_that("pepvet_plot_config returns current config when called with no args", {
+  cfg <- pepvet_plot_config()
+  expect_type(cfg, "list")
+  expect_named(cfg, c("palette", "params", "theme"))
+  expect_type(cfg$palette, "list")
+  expect_type(cfg$params, "list")
+})
 
+test_that("pepvet_plot_config validates palette names", {
+  expect_error(
+    pepvet_plot_config(palette = list(nonexistent = "#000000")),
+    class = "pepvet_error_invalid_config"
+  )
+})
+
+test_that("pepvet_plot_config validates params names", {
+  expect_error(
+    pepvet_plot_config(params = list(nonexistent = 99)),
+    class = "pepvet_error_invalid_config"
+  )
+})
+
+test_that("pepvet_plot_config palette changes propagate to plots", {
+  pepvet_plot_config(palette = list(brand = "#FF0000"))
+  on.exit(pepvet_plot_config_reset())
+  res <- .fix_bsa_trypsin
+  p <- plot_length_distribution(res)
+  expect_s3_class(p, "gg")
+})
+
+test_that("pepvet_plot_config params changes propagate to plots", {
+  pepvet_plot_config(params = list(verdict_good = 0.80))
+  on.exit(pepvet_plot_config_reset())
+  expect_equal(.pepvet_params$verdict_good, 0.80)
+})
+
+test_that("pepvet_plot_config_reset restores defaults", {
+  pepvet_plot_config(params = list(verdict_good = 0.99))
+  pepvet_plot_config_reset()
+  expect_equal(.pepvet_params$verdict_good, 0.65)
+})
+
+# ── pepvet_save_figure ─────────────────────────────────────────────────────────
+
+test_that("pepvet_save_figure saves single ggplot", {
+  p <- plot_length_distribution(.fix_bsa_trypsin)
+  f <- tempfile(fileext = ".png")
+  result <- pepvet_save_figure(p, f)
+  expect_true(file.exists(f))
+  expect_true(file.size(f) > 1000)
+  unlink(f)
+})
+
+test_that("pepvet_save_figure saves patchwork", {
+  p <- plot_digest_profile(.fix_bsa_trypsin)
+  f <- tempfile(fileext = ".png")
+  result <- pepvet_save_figure(p, f)
+  expect_true(file.exists(f))
+  unlink(f)
+})
+
+test_that("pepvet_save_figure respects custom dimensions", {
+  p <- plot_length_distribution(.fix_bsa_trypsin)
+  f <- tempfile(fileext = ".png")
+  pepvet_save_figure(p, f, width = 5, height = 4, dpi = 72)
+  expect_true(file.exists(f))
+  unlink(f)
+})
+
+test_that("pepvet_save_figure errors on invalid plot object", {
+  f <- tempfile(fileext = ".png")
+  expect_error(pepvet_save_figure("not_a_plot", f))
+})
+
+# ── pepvet_theme_manuscript / pepvet_theme_presentation ────────────────────────
+
+test_that("pepvet_theme_manuscript returns a theme object", {
+  t <- pepvet_theme_manuscript()
+  expect_s3_class(t, "theme")
+})
+
+test_that("pepvet_theme_presentation returns a theme object", {
+  t <- pepvet_theme_presentation()
+  expect_s3_class(t, "theme")
+})
+
+test_that("theme presets can be added to plots", {
+  p <- plot_length_distribution(.fix_bsa_trypsin)
+  p1 <- p + pepvet_theme_manuscript()
+  p2 <- p + pepvet_theme_presentation()
+  expect_s3_class(p1, "gg")
+  expect_s3_class(p2, "gg")
+})
+
+# ── plot_proteome_overview ─────────────────────────────────────────────────────
+
+test_that("plot_proteome_overview returns patchwork from batch_evaluate", {
+  skip_if_not_installed("Biostrings")
+  batch <- batch_evaluate(
+    Biostrings::readAAStringSet(.bsa_path),
+    enzyme = "trypsin"
+  )
+  p <- plot_proteome_overview(batch)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_proteome_overview errors on empty batch", {
+  skip_if_not_installed("Biostrings")
+  empty <- data.frame(
+    protein_id = character(0), composite_score = numeric(0),
+    verdict = character(0), stringsAsFactors = FALSE
+  )
+  expect_error(
+    plot_proteome_overview(empty),
+    class = "pepvet_error_invalid_batch"
+  )
+})
+
+# ── plot_batch_comparison ─────────────────────────────────────────────────────
+
+test_that("plot_batch_comparison returns patchwork from batch_compare_enzymes", {
+  skip_if_not_installed("Biostrings")
+  comp <- batch_compare_enzymes(
+    Biostrings::readAAStringSet(.bsa_path),
+    enzymes = c("trypsin", "lysc")
+  )
+  p <- plot_batch_comparison(comp)
+  expect_s3_class(p, "patchwork")
+})
+
+test_that("plot_batch_comparison errors on empty comparison", {
+  skip_if_not_installed("Biostrings")
+  empty <- data.frame(
+    protein_id = character(0), enzyme = character(0),
+    composite_score = numeric(0), verdict = character(0),
+    S_length = numeric(0), S_coverage = numeric(0),
+    S_count = numeric(0), S_hydro = numeric(0),
+    S_charge = numeric(0), stringsAsFactors = FALSE
+  )
+  expect_error(
+    plot_batch_comparison(empty),
+    class = "pepvet_error_invalid_batch"
+  )
+})
+
+# ── plot_mz_distribution ──────────────────────────────────────────────────────
+
+test_that("plot_mz_distribution returns ggplot from evaluate_digest", {
+  p <- plot_mz_distribution(.fix_bsa_trypsin)
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_mz_distribution: show_rug = TRUE and FALSE both work", {
+  p1 <- plot_mz_distribution(.fix_bsa_trypsin, show_rug = TRUE)
+  p2 <- plot_mz_distribution(.fix_bsa_trypsin, show_rug = FALSE)
+  expect_s3_class(p1, "gg")
+  expect_s3_class(p2, "gg")
+})
+
+test_that("plot_mz_distribution: custom scan_range", {
+  p <- plot_mz_distribution(.fix_bsa_trypsin, scan_range = c(400, 1000))
+  expect_s3_class(p, "gg")
+})
+
+test_that("plot_mz_distribution: multi-input mode", {
+  p <- plot_mz_distribution(
+    list(BSA = .fix_bsa_trypsin, H3 = .fix_h3_trypsin)
+  )
+  expect_s3_class(p, "gg")
+})

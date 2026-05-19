@@ -59,10 +59,10 @@ heavily digested proteins this keeps the map readable without overlap.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
-    requireNamespace("patchwork", quietly = TRUE)) {
+  requireNamespace("patchwork", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  p   <- plot_digest_profile(res)
+  p <- plot_digest_profile(res)
   print(p)
 }
 
@@ -70,4 +70,10 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_coverage_map]{plot_coverage_map()}},
 \code{\link[=plot_enzyme_comparison]{plot_enzyme_comparison()}}
+
+Other plot-single:
+\code{\link[=plot_cleavage_map]{plot_cleavage_map()}},
+\code{\link[=plot_coverage_map]{plot_coverage_map()}},
+\code{\link[=plot_peptide_overlap_map]{plot_peptide_overlap_map()}}
 }
+\concept{plot-single}

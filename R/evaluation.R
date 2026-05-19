@@ -326,38 +326,33 @@ batch_evaluate <- function(sequences,
     )
   )
 
-  # Split the full peptide tibble by protein once for cheap per-protein subset.
-  pep_idx   <- split(
-    seq_len(nrow(all_peptides)),
-    factor(all_peptides$protein_id, levels = protein_ids)
-  )
-  # Pre-compute which row of all_scores corresponds to each protein_id.
-  score_row <- match(protein_ids, all_scores$protein_id)
+  # Compute all difficulty flags across all proteins at once — eliminates
+  # 20K per-protein tibble subsets, 20K .calculate_gravy_vec() calls, and
+  # 20K tibble::as_tibble() constructions.
+  flags <- .batch_difficulty_flags(all_peptides, protein_ids)
 
-  rows <- lapply(seq_along(protein_ids), function(i) {
-    pid  <- protein_ids[[i]]
-    idx  <- pep_idx[[pid]]
-    peps <- all_peptides[idx, , drop = FALSE]
-    flags <- .compute_difficulty_flags(peps)
+  # Reorder scores to match protein_ids order and extract score_cols.
+  scores_reordered <- all_scores[
+    match(protein_ids, all_scores$protein_id),
+    score_cols,
+    drop = FALSE
+  ]
 
-    tibble::as_tibble(c(
-      list(
-        protein_id       = pid,
-        protein_length   = flags$protein_length,
-        n_peptides       = nrow(peps),
-        n_valid_peptides = flags$n_valid_peptides
-      ),
-      as.list(all_scores[score_row[[i]], score_cols, drop = FALSE]),
-      list(
-        flag_short_protein     = flags$flag_short_protein,
-        flag_hydrophobic       = flags$flag_hydrophobic,
-        flag_low_complexity    = flags$flag_low_complexity,
-        flag_no_valid_peptides = flags$flag_no_valid_peptides
-      )
-    ))
-  })
-
-  tibble::as_tibble(do.call(rbind, rows))
+  tibble::as_tibble(c(
+    list(
+      protein_id       = protein_ids,
+      protein_length   = flags$protein_length,
+      n_peptides       = flags$n_peptides,
+      n_valid_peptides = flags$n_valid_peptides
+    ),
+    as.list(scores_reordered),
+    list(
+      flag_short_protein     = flags$flag_short_protein,
+      flag_hydrophobic       = flags$flag_hydrophobic,
+      flag_low_complexity    = flags$flag_low_complexity,
+      flag_no_valid_peptides = flags$flag_no_valid_peptides
+    )
+  ))
 }
 # nolint end
 
@@ -396,6 +391,65 @@ batch_evaluate <- function(sequences,
   }
 
   batch_result
+}
+
+# Vectorized difficulty flags for a full multi-protein peptide tibble.
+# Returns a named list of vectors, each of length == length(protein_ids),
+# in the same order as protein_ids.
+.batch_difficulty_flags <- function(all_peptides, protein_ids) {
+  pid_factor <- factor(all_peptides$protein_id, levels = protein_ids)
+
+  # protein_length and n_peptides
+  protein_length   <- as.integer(tapply(all_peptides$end, pid_factor, max))
+  n_peptides       <- as.integer(tabulate(pid_factor))
+
+  # valid peptide mask (length 7–25)
+  valid_mask       <- all_peptides$length >= 7L & all_peptides$length <= 25L
+  n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask]))
+
+  # flags derivable from counts
+  flag_short_protein    <- protein_length < 100L
+  flag_no_valid_peptides <- n_valid_peptides == 0L
+
+  # flag_hydrophobic: median GRAVY of valid peptides > 0.6 per protein
+  flag_hydrophobic <- logical(length(protein_ids))
+  if (any(valid_mask)) {
+    gravy_vals   <- .calculate_gravy_vec(all_peptides$peptide[valid_mask])
+    median_gravy <- tapply(gravy_vals, pid_factor[valid_mask], stats::median)
+    flag_hydrophobic[match(names(median_gravy), protein_ids)] <- median_gravy > 0.6
+  }
+
+  # flag_low_complexity: dominant AA > 50% in reconstructed MC=0 sequence.
+  # Build one concatenated sequence per protein from MC=0 peptides (sorted by
+  # start), then check character frequencies.
+  mc0_mask  <- all_peptides$missed_cleavages == 0L
+  mc0_peps  <- all_peptides[mc0_mask, c("protein_id", "start", "peptide"),
+                             drop = FALSE]
+  mc0_peps  <- mc0_peps[order(mc0_peps$protein_id, mc0_peps$start), ,
+                         drop = FALSE]
+  prot_seqs <- tapply(mc0_peps$peptide, mc0_peps$protein_id,
+                      paste, collapse = "", simplify = FALSE)
+
+  flag_low_complexity <- logical(length(protein_ids))
+  names(flag_low_complexity) <- protein_ids
+  for (pid in names(prot_seqs)) {
+    s <- prot_seqs[[pid]]
+    if (nchar(s) > 0L) {
+      chars <- strsplit(s, "", fixed = TRUE)[[1L]]
+      flag_low_complexity[[pid]] <-
+        max(tabulate(match(chars, unique(chars)))) / length(chars) > 0.5
+    }
+  }
+
+  list(
+    protein_length        = protein_length,
+    n_peptides            = n_peptides,
+    n_valid_peptides      = n_valid_peptides,
+    flag_short_protein    = flag_short_protein,
+    flag_no_valid_peptides = flag_no_valid_peptides,
+    flag_hydrophobic      = flag_hydrophobic,
+    flag_low_complexity   = unname(flag_low_complexity)
+  )
 }
 
 .compute_difficulty_flags <- function(peptides) {

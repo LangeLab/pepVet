@@ -176,8 +176,8 @@
   sum(.valid_length_mask(protein_digest, length_range)) / nrow(protein_digest)
 }
 
-.score_coverage <- function(protein_digest, length_range = c(7L, 25L)) {
-  valid_digest <- .extract_valid_digest(protein_digest, length_range)
+.score_coverage <- function(protein_digest, length_range = c(7L, 25L), valid_digest = NULL) {
+  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -197,7 +197,8 @@
 
 .score_count <- function(protein_digest,
                          enzyme = "trypsin",
-                         length_range = c(7L, 25L)) {
+                         length_range = c(7L, 25L),
+                         valid_digest = NULL) {
   if (.has_no_cleavage_sites(protein_digest)) {
     cli::cli_warn(
       "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage sites for {.val {enzyme}}. S_count set to 0."
@@ -206,7 +207,8 @@
     return(0)
   }
 
-  valid_count <- nrow(.extract_valid_digest(protein_digest, length_range))
+  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  valid_count <- nrow(valid_digest)
   protein_length <- max(protein_digest$end)
   expected_count <- protein_length / .expected_peptide_length(protein_digest, enzyme)
 
@@ -215,8 +217,9 @@
 
 .score_hydro <- function(protein_digest,
                          gravy_range = c(-1.0, 0.6),
-                         length_range = c(7L, 25L)) {
-  valid_digest <- .extract_valid_digest(protein_digest, length_range)
+                         length_range = c(7L, 25L),
+                         valid_digest = NULL) {
+  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -233,8 +236,8 @@
   )
 }
 
-.score_charge <- function(protein_digest, length_range = c(7L, 25L)) {
-  valid_digest <- .extract_valid_digest(protein_digest, length_range)
+.score_charge <- function(protein_digest, length_range = c(7L, 25L), valid_digest = NULL) {
+  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -249,8 +252,9 @@
 
 .score_unique <- function(protein_digest,
                           proteome_index,
-                          length_range = c(7L, 25L)) {
-  valid_digest <- .extract_valid_digest(protein_digest, length_range)
+                          length_range = c(7L, 25L),
+                          valid_digest = NULL) {
+  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -299,18 +303,21 @@
                               enzyme = "trypsin",
                               length_range = c(7L, 25L),
                               gravy_range = c(-1.0, 0.6)) {
+  # Extract valid digest once to avoid 4 independent [.data.frame subsets.
+  valid_digest <- .extract_valid_digest(protein_digest, length_range)
+
   component_scores <- c(
-    S_length = .score_length(protein_digest, length_range),
-    S_coverage = .score_coverage(protein_digest, length_range),
-    S_count = .score_count(protein_digest, enzyme = enzyme, length_range = length_range),
-    S_hydro = .score_hydro(protein_digest, gravy_range, length_range),
-    S_charge = .score_charge(protein_digest, length_range)
+    S_length   = .score_length(protein_digest, length_range),
+    S_coverage = .score_coverage(protein_digest, length_range, valid_digest),
+    S_count    = .score_count(protein_digest, enzyme = enzyme, length_range = length_range, valid_digest = valid_digest),
+    S_hydro    = .score_hydro(protein_digest, gravy_range, length_range, valid_digest),
+    S_charge   = .score_charge(protein_digest, length_range, valid_digest)
   )
 
   if (!is.null(proteome_index)) {
     component_scores <- c(
       component_scores,
-      S_unique = .score_unique(protein_digest, proteome_index, length_range)
+      S_unique = .score_unique(protein_digest, proteome_index, length_range, valid_digest)
     )
   }
 
@@ -430,6 +437,10 @@ score_peptides <- function(digest_result,
     seq_len(nrow(validated_digest)),
     factor(validated_digest$protein_id, levels = protein_levels)
   )
+
+  # Convert to base data.frame once so that per-protein subsetting uses
+  # [.data.frame instead of the slower [.tbl_df throughout the inner loop.
+  validated_digest <- as.data.frame(validated_digest, stringsAsFactors = FALSE)
 
   scored_rows <- lapply(
     protein_groups,

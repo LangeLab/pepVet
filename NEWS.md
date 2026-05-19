@@ -1,5 +1,28 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
+# pepVet 0.1.2
+
+## Visualization
+
+* Added `plot_digest_profile()` as the flagship single-protein diagnostic. Four-panel layout showing length distribution, GRAVY scatter, coverage map, and component scores.
+* Added `plot_coverage_map()` for horizontal sequence coverage visualisation with valid/invalid peptide segments and missed-cleavage expansion lanes.
+* Added `plot_cleavage_map()` for vertical cleavage-site ticks with fragment blocks and optional efficiency coloring from `annotate_cleavage_sites()`.
+* Added `plot_enzyme_comparison()` for comparing component scores across multiple enzymes with sorted bars and recommendation badge.
+* Added `plot_protein_comparison()` for comparing component scores across multiple proteins under a single enzyme with verdict badges.
+* Added `plot_enzyme_protein_heatmap()` for a 2D tile matrix of proteins versus enzymes with composite-score gradient and verdict overlay.
+* Added `plot_length_distribution()` for peptide-length histograms with valid-range shading and multi-input faceted mode.
+* Added `plot_gravy_landscape()` for 2D scatter of length versus GRAVY with valid-region rectangle and multi-input comparison.
+* Added `plot_pI_distribution()` for isoelectric-point histograms with fraction-bin coloring and multi-input density overlay.
+* Added `plot_missed_cleavage_impact()` for showing how component scores change across MC=0/1/2.
+* Added `plot_batch_summary()` for two-panel proteome overview: verdict histogram and score-versus-length scatter.
+* Added `plot_proteome_heatmap()` for hierarchical clustering of component scores across a batch. Requires `pheatmap` (guarded).
+* Added `plot_component_scatter()` for 2D scatter of any two score components across all batch proteins.
+* Added shared infrastructure in `R/plot_utils.R`: `.pepvet_pal` colour palette, `.pepvet_theme()` base theme, and reusable panel builders.
+
+## Housekeeping
+
+* Established coding conventions and standardisation strategy for consistency across the package.
+
 # pepVet 0.1.1
 
 ## Batch evaluation, triage, and export

@@ -327,6 +327,24 @@ batch_evaluate <- function(sequences,
         include_cleavage_efficiency, proteome, weights, extra_args
       )
     }, mc.cores = effective_cores)
+
+    # Check for worker failures (mclapply returns try-error on crash).
+    # Retry failed chunks sequentially; this is slower but robust.
+    failed <- vapply(results, inherits, logical(1), what = "try-error")
+    if (any(failed)) {
+      n_failed <- sum(failed)
+      cli::cli_warn(
+        "{n_failed} parallel worker{?s} failed. Retrying failed chunk{?s} sequentially.",
+        class = "pepvet_warning_parallel_retry"
+      )
+      for (i in which(failed)) {
+        results[[i]] <- .batch_evaluate_inner(
+          normalized_input[idx_list[[i]]], enzyme, missed_cleavages,
+          include_cleavage_efficiency, proteome, weights, extra_args
+        )
+      }
+    }
+
     return(do.call(rbind, results))
   }
 
@@ -447,7 +465,7 @@ batch_evaluate <- function(sequences,
 
   # valid peptide mask (length 7–25)
   valid_mask       <- all_peptides$length >= 7L & all_peptides$length <= 25L
-  n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask]))
+  n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask], nbins = length(protein_ids)))
 
   # flags derivable from counts
   flag_short_protein    <- protein_length < 100L

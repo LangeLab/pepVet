@@ -1188,3 +1188,475 @@ plot_missed_cleavage_impact <- function(
     .pepvet_theme() +
     ggplot2::theme(legend.position = "right")
 }
+
+
+# ── plot_mz_distribution ──────────────────────────────────────────────────────
+
+#' Precursor m/z Distribution
+#'
+#' `plot_mz_distribution()` draws overlapping density fills for precursor
+#' m/z values at charge states \eqn{z = +2} and \eqn{z = +3}, overlaid on a
+#' shaded instrument scan window.  This closes the key coverage gap in the
+#' pepVet distribution suite: length, GRAVY, and pI characterise peptide
+#' properties; m/z characterises instrument detectability.
+#'
+#' An enzyme can produce ideal-length, well-behaved peptides that still fall
+#' outside the instrument's MS1 scan window at the predominant charge states.
+#' This function makes that problem immediately visible.
+#'
+#' @param result Accepted inputs:
+#'   * A named list returned by [evaluate_digest()].  Valid peptides are
+#'     extracted automatically using `length_range`, and m/z values are
+#'     computed via [calculate_peptide_mass()].
+#'   * A named list of [evaluate_digest()] results (multi-input mode).
+#'     Produces a faceted plot with one panel per result.
+#'   * A data.frame / tibble with a `peptide` column.  m/z values are
+#'     computed from sequences.
+#'   * A data.frame / tibble with `mz` and `charge_state` columns (pre-
+#'     computed m/z values; `charge_states` argument is ignored).
+#' @param scan_range Numeric vector of length 2 giving the instrument's MS1
+#'   scan window boundaries in m/z.  Defaults to `c(350, 1500)` (typical
+#'   DDA on Orbitrap / Q-TOF instruments).  Use `c(400, 1000)` for targeted
+#'   methods.
+#' @param charge_states Integer vector of charge states to compute.  Defaults
+#'   to `2:3`.  Ignored when `result` already contains an `mz` column.
+#' @param length_range Integer vector of length 2.  Valid peptide length
+#'   window used to filter input peptides.  Defaults to `c(7L, 25L)`.  Read
+#'   from `result$params` when a full [evaluate_digest()] result is supplied.
+#' @param show_rug Logical.  When `TRUE` (default) a rug of individual
+#'   peptide m/z values is added below the density fills at `alpha = 0.30`.
+#' @param title Optional character string for the plot title.
+#'
+#' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   p   <- plot_mz_distribution(res)
+#'   print(p)
+#' }
+#'
+#' @seealso [evaluate_digest()], [calculate_peptide_mass()],
+#'   [plot_length_distribution()], [plot_gravy_landscape()],
+#'   [plot_pI_distribution()]
+#' @export
+plot_mz_distribution <- function(
+    result,
+    scan_range    = c(350, 1500),
+    charge_states = 2:3,
+    length_range  = c(7L, 25L),
+    show_rug      = TRUE,
+    title         = NULL
+) {
+  rlang::check_installed("ggplot2",
+    reason = "to use plot_mz_distribution()")
+
+  # ── Validate scan_range ───────────────────────────────────────────────────
+  if (!is.numeric(scan_range) || length(scan_range) != 2L ||
+      anyNA(scan_range) || scan_range[[1L]] >= scan_range[[2L]]) {
+    cli::cli_abort(
+      "{.arg scan_range} must be a numeric vector of length 2 in ascending order.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  scan_lo <- as.numeric(scan_range[[1L]])
+  scan_hi <- as.numeric(scan_range[[2L]])
+
+  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  if (.is_named_results_list(result)) {
+    return(.plot_mz_distribution_multi(
+      result,
+      scan_range    = scan_range,
+      charge_states = charge_states,
+      length_range  = length_range,
+      show_rug      = show_rug,
+      title         = title
+    ))
+  }
+
+  # ── Extract peptide data ──────────────────────────────────────────────────
+  if (is.list(result) && !is.data.frame(result) &&
+      all(c("peptides", "params") %in% names(result))) {
+    peps         <- result$peptides
+    length_range <- result$params$length_range %||% length_range
+    auto_label   <- if (!is.null(result$params$protein_ids)) {
+      pid    <- result$params$protein_ids[[1L]]
+      enzyme <- result$params$enzyme
+      paste0(.tidy_protein_id(pid), "  \u00b7  ", enzyme)
+    } else { NULL }
+
+  } else if (is.data.frame(result)) {
+    peps       <- result
+    auto_label <- NULL
+
+  } else {
+    cli::cli_abort(
+      c(
+        paste0("{.arg result} must be an {.fn evaluate_digest} list, a",
+          " named list of such results, or a data.frame with a",
+          " {.field peptide} column."),
+        "x" = "Got {.cls {class(result)[[1L]]}}."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  # ── If data already has mz + charge_state, use directly ──────────────────
+  if (all(c("mz", "charge_state") %in% names(peps))) {
+    mz_long <- peps[, c("mz", "charge_state"), drop = FALSE]
+    mz_long$charge_state <- as.character(mz_long$charge_state)
+    n_total <- nrow(mz_long)
+
+  } else {
+    # Filter to valid length range, compute m/z per charge state
+    if (!"peptide" %in% names(peps)) {
+      cli::cli_abort(
+        paste0("{.arg result} must contain a {.field peptide} column",
+          " to compute m/z values."),
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+
+    length_lo <- as.integer(length_range[[1L]])
+    length_hi <- as.integer(length_range[[2L]])
+
+    if ("length" %in% names(peps)) {
+      valid_peps <- peps[peps$length >= length_lo & peps$length <= length_hi,
+                         , drop = FALSE]
+    } else {
+      valid_peps <- peps
+    }
+
+    if (nrow(valid_peps) == 0L) {
+      cli::cli_abort(
+        "No valid peptides found in {.arg result} to compute m/z values.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+
+    charge_states_int <- sort(unique(as.integer(charge_states)))
+    n_total           <- nrow(valid_peps)
+
+    mz_long <- do.call(rbind, lapply(charge_states_int, function(z) {
+      mz_vals <- as.numeric(
+        calculate_peptide_mass(valid_peps$peptide, charge = z))
+      data.frame(
+        mz           = mz_vals,
+        charge_state = paste0("z = +", z),
+        stringsAsFactors = FALSE
+      )
+    }))
+  }
+
+  mz_long$charge_state <- factor(mz_long$charge_state,
+    levels = unique(mz_long$charge_state))
+
+  # ── Assign brand colors to charge states ─────────────────────────────────
+  # z=+2 = primary brand color; z=+3 = brand_light; z=+4+ = moderate, etc.
+  z_color_palette <- c(
+    .pepvet_pal$brand,
+    .pepvet_pal$brand_light,
+    .pepvet_pal$moderate,
+    .pepvet_pal$poor
+  )
+  z_levels  <- levels(mz_long$charge_state)
+  z_colors  <- setNames(
+    z_color_palette[seq_along(z_levels)],
+    z_levels
+  )
+
+  # ── Per-charge-state % inside scan window ─────────────────────────────────
+  window_stats <- do.call(rbind, lapply(z_levels, function(z) {
+    sub    <- mz_long$mz[mz_long$charge_state == z]
+    n_in   <- sum(sub >= scan_lo & sub <= scan_hi, na.rm = TRUE)
+    n_all  <- sum(!is.na(sub))
+    pct    <- if (n_all > 0L) round(100 * n_in / n_all, 1) else NA_real_
+    data.frame(charge_state = z, n_in = n_in, n_all = n_all,
+               pct = pct, stringsAsFactors = FALSE)
+  }))
+
+  # ── x-axis range: pad to nearest 100 m/z beyond data, min at 0 ───────────
+  mz_min <- max(0,   floor(min(mz_long$mz, na.rm = TRUE)  / 100) * 100 - 50)
+  mz_max <- ceiling(max(mz_long$mz, na.rm = TRUE) / 100) * 100 + 50
+  x_lo   <- min(mz_min, scan_lo - 50)
+  x_hi   <- max(mz_max, scan_hi + 50)
+
+  # ── Annotation label: stacked text per charge state ───────────────────────
+  ann_text <- paste(
+    vapply(seq_len(nrow(window_stats)), function(i) {
+      sprintf("%s: %.0f%% within window (%d / %d peptides)",
+        window_stats$charge_state[[i]],
+        window_stats$pct[[i]],
+        window_stats$n_in[[i]],
+        window_stats$n_all[[i]])
+    }, character(1L)),
+    collapse = "\n"
+  )
+
+  # ── Auto title ────────────────────────────────────────────────────────────
+  auto_title <- if (!is.null(title)) {
+    title
+  } else if (!is.null(auto_label)) {
+    paste0(auto_label, "  \u00b7  Precursor m/z distribution")
+  } else {
+    "Precursor m/z distribution"
+  }
+
+  n_peptides_label <- if (!all(c("mz", "charge_state") %in% names(
+      if (is.data.frame(result)) result else result$peptides))) {
+    n_total
+  } else {
+    nrow(mz_long) / length(z_levels)
+  }
+
+  subtitle_text <- sprintf(
+    "%d valid peptides  \u00b7  scan window %.0f\u2013%.0f m/z  \u00b7  z = %s",
+    n_total,
+    scan_lo, scan_hi,
+    paste(gsub("z = \\+", "+", z_levels), collapse = " & ")
+  )
+
+  # ── Build plot ────────────────────────────────────────────────────────────
+  p <- ggplot2::ggplot(
+    mz_long,
+    ggplot2::aes(x = mz, color = charge_state, fill = charge_state)
+  ) +
+    # ── Background: outside-window zone shading (neutral) ─────────────────
+    ggplot2::annotate(
+      "rect", xmin = x_lo, xmax = scan_lo,
+      ymin = -Inf, ymax = Inf,
+      fill  = "#FFF3E0", alpha = 0.45
+    ) +
+    ggplot2::annotate(
+      "rect", xmin = scan_hi, xmax = x_hi,
+      ymin = -Inf, ymax = Inf,
+      fill  = "#FFF3E0", alpha = 0.45
+    ) +
+    # ── Valid window shading (green) ──────────────────────────────────────
+    ggplot2::annotate(
+      "rect", xmin = scan_lo, xmax = scan_hi,
+      ymin = -Inf, ymax = Inf,
+      fill  = .pepvet_pal$shade, alpha = 0.50
+    ) +
+    # ── Window boundary lines ─────────────────────────────────────────────
+    ggplot2::geom_vline(
+      xintercept = scan_lo,
+      color      = .pepvet_pal$good,
+      linewidth  = 0.65,
+      linetype   = "dashed"
+    ) +
+    ggplot2::geom_vline(
+      xintercept = scan_hi,
+      color      = .pepvet_pal$poor,
+      linewidth  = 0.65,
+      linetype   = "dashed"
+    ) +
+    # ── Density fills (overlapping, semi-transparent) ─────────────────────
+    ggplot2::geom_density(
+      alpha   = 0.40,
+      linewidth = 0.90,
+      adjust  = 0.9
+    ) +
+    # ── % inside window annotation block ──────────────────────────────────
+    ggplot2::annotate(
+      "text",
+      x        = scan_lo + (scan_hi - scan_lo) * 0.97,
+      y        = Inf,
+      hjust    = 1,
+      vjust    = 1.5,
+      label    = ann_text,
+      size     = 2.7,
+      fontface = "bold",
+      color    = .pepvet_pal$brand_dark,
+      lineheight = 1.45
+    ) +
+    # ── Zone boundary labels ──────────────────────────────────────────────
+    ggplot2::annotate(
+      "text",
+      x = scan_lo + (scan_hi - scan_lo) * 0.015,
+      y = Inf, hjust = 0, vjust = 1.6,
+      label    = sprintf("%.0f m/z", scan_lo),
+      size     = 2.5,
+      fontface = "italic",
+      color    = .pepvet_pal$good
+    ) +
+    ggplot2::annotate(
+      "text",
+      x = scan_hi - (scan_hi - scan_lo) * 0.015,
+      y = Inf, hjust = 1, vjust = 1.6,
+      label    = sprintf("%.0f m/z", scan_hi),
+      size     = 2.5,
+      fontface = "italic",
+      color    = .pepvet_pal$poor
+    ) +
+    # ── Rug marks ─────────────────────────────────────────────────────────
+    {
+      if (isTRUE(show_rug)) {
+        ggplot2::geom_rug(
+          sides  = "b",
+          alpha  = 0.30,
+          length = ggplot2::unit(0.02, "npc")
+        )
+      }
+    } +
+    # ── Scales ────────────────────────────────────────────────────────────
+    ggplot2::scale_color_manual(
+      values = z_colors,
+      name   = "Charge state",
+      guide  = ggplot2::guide_legend(
+        override.aes = list(fill = z_colors, alpha = 1, linewidth = 1.2)
+      )
+    ) +
+    ggplot2::scale_fill_manual(
+      values = z_colors,
+      name   = "Charge state"
+    ) +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0, x_hi + 200, by = 200),
+      expand = ggplot2::expansion(add = c(0, 0))
+    ) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.22))
+    ) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi), clip = "off") +
+    ggplot2::labs(
+      title    = auto_title,
+      subtitle = subtitle_text,
+      x        = "Precursor m/z",
+      y        = "Density"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      plot.title      = ggplot2::element_text(
+        size  = 13,
+        face  = "bold",
+        color = .pepvet_pal$brand_dark
+      )
+    )
+
+  p
+}
+
+# Private: multi-input mz distribution (faceted)
+.plot_mz_distribution_multi <- function(
+    results,
+    scan_range,
+    charge_states,
+    length_range,
+    show_rug,
+    title
+) {
+  rlang::check_installed("ggplot2",
+    reason = "to use plot_mz_distribution()")
+
+  labels <- if (!is.null(names(results))) names(results) else
+    vapply(results, .result_label, character(1L))
+
+  scan_lo <- as.numeric(scan_range[[1L]])
+  scan_hi <- as.numeric(scan_range[[2L]])
+
+  charge_states_int <- sort(unique(as.integer(charge_states)))
+
+  mz_all <- do.call(rbind, lapply(seq_along(results), function(i) {
+    r    <- results[[i]]
+    lr   <- r$params$length_range %||% length_range
+    peps <- r$peptides
+    peps <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], ,
+                 drop = FALSE]
+    if (nrow(peps) == 0L || !"peptide" %in% names(peps))
+      return(NULL)
+
+    rows <- do.call(rbind, lapply(charge_states_int, function(z) {
+      mz_vals <- as.numeric(
+        calculate_peptide_mass(peps$peptide, charge = z))
+      data.frame(
+        mz           = mz_vals,
+        charge_state = paste0("z = +", z),
+        .label       = factor(labels[[i]], levels = labels),
+        stringsAsFactors = FALSE
+      )
+    }))
+    rows
+  }))
+
+  if (is.null(mz_all) || nrow(mz_all) == 0L) {
+    cli::cli_abort("No valid peptide m/z values could be computed.",
+      class = "pepvet_error_invalid_digest_result")
+  }
+
+  z_levels <- paste0("z = +", charge_states_int)
+  mz_all$charge_state <- factor(mz_all$charge_state, levels = z_levels)
+
+  z_color_palette <- c(
+    .pepvet_pal$brand,
+    .pepvet_pal$brand_light,
+    .pepvet_pal$moderate,
+    .pepvet_pal$poor
+  )
+  z_colors <- setNames(
+    z_color_palette[seq_along(z_levels)],
+    z_levels
+  )
+
+  x_lo <- max(0, floor(min(mz_all$mz, na.rm = TRUE) / 100) * 100 - 50)
+  x_hi <- ceiling(max(mz_all$mz, na.rm = TRUE) / 100) * 100 + 50
+  x_lo <- min(x_lo, scan_lo - 50)
+  x_hi <- max(x_hi, scan_hi + 50)
+
+  auto_title <- if (!is.null(title)) title else
+    "Precursor m/z distribution: comparison"
+
+  ggplot2::ggplot(
+    mz_all,
+    ggplot2::aes(x = mz, color = charge_state, fill = charge_state)
+  ) +
+    ggplot2::annotate("rect",
+      xmin = x_lo, xmax = scan_lo, ymin = -Inf, ymax = Inf,
+      fill = "#FFF3E0", alpha = 0.40) +
+    ggplot2::annotate("rect",
+      xmin = scan_hi, xmax = x_hi, ymin = -Inf, ymax = Inf,
+      fill = "#FFF3E0", alpha = 0.40) +
+    ggplot2::annotate("rect",
+      xmin = scan_lo, xmax = scan_hi, ymin = -Inf, ymax = Inf,
+      fill = .pepvet_pal$shade, alpha = 0.45) +
+    ggplot2::geom_vline(xintercept = scan_lo,
+      color = .pepvet_pal$good, linewidth = 0.55, linetype = "dashed") +
+    ggplot2::geom_vline(xintercept = scan_hi,
+      color = .pepvet_pal$poor, linewidth = 0.55, linetype = "dashed") +
+    ggplot2::geom_density(alpha = 0.38, linewidth = 0.75, adjust = 0.9) +
+    {
+      if (isTRUE(show_rug)) {
+        ggplot2::geom_rug(sides = "b", alpha = 0.20,
+          length = ggplot2::unit(0.025, "npc"))
+      }
+    } +
+    ggplot2::facet_wrap(ggplot2::vars(.data$.label), scales = "free_y") +
+    ggplot2::scale_color_manual(values = z_colors, name = "Charge state",
+      guide = ggplot2::guide_legend(
+        override.aes = list(fill = z_colors, alpha = 1, linewidth = 1.2))) +
+    ggplot2::scale_fill_manual(values = z_colors, name = "Charge state") +
+    ggplot2::scale_x_continuous(
+      breaks = seq(0, x_hi + 200, by = 200),
+      expand = ggplot2::expansion(add = c(0, 0))) +
+    ggplot2::scale_y_continuous(
+      expand = ggplot2::expansion(mult = c(0, 0.20))) +
+    ggplot2::coord_cartesian(xlim = c(x_lo, x_hi)) +
+    ggplot2::labs(
+      title    = auto_title,
+      subtitle = sprintf("Scan window %.0f\u2013%.0f m/z  \u00b7  z = %s",
+        scan_lo, scan_hi,
+        paste(gsub("z = \\+", "+", z_levels), collapse = " & ")),
+      x = "Precursor m/z",
+      y = "Density"
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      legend.position = "bottom",
+      strip.text = ggplot2::element_text(
+        size = 9, face = "bold", color = .pepvet_pal$brand_dark),
+      plot.title = ggplot2::element_text(
+        size = 13, face = "bold", color = .pepvet_pal$brand_dark)
+    )
+}

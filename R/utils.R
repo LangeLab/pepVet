@@ -710,7 +710,9 @@ pepvet_preset <- function(type = "standard") {
     )
   }
 
-  mean(aa_properties$hydrophobicity[residue_index])
+  # na.rm = TRUE: residues without a Kyte-Doolittle value (e.g. pyrrolysine,
+  # O) are excluded from the mean rather than propagating NA.
+  mean(aa_properties$hydrophobicity[residue_index], na.rm = TRUE)
 }
 
 # Cached hydrophobicity lookup table (AA -> Kyte-Doolittle score).

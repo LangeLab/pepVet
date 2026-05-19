@@ -2,7 +2,8 @@ data("aa_properties", package = "pepVet", envir = environment())
 
 expected_amino_acids <- c(
   "A", "C", "D", "E", "F", "G", "H", "I", "K", "L",
-  "M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y"
+  "M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y",
+  "U", "O"
 )
 
 expected_free_mass <- c(
@@ -10,7 +11,9 @@ expected_free_mass <- c(
   F = 165.07898, G = 75.03203, H = 155.06948, I = 131.09463,
   K = 146.10553, L = 131.09463, M = 149.05105, N = 132.05349,
   P = 115.06333, Q = 146.06914, R = 174.11168, S = 105.04259,
-  T = 119.05824, V = 117.07898, W = 204.08988, Y = 181.07389
+  T = 119.05824, V = 117.07898, W = 204.08988, Y = 181.07389,
+  U = 168.96420,  # C3H7NO2Se; 80Se monoisotopic (Unimod)
+  O = 255.15829   # C12H21N3O3; PubChem exact mass 255.15829154
 )
 
 expected_residue_mass <- c(
@@ -18,7 +21,9 @@ expected_residue_mass <- c(
   F = 147.06841, G = 57.02146, H = 137.05891, I = 113.08406,
   K = 128.09496, L = 113.08406, M = 131.04049, N = 114.04293,
   P = 97.05276, Q = 128.05858, R = 156.10111, S = 87.03203,
-  T = 101.04768, V = 99.06841, W = 186.07931, Y = 163.06333
+  T = 101.04768, V = 99.06841, W = 186.07931, Y = 163.06333,
+  U = 150.95364,  # 168.96420 - 18.01056
+  O = 237.14773   # 255.15829 - 18.01056
 )
 
 expected_kd <- c(
@@ -29,7 +34,8 @@ expected_kd <- c(
 )
 
 expected_pka <- c(
-  C = 8.3, D = 3.9, E = 4.3, H = 6.0, K = 10.5, R = 12.5, Y = 10.1
+  C = 8.3, D = 3.9, E = 4.3, H = 6.0, K = 10.5, R = 12.5, Y = 10.1,
+  U = 5.2  # selenol pKa; analogous to selenocysteine
 )
 
 water_mass <- 18.01056
@@ -40,10 +46,10 @@ reference_gravy <- function(peptide_sequence) {
 }
 
 test_that(
-  "aa_properties is a complete reference table for the 20 standard residues",
+  "aa_properties contains all 22 genetically-encoded amino acids",
   {
     expect_s3_class(aa_properties, "tbl_df")
-    expect_equal(nrow(aa_properties), 20L)
+    expect_equal(nrow(aa_properties), 22L)
     expect_equal(anyDuplicated(aa_properties$amino_acid), 0L)
     expect_identical(aa_properties$amino_acid, expected_amino_acids)
     expect_true(all(nchar(aa_properties$amino_acid) == 1L))
@@ -76,7 +82,11 @@ test_that("aa_properties has the expected schema and missingness", {
   expect_false(anyNA(aa_properties$amino_acid))
   expect_false(anyNA(aa_properties$molecular_weight))
   expect_false(anyNA(aa_properties$residue_monoisotopic_mass))
-  expect_false(anyNA(aa_properties$hydrophobicity))
+  # O (pyrrolysine) has no validated Kyte-Doolittle value; all others have one
+  expect_equal(sum(is.na(aa_properties$hydrophobicity)), 1L)
+  expect_true(is.na(
+    aa_properties$hydrophobicity[aa_properties$amino_acid == "O"]
+  ))
   expect_false(anyNA(aa_properties$is_basic))
 })
 
@@ -126,7 +136,12 @@ test_that(
       aa_properties$amino_acid
     )
 
-    expect_equal(observed_hydrophobicity, expected_kd)
+    # Compare only the 20 standard AAs against the published KD scale
+    expect_equal(observed_hydrophobicity[names(expected_kd)], expected_kd)
+    # U is assigned Cys-equivalent (2.5); no canonical KD entry exists
+    expect_equal(observed_hydrophobicity[["U"]], 2.5)
+    # O has no validated KD value (scale predates pyrrolysine's discovery)
+    expect_true(is.na(observed_hydrophobicity[["O"]]))
   }
 )
 
@@ -143,8 +158,14 @@ test_that("side-chain pKa values are present only for the ionizable residues", {
   )
   expect_equal(observed_pka[ionizable_residues], expected_pka)
   expect_true(
-    all(is.na(observed_pka[setdiff(expected_amino_acids, ionizable_residues)]))
+    all(is.na(
+      observed_pka[setdiff(
+        setdiff(expected_amino_acids, ionizable_residues),
+        "O"  # O has no titratable side chain (epsilon-amino in amide bond)
+      )]
+    ))
   )
+  expect_true(is.na(observed_pka[["O"]]))
 })
 
 test_that("basic residue annotations agree with the chemistry table", {
@@ -157,7 +178,7 @@ test_that("basic residue annotations agree with the chemistry table", {
   expect_identical(basic_residues, c("H", "K", "R"))
   expect_true(all(!is.na(observed_pka[basic_residues])))
   expect_true(all(observed_pka[basic_residues] > 0))
-  expect_false(any(c("D", "E", "C", "Y") %in% basic_residues))
+  expect_false(any(c("D", "E", "C", "Y", "U", "O") %in% basic_residues))
 })
 
 test_that(".calculate_gravy matches the reference hydrophobicity arithmetic", {

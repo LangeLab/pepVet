@@ -358,6 +358,27 @@ batch_evaluate <- function(sequences,
 
 # ---- Private batch helpers ----
 
+# Helper for batch_compare_enzymes() — file-scope so parallel::mclapply /
+# parallel::parLapply can find it in each worker without capturing a closure
+# over the caller environment.
+.score_one_enzyme_batch <- function(enzyme, sequences, missed_cleavages,
+                                    proteome, weights, extra_args) {
+  result <- do.call(
+    batch_evaluate,
+    c(
+      list(
+        sequences        = sequences,
+        enzyme           = enzyme,
+        missed_cleavages = missed_cleavages,
+        proteome         = proteome,
+        weights          = weights
+      ),
+      extra_args
+    )
+  )
+  tibble::add_column(result, enzyme = enzyme, .after = "protein_id")
+}
+
 .validate_batch_result <- function(batch_result) {
   if (!inherits(batch_result, "data.frame")) {
     cli::cli_abort(
@@ -591,6 +612,201 @@ summarize_batch <- function(batch_result) {
   )
 }
 # nolint end
+
+#' Compare Multiple Enzymes Across a Full Proteome
+#'
+#' `batch_compare_enzymes()` scores every protein in `sequences` against each
+#' enzyme in `enzymes` and returns a tidy tibble with one row per
+#' protein-enzyme pair. The input proteome is parsed once into memory, then
+#' each enzyme receives the same in-memory object. On Unix this means each
+#' parallel worker shares the same physical memory via fork copy-on-write.
+#' On Windows a socket cluster is used and the data is serialized to each
+#' worker once at startup.
+#'
+#' @param sequences Multi-protein input. Accepts the same forms as
+#'   [digest_protein()]. Must resolve to at least one protein.
+#' @param enzymes Character vector of enzyme names to compare. Each name must
+#'   be one of pepVet's supported enzyme names. Defaults to a panel of five
+#'   commonly compared enzymes: trypsin, lysc, chymotrypsin-high,
+#'   asp-n endopeptidase, and arg-c proteinase.
+#' @param cores Number of parallel workers. `1L` (default) runs sequentially
+#'   with no extra dependencies. Values greater than `1L` use
+#'   `parallel::mclapply` on Unix (fork, zero serialization overhead) and
+#'   `parallel::parLapply` on Windows (socket cluster). Both are part of base R
+#'   — no additional packages are required. The effective worker count is
+#'   capped at `length(enzymes)` because parallelism is per-enzyme: spawning
+#'   more workers than enzymes wastes fork/socket overhead with no benefit.
+#' @param missed_cleavages Maximum missed cleavages passed to
+#'   [batch_evaluate()] for every enzyme. Defaults to `0L`.
+#' @param proteome Optional proteome digest tibble passed to [batch_evaluate()]
+#'   for every enzyme. When supplied, an `S_unique` column appears in the
+#'   returned tibble.
+#' @param weights Optional scoring weight vector passed to [batch_evaluate()].
+#' @param ... Additional scoring arguments passed to [batch_evaluate()], such
+#'   as `gravy_range` and `length_range`.
+#'
+#' @return A tibble of class `pepvet_batch_comparison` with one row per
+#'   protein-enzyme pair. Columns: `protein_id`, `enzyme` (factor ordered
+#'   by the input `enzymes` vector, so ggplot2 axis and facet order matches
+#'   your specification), then all columns returned by [batch_evaluate()]:
+#'   `protein_length`, `n_peptides`, `n_valid_peptides`, component scores,
+#'   `composite_score`, `verdict`, `median_peptide_length`, and the four
+#'   difficulty flags. Printing shows a per-enzyme summary table before the
+#'   tibble rows.
+#'
+#' @details The per-enzyme batches are independent: each enzyme runs
+#'   [batch_evaluate()] on the full `AAStringSet`. This is deliberately not
+#'   equivalent to calling [compare_digests()] per protein (which was measured
+#'   at ~148 min for 20K proteins x 5 enzymes vs ~5 min via this function).
+#'
+#' @seealso [batch_evaluate()], [compare_digests()], [summarize_batch()]
+#'
+#' @examples
+#' small <- system.file(
+#'   "extdata", "small_proteome_50_proteins.fasta",
+#'   package = "pepVet"
+#' )
+#' result <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
+#' result
+#' result[result$enzyme == "trypsin", c("protein_id", "composite_score")]
+#' @export
+# nolint start: object_usage_linter.
+batch_compare_enzymes <- function(
+    sequences,
+    enzymes = c(
+      "trypsin", "lysc", "chymotrypsin-high",
+      "asp-n endopeptidase", "arg-c proteinase"
+    ),
+    cores = 1L,
+    missed_cleavages = 0L,
+    proteome = NULL,
+    weights = NULL,
+    ...) {
+  if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
+    cli::cli_abort(
+      "{.arg enzymes} must be a non-empty character vector with no NAs.",
+      class = "pepvet_error_invalid_enzymes"
+    )
+  }
+
+  cores <- suppressWarnings(as.integer(cores))
+  if (is.na(cores) || cores < 1L) {
+    cli::cli_abort(
+      "{.arg cores} must be a positive integer.",
+      class = "pepvet_error_invalid_cores"
+    )
+  }
+
+  normalized_input   <- .read_input(sequences)
+  normalized_enzymes <- vapply(enzymes, .normalize_enzyme, character(1L),
+                               USE.NAMES = FALSE)
+  n_proteins <- length(normalized_input)
+  n_enzymes  <- length(normalized_enzymes)
+
+  # Parallelism is per-enzyme: spawning more workers than enzymes wastes
+  # fork/socket overhead with no throughput benefit.
+  effective_cores <- min(cores, n_enzymes)
+  if (cores > effective_cores) {
+    cli::cli_inform(
+      c(
+        "!" = "{.arg cores} ({cores}) exceeds the number of enzymes ({n_enzymes}).",
+        "i" = "Using {effective_cores} worker{?s}."
+      )
+    )
+    cores <- effective_cores
+  }
+
+  cli::cli_inform(
+    "Scoring {n_proteins} protein{?s} against {n_enzymes} enzyme{?s}."
+  )
+
+  extra_args <- list(...)
+
+  if (cores > 1L) {
+    if (.Platform$OS.type == "windows") {
+      cl <- parallel::makeCluster(cores)
+      on.exit(parallel::stopCluster(cl), add = TRUE)
+      parallel::clusterEvalQ(cl, library(pepVet))
+      results <- parallel::parLapply(
+        cl,
+        as.list(normalized_enzymes),
+        .score_one_enzyme_batch,
+        sequences        = normalized_input,
+        missed_cleavages = missed_cleavages,
+        proteome         = proteome,
+        weights          = weights,
+        extra_args       = extra_args
+      )
+    } else {
+      results <- parallel::mclapply(
+        as.list(normalized_enzymes),
+        .score_one_enzyme_batch,
+        sequences        = normalized_input,
+        missed_cleavages = missed_cleavages,
+        proteome         = proteome,
+        weights          = weights,
+        extra_args       = extra_args,
+        mc.cores         = cores
+      )
+    }
+  } else {
+    results <- lapply(
+      normalized_enzymes,
+      .score_one_enzyme_batch,
+      sequences        = normalized_input,
+      missed_cleavages = missed_cleavages,
+      proteome         = proteome,
+      weights          = weights,
+      extra_args       = extra_args
+    )
+  }
+
+  combined        <- do.call(rbind, results)
+  combined$enzyme <- factor(combined$enzyme, levels = normalized_enzymes)
+
+  result <- tibble::as_tibble(combined)
+  class(result)             <- c("pepvet_batch_comparison", class(result))
+  attr(result, "n_proteins") <- n_proteins
+  attr(result, "n_enzymes")  <- n_enzymes
+  attr(result, "enzymes")    <- normalized_enzymes
+  result
+}
+# nolint end
+
+#' @export
+print.pepvet_batch_comparison <- function(x, ...) {
+  n_prot  <- attr(x, "n_proteins")
+  n_enz   <- attr(x, "n_enzymes")
+  enzymes <- attr(x, "enzymes")
+
+  cli::cli_text(
+    "pepVet batch enzyme comparison: {n_prot} protein{?s} x {n_enz} enzyme{?s}"
+  )
+
+  summary_rows <- lapply(enzymes, function(enz) {
+    sub <- x[as.character(x$enzyme) == enz, , drop = FALSE]
+    data.frame(
+      enzyme       = enz,
+      n            = nrow(sub),
+      med_score    = round(stats::median(sub$composite_score), 3),
+      pct_good     = round(100 * mean(sub$verdict == "Good"),     1),
+      pct_moderate = round(100 * mean(sub$verdict == "Moderate"), 1),
+      pct_poor     = round(100 * mean(sub$verdict == "Poor"),     1),
+      stringsAsFactors = FALSE
+    )
+  })
+  summary_tbl <- tibble::as_tibble(do.call(rbind, summary_rows))
+
+  cat("\n")
+  print(summary_tbl, n = n_enz)
+  cat(sprintf(
+    "\n%s rows total (%s proteins x %s enzymes).\n",
+    format(n_prot * n_enz, big.mark = ","),
+    format(n_prot, big.mark = ","),
+    n_enz
+  ))
+  invisible(x)
+}
 
 #' Triage Proteins from a Batch Evaluation
 #'

@@ -32,7 +32,6 @@ Suggests:
     patchwork,
     ggrepel,
     data.table,
-    BiocParallel,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,

@@ -292,9 +292,9 @@
 
 .classify_verdict <- function(composite_score) {
   ifelse(
-    composite_score >= 0.7,
+    composite_score >= .get_param("verdict_good"),
     "Good",
-    ifelse(composite_score >= 0.4, "Moderate", "Poor")
+    ifelse(composite_score >= .get_param("verdict_moderate"), "Moderate", "Poor")
   )
 }
 
@@ -374,7 +374,7 @@
 #'   proteome digest is supplied. `S_charge` measures the fraction of
 #'   valid peptides that contain at least one non-terminal basic residue,
 #'   capturing extra charge-state richness rather than baseline ionizability.
-#'   Composite verdicts are classified as `Good` for scores >= 0.7,
+#'   Composite verdicts are classified as `Good` for scores >= 0.65,
 #'   `Moderate` for scores >= 0.4, and `Poor` otherwise.
 #'
 #' @section Limitations:

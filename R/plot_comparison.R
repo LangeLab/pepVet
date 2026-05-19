@@ -52,7 +52,7 @@
 #' regions. Enzymes are sorted by composite score with the best at the top.
 #'
 #' Panel B shows the composite score as a lollipop, color-coded by verdict tier
-#' (green >= 0.70, amber 0.40-0.69, red < 0.40). When `recommend = TRUE` a
+#' (green >= 0.65, amber 0.40-0.64, red < 0.40). When `recommend = TRUE` a
 #' gold "* Recommended" badge is appended next to the top-ranked enzyme.
 #'
 #' @param comparison A tibble returned by [compare_digests()].  Must contain
@@ -150,8 +150,8 @@ plot_enzyme_comparison <- function(
 
   # ── Verdict tier color for composite lollipop heads ───────────────────────
   tier_color <- function(x) {
-    ifelse(x >= 0.70, .pepvet_pal$good,
-    ifelse(x >= 0.40, .pepvet_pal$moderate, .pepvet_pal$poor))
+    ifelse(x >= .get_param("verdict_good"), .pepvet_pal$good,
+    ifelse(x >= .get_param("verdict_moderate"), .pepvet_pal$moderate, .pepvet_pal$poor))
   }
   comparison$comp_color <- tier_color(comparison$composite_score)
   comparison$comp_label <- sprintf("%.2f", comparison$composite_score)
@@ -175,12 +175,12 @@ plot_enzyme_comparison <- function(
   ) +
     # Good-region shading
     ggplot2::annotate("rect",
-      xmin = 0.70, xmax = 1.0, ymin = -Inf, ymax = Inf,
+      xmin = .get_param("verdict_good"), xmax = 1.0, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.55
     ) +
     # Threshold reference lines
     ggplot2::geom_vline(
-      xintercept = c(0.40, 0.70),
+      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
       color = .pepvet_pal$separator, linetype = "dashed", linewidth = 0.4
     ) +
     ggplot2::geom_col(
@@ -248,11 +248,11 @@ plot_enzyme_comparison <- function(
     ggplot2::aes(x = .data$composite_score, y = .data$enzyme)
   ) +
     ggplot2::annotate("rect",
-      xmin = 0.70, xmax = 1.1, ymin = -Inf, ymax = Inf,
+      xmin = .get_param("verdict_good"), xmax = 1.1, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.55
     ) +
     ggplot2::geom_vline(
-      xintercept = c(0.40, 0.70),
+      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
       color = .pepvet_pal$separator, linetype = "dashed", linewidth = 0.4
     ) +
     # Lollipop stems
@@ -616,8 +616,10 @@ plot_enzyme_protein_heatmap <- function(
       df$verdict <- as.character(results$verdict)
     } else if ("composite_score" %in% names(results)) {
       cs <- as.numeric(results$composite_score)
-      df$verdict <- ifelse(cs >= 0.7, "Good",
-                      ifelse(cs >= 0.4, "Moderate", "Poor"))
+      good_thresh <- .get_param("verdict_good")
+      mod_thresh  <- .get_param("verdict_moderate")
+      df$verdict <- ifelse(cs >= good_thresh, "Good",
+                      ifelse(cs >= mod_thresh, "Moderate", "Poor"))
     } else {
       df$verdict <- NA_character_
     }

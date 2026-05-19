@@ -188,14 +188,16 @@ test_that("digest_protein accepts irregular FASTA headers and extensions", {
     "mkwvtfisllflfssaysr"
   ), temp_fasta)
 
-  result <- digest_protein(temp_fasta, enzyme = "trypsin")
+  result <- digest_protein(temp_fasta, enzyme = "trypsin",
+                           missed_cleavages = 0L)
 
   expect_identical(unique(result$protein_id), "weird header no pipes")
   expect_identical(result$peptide, c("MK", "WVTFISLLFLFSSAYSR"))
 })
 
 test_that("trypsin does not cleave a KP motif", {
-  result <- digest_protein("AAAAAKPAAAAAAAR", enzyme = "trypsin")
+  result <- digest_protein("AAAAAKPAAAAAAAR", enzyme = "trypsin",
+                           missed_cleavages = 0L)
 
   expect_identical(nrow(result), 1L)
   expect_identical(result$peptide, "AAAAAKPAAAAAAAR")
@@ -203,7 +205,8 @@ test_that("trypsin does not cleave a KP motif", {
 })
 
 test_that("repeated single-residue peptides are preserved without collapse", {
-  result <- digest_protein("RKRKRKRK", enzyme = "trypsin")
+  result <- digest_protein("RKRKRKRK", enzyme = "trypsin",
+                           missed_cleavages = 0L)
 
   expect_identical(nrow(result), 8L)
   expect_identical(result$peptide, c("R", "K", "R", "K", "R", "K", "R", "K"))
@@ -228,8 +231,10 @@ test_that("trypsin and Lys-C produce meaningfully different digest patterns", {
 })
 
 test_that("known reference digests stay pinned for BSA and lysozyme", {
-  bsa <- strict_ranges(digest_protein(reference_fasta("P02769.fasta")))
-  lysozyme <- strict_ranges(digest_protein(reference_fasta("P00698.fasta")))
+  bsa <- strict_ranges(digest_protein(reference_fasta("P02769.fasta"),
+                                      missed_cleavages = 0L))
+  lysozyme <- strict_ranges(digest_protein(reference_fasta("P00698.fasta"),
+                                           missed_cleavages = 0L))
 
   expect_identical(nrow(bsa), 79L)
   expect_identical(
@@ -291,6 +296,7 @@ test_that("digest_protein can append peptide-level cleavage efficiency", {
   result <- digest_protein(
     "AKRTPK",
     enzyme = "trypsin",
+    missed_cleavages = 0L,
     include_cleavage_efficiency = TRUE
   )
 

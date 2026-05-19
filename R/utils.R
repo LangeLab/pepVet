@@ -70,30 +70,30 @@
 
 .default_scoring_weights <- list(
   protein_only = c(
-    S_length = 0.25,
-    S_coverage = 0.25,
-    S_count = 0.20,
-    S_hydro = 0.15,
-    S_charge = 0.15
+    S_length   = 0.451,
+    S_coverage = 0.239,
+    S_count    = 0.155,
+    S_hydro    = 0.095,
+    S_charge   = 0.060
   ),
   proteome_aware = c(
-    S_length = 0.20,
-    S_coverage = 0.20,
-    S_count = 0.15,
-    S_hydro = 0.15,
-    S_charge = 0.10,
-    S_unique = 0.20
+    S_length   = 0.361,
+    S_coverage = 0.191,
+    S_count    = 0.124,
+    S_hydro    = 0.076,
+    S_charge   = 0.048,
+    S_unique   = 0.200
   )
 )
 
 .preset_scoring_weights <- list(
   standard = c(
-    S_length = 0.25,
-    S_coverage = 0.25,
-    S_count = 0.20,
-    S_hydro = 0.15,
-    S_charge = 0.15,
-    S_unique = 0.00
+    S_length   = 0.451,
+    S_coverage = 0.239,
+    S_count    = 0.155,
+    S_hydro    = 0.095,
+    S_charge   = 0.060,
+    S_unique   = 0.000
   ),
   dia = c(
     S_length = 0.20,
@@ -128,12 +128,12 @@
     S_unique = 0.10
   ),
   fractionated = c(
-    S_length = 0.25,
-    S_coverage = 0.25,
-    S_count = 0.20,
-    S_hydro = 0.15,
-    S_charge = 0.15,
-    S_unique = 0.00
+    S_length   = 0.451,
+    S_coverage = 0.239,
+    S_count    = 0.155,
+    S_hydro    = 0.095,
+    S_charge   = 0.060,
+    S_unique   = 0.000
   )
 )
 
@@ -175,6 +175,15 @@
     include_pI = TRUE
   )
 )
+
+.pepvet_params <- list(
+  verdict_good     = 0.65,
+  verdict_moderate = 0.40
+)
+
+.get_param <- function(name) {
+  .pepvet_params[[name]]
+}
 
 .validate_gravy_range <- function(gravy_range) {
   if (!is.numeric(gravy_range) || length(gravy_range) != 2L || anyNA(gravy_range)) {

@@ -13,7 +13,7 @@
 #'
 #' - **(A) Score distribution:** histogram of composite scores across all
 #'   proteins, colored by verdict (Good=green, Moderate=amber, Poor=red).
-#'   Vertical dashed lines at the 0.40 and 0.70 thresholds.
+#'   Vertical dashed lines at the 0.40 and 0.65 thresholds.
 #' - **(B) Score vs. length scatter:** composite score on y, protein length on
 #'   x.  Points colored by verdict.  Poor-verdict proteins labeled with their
 #'   tidy protein ID.  A LOESS trend line reveals whether longer proteins
@@ -81,7 +81,7 @@ plot_batch_summary <- function(batch,
       linewidth  = 0.8
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.70,
+      xintercept = .get_param("verdict_good"),
       linetype   = "dashed",
       color      = .pepvet_pal$good,
       linewidth  = 0.8
@@ -131,7 +131,7 @@ plot_batch_summary <- function(batch,
       alpha      = 0.7
     ) +
     ggplot2::geom_hline(
-      yintercept = 0.70,
+      yintercept = .get_param("verdict_good"),
       linetype   = "dashed",
       color      = .pepvet_pal$good,
       linewidth  = 0.5,
@@ -424,14 +424,14 @@ plot_component_scatter <- function(
   ) +
     # Threshold reference lines
     ggplot2::geom_vline(
-      xintercept = c(0.40, 0.70),
+      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
       linetype   = c("dashed", "dashed"),
       color      = c(.pepvet_pal$moderate, .pepvet_pal$good),
       linewidth  = 0.5,
       alpha      = 0.65
     ) +
     ggplot2::geom_hline(
-      yintercept = c(0.40, 0.70),
+      yintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
       linetype   = c("dashed", "dashed"),
       color      = c(.pepvet_pal$moderate, .pepvet_pal$good),
       linewidth  = 0.5,
@@ -478,7 +478,7 @@ plot_component_scatter <- function(
     ggplot2::coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
     ggplot2::labs(
       title    = auto_title,
-      subtitle = "Dashed lines at 0.40 / 0.70  \u00b7  Poor proteins labeled  \u00b7  Rug = marginal density",
+      subtitle = "Dashed lines at 0.40 / 0.65  \u00b7  Poor proteins labeled  \u00b7  Rug = marginal density",
       x = x_label,
       y = y_label
     ) +
@@ -507,8 +507,8 @@ plot_component_scatter <- function(
 #' single-enzyme proteome digest from [batch_evaluate()]:
 #'
 #' - **(A) Score distribution:** histogram of composite scores, verdict-colored,
-#'   with background zone shading for the Good (\u2265 0.70), Moderate, and Poor
-#'   (< 0.40) regions.  A percentage badge is anchored in the Good zone.
+#'   with background zone shading for the Good (\u2265 0.65), Moderate, and Poor
+#'   (< 0.40, Good \u2265 0.65) regions.  A percentage badge is anchored in the Good zone.
 #' - **(B) Component profile:** horizontal lollipop chart showing the median of
 #'   each component score across all proteins.  Each component uses its
 #'   designated color from the pepVet component palette.  Immediately reveals
@@ -568,11 +568,11 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ggplot2::aes(x = composite_score, fill = verdict)
   ) +
     ggplot2::annotate(
-      "rect", xmin = 0.70, xmax = 1.01, ymin = -Inf, ymax = Inf,
+      "rect", xmin = 0.65, xmax = 1.01, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.50
     ) +
     ggplot2::annotate(
-      "rect", xmin = 0.40, xmax = 0.70, ymin = -Inf, ymax = Inf,
+      "rect", xmin = 0.40, xmax = 0.65, ymin = -Inf, ymax = Inf,
       fill = "#FFF3E0", alpha = 0.45
     ) +
     ggplot2::annotate(
@@ -594,7 +594,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       alpha      = 0.9
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.70,
+      xintercept = .get_param("verdict_good"),
       linetype   = "dashed",
       color      = .pepvet_pal$good,
       linewidth  = 0.7,
@@ -602,7 +602,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ) +
     ggplot2::annotate(
       "text",
-      x = 0.85, y = Inf, hjust = 0.5, vjust = 1.7,
+      x = 0.825, y = Inf, hjust = 0.5, vjust = 1.7,
       label    = sprintf("Good\n%d%%", pct_good),
       size     = 3.2,
       fontface = "bold",
@@ -667,26 +667,26 @@ plot_proteome_overview <- function(batch, title = NULL) {
 
   pb <- ggplot2::ggplot(comp_df, ggplot2::aes(y = label, x = score)) +
     ggplot2::annotate(
-      "rect", xmin = 0.70, xmax = 1.02, ymin = -Inf, ymax = Inf,
+      "rect", xmin = .get_param("verdict_good"), xmax = 1.02, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.55
     ) +
     ggplot2::annotate(
-      "rect", xmin = 0.40, xmax = 0.70, ymin = -Inf, ymax = Inf,
+      "rect", xmin = .get_param("verdict_moderate"), xmax = .get_param("verdict_good"), ymin = -Inf, ymax = Inf,
       fill = "#FFF3E0", alpha = 0.40
     ) +
     ggplot2::annotate(
-      "rect", xmin = 0, xmax = 0.40, ymin = -Inf, ymax = Inf,
+      "rect", xmin = 0, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
       fill = "#FFEBEE", alpha = 0.30
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.40,
+      xintercept = .get_param("verdict_moderate"),
       linetype   = "dashed",
       color      = .pepvet_pal$moderate,
       linewidth  = 0.5,
       alpha      = 0.75
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.70,
+      xintercept = .get_param("verdict_good"),
       linetype   = "dashed",
       color      = .pepvet_pal$good,
       linewidth  = 0.5,
@@ -715,8 +715,8 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ggplot2::scale_color_manual(values = comp_colors, guide = "none") +
     ggplot2::scale_x_continuous(
       limits = c(0, 1.0),
-      breaks = c(0, 0.40, 0.70, 1.0),
-      labels = c("0", "0.40", "0.70", "1.0"),
+      breaks = c(0, 0.40, 0.65, 1.0),
+      labels = c("0", "0.40", "0.65", "1.0"),
       expand = ggplot2::expansion(add = c(0.02, 0.05))
     ) +
     ggplot2::labs(
@@ -1019,8 +1019,8 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   median_verdict_per_enz <- vapply(enz_levels, function(enz) {
     ms <- stats::median(
       comparison$composite_score[comparison$enzyme == enz], na.rm = TRUE)
-    if (is.na(ms) || ms >= 0.70) return("Good")
-    if (ms >= 0.40) return("Moderate")
+    if (is.na(ms) || ms >= .get_param("verdict_good")) return("Good")
+    if (ms >= .get_param("verdict_moderate")) return("Moderate")
     "Poor"
   }, character(1L))
   violin_fills <- setNames(
@@ -1034,11 +1034,11 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::aes(x = composite_score, y = enzyme, fill = enzyme)
   ) +
     ggplot2::annotate(
-      "rect", xmin = 0.70, xmax = 1.01, ymin = -Inf, ymax = Inf,
+      "rect", xmin = .get_param("verdict_good"), xmax = 1.01, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.40
     ) +
     ggplot2::annotate(
-      "rect", xmin = 0, xmax = 0.40, ymin = -Inf, ymax = Inf,
+      "rect", xmin = 0, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
       fill = "#FFEBEE", alpha = 0.25
     ) +
     ggplot2::geom_violin(
@@ -1057,14 +1057,14 @@ plot_batch_comparison <- function(comparison, title = NULL) {
       alpha         = 0.75
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.40,
+      xintercept = .get_param("verdict_moderate"),
       linetype   = "dashed",
       color      = .pepvet_pal$moderate,
       linewidth  = 0.55,
       alpha      = 0.85
     ) +
     ggplot2::geom_vline(
-      xintercept = 0.70,
+      xintercept = .get_param("verdict_good"),
       linetype   = "dashed",
       color      = .pepvet_pal$good,
       linewidth  = 0.55,
@@ -1073,15 +1073,15 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::scale_fill_manual(values = violin_fills, guide = "none") +
     ggplot2::scale_x_continuous(
       limits = c(0, 1),
-      breaks = c(0, 0.40, 0.70, 1.0),
-      labels = c("0", "0.40", "0.70", "1.0"),
+      breaks = c(0, 0.40, 0.65, 1.0),
+      labels = c("0", "0.40", "0.65", "1.0"),
       expand = ggplot2::expansion(add = c(0.02, 0.02))
     ) +
     ggplot2::labs(
       title    = "Score Distributions",
       subtitle = paste0(
         "Violin + IQR box  \u00b7  Fill = median verdict  ",
-        "\u00b7  Dashed lines = 0.40 / 0.70"
+        "\u00b7  Dashed lines = 0.40 / 0.65"
       ),
       x = "Composite score",
       y = NULL
@@ -1133,8 +1133,8 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::scale_fill_gradientn(
       colors = verdict_grad,
       limits = c(0, 1),
-      breaks = c(0, 0.40, 0.70, 1.0),
-      labels = c("0", "0.40", "0.70", "1.0"),
+      breaks = c(0, 0.40, 0.65, 1.0),
+      labels = c("0", "0.40", "0.65", "1.0"),
       name   = "Median\nscore",
       guide  = ggplot2::guide_colorbar(
         barwidth       = 0.8,

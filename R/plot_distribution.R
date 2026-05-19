@@ -1136,7 +1136,7 @@ plot_missed_cleavage_impact <- function(
     # Threshold reference lines
     ggplot2::geom_hline(yintercept = 0.40, linetype = "dotted",
       color = .pepvet_pal$moderate, linewidth = 0.5, alpha = 0.7) +
-    ggplot2::geom_hline(yintercept = 0.70, linetype = "dotted",
+    ggplot2::geom_hline(yintercept = .get_param("verdict_good"), linetype = "dotted",
       color = .pepvet_pal$good, linewidth = 0.5, alpha = 0.7) +
     # Component lines
     ggplot2::geom_line(
@@ -1180,7 +1180,7 @@ plot_missed_cleavage_impact <- function(
     ggplot2::coord_cartesian(ylim = c(0, 1.05)) +
     ggplot2::labs(
       title    = auto_title,
-      subtitle = paste0("Bold line = composite  \u00b7  Dotted thresholds at 0.40 / 0.70",
+      subtitle = paste0("Bold line = composite  \u00b7  Dotted thresholds at 0.40 / 0.65",
                         "  \u00b7  Best MC highlighted"),
       x = "Missed cleavages allowed",
       y = "Score (0 \u2013 1)"

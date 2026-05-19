@@ -60,7 +60,7 @@
 # nolint start: object_usage_linter.
 evaluate_digest <- function(sequence,
                             enzyme = "trypsin",
-                            missed_cleavages = 0L,
+                            missed_cleavages = 1L,
                             include_cleavage_efficiency = FALSE,
                             proteome = NULL,
                             weights = NULL,
@@ -150,7 +150,7 @@ evaluate_digest <- function(sequence,
 # nolint start: object_usage_linter.
 compare_digests <- function(sequence,
                             enzymes = c("trypsin", "lysc"),
-                            missed_cleavages = 0L,
+                            missed_cleavages = 1L,
                             proteome = NULL,
                             weights = NULL,
                             ...) {
@@ -221,7 +221,7 @@ compare_digests <- function(sequence,
 # nolint start: object_usage_linter.
 recommend_enzyme <- function(sequence,
                              enzymes = c("trypsin", "lysc"),
-                             missed_cleavages = 0L,
+                             missed_cleavages = 1L,
                              proteome = NULL,
                              weights = NULL,
                              ...) {
@@ -297,7 +297,7 @@ recommend_enzyme <- function(sequence,
 # nolint start: object_usage_linter.
 batch_evaluate <- function(sequences,
                            enzyme = "trypsin",
-                           missed_cleavages = 0L,
+                           missed_cleavages = 1L,
                            include_cleavage_efficiency = FALSE,
                            proteome = NULL,
                            weights = NULL,
@@ -711,7 +711,7 @@ batch_compare_enzymes <- function(
       "asp-n endopeptidase", "arg-c proteinase"
     ),
     cores = 1L,
-    missed_cleavages = 0L,
+    missed_cleavages = 1L,
     proteome = NULL,
     weights = NULL,
     ...) {

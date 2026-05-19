@@ -35,20 +35,20 @@ combine_digest_results <- function(...) {
 }
 
 expected_protein_only_weights <- c(
-  S_length = 0.25,
-  S_coverage = 0.25,
-  S_count = 0.20,
-  S_hydro = 0.15,
-  S_charge = 0.15
+  S_length   = 0.451,
+  S_coverage = 0.239,
+  S_count    = 0.155,
+  S_hydro    = 0.095,
+  S_charge   = 0.060
 )
 
 expected_proteome_weights <- c(
-  S_length = 0.20,
-  S_coverage = 0.20,
-  S_count = 0.15,
-  S_hydro = 0.15,
-  S_charge = 0.10,
-  S_unique = 0.20
+  S_length   = 0.361,
+  S_coverage = 0.191,
+  S_count    = 0.124,
+  S_hydro    = 0.076,
+  S_charge   = 0.048,
+  S_unique   = 0.200
 )
 
 reference_files <- c(
@@ -82,11 +82,11 @@ test_that("weight validation returns the documented defaults", {
 
 test_that("weight validation accepts named weights and reorders them", {
   weights <- c(
-    S_charge = 0.15,
-    S_hydro = 0.15,
-    S_count = 0.20,
-    S_coverage = 0.25,
-    S_length = 0.25
+    S_charge   = 0.060,
+    S_hydro    = 0.095,
+    S_count    = 0.155,
+    S_coverage = 0.239,
+    S_length   = 0.451
   )
 
   expect_equal(
@@ -170,7 +170,8 @@ test_that("score_peptides returns the documented schema without proteome", {
 
 test_that("score_peptides includes S_unique in proteome-aware mode", {
   proteome_digest <- digest_protein(
-    c(target = "AAAAAAARAAAAAAAK", background = "AAAAAAARGGGGGGGK")
+    c(target = "AAAAAAARAAAAAAAK", background = "AAAAAAARGGGGGGGK"),
+    missed_cleavages = 0L
   )
   target_digest <- proteome_digest[
     proteome_digest$protein_id == "target",
@@ -247,7 +248,8 @@ test_that("presets can be applied directly to evaluate_digest", {
   bsa_path <- reference_fasta("P02769.fasta")
   standard_result <- do.call(
     evaluate_digest,
-    c(list(sequence = bsa_path, enzyme = "trypsin"), pepvet_preset("standard"))
+    c(list(sequence = bsa_path, enzyme = "trypsin",
+           missed_cleavages = 0L), pepvet_preset("standard"))
   )
 
   expect_s3_class(standard_result$scores, "tbl_df")
@@ -545,13 +547,15 @@ test_that("uniqueness scoring handles shared and unique peptides", {
 
 test_that("verdict classification respects both decision boundaries", {
   expect_identical(
-    pepVet:::.classify_verdict(c(0.7, 0.6999, 0.4, 0.3999, 0, 1)),
+    pepVet:::.classify_verdict(c(0.65, 0.6499, 0.4, 0.3999, 0, 1)),
     c("Good", "Moderate", "Moderate", "Poor", "Poor", "Good")
   )
 })
 
 test_that("score_peptides reproduces boundary verdicts via weight isolation", {
+  # 7 valid out of 10 peptides: S_length = 0.7 >= 0.65 => Good
   good_boundary <- make_digest_result(c(rep("AAAAAAAA", 7), rep("AAA", 3)))
+  # 2 valid out of 5 peptides: S_length = 0.4 >= 0.4 => Moderate
   moderate_boundary <- make_digest_result(c(rep("AAAAAAAA", 2), rep("AAA", 3)))
 
   expect_identical(

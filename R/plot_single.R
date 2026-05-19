@@ -13,7 +13,7 @@
 #'   are highlighted in red.  Peptide length labels appear inside segments of
 #'   8 aa or longer.
 #' * **(D) Component scores:** horizontal bar chart for each scoring
-#'   component, colored by tier (green \eqn{\geq} 0.70, amber 0.40–0.69, red
+#'   component, colored by tier (green \eqn{\geq} 0.65, amber 0.40–0.64, red
 #'   < 0.40).  The composite score is marked with a dashed vertical line.
 #'
 #' @param result A named list returned by [evaluate_digest()].  Must describe

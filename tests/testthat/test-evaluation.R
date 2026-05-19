@@ -1,9 +1,11 @@
 # ── Cross-function consistency ─────────────────────────────────────────────
 
 test_that("evaluate_digest gives the same result as manual pipeline", {
-  result <- .fix_bsa_trypsin
+  result <- evaluate_digest(.bsa_path, enzyme = "trypsin",
+                            missed_cleavages = 0L)
 
-  manual_peptides <- digest_protein(.bsa_path, enzyme = "trypsin")
+  manual_peptides <- digest_protein(.bsa_path, enzyme = "trypsin",
+                                    missed_cleavages = 0L)
   manual_scores <- score_peptides(manual_peptides)
   manual_annotations <- annotate_cleavage_sites(.bsa_path, enzyme = "trypsin")
   manual_scores <- tibble::add_column(
@@ -64,6 +66,7 @@ test_that("evaluate_digest can append peptide-level cleavage efficiency", {
   result <- evaluate_digest(
     "AKRTPK",
     enzyme = "trypsin",
+    missed_cleavages = 0L,
     include_cleavage_efficiency = TRUE
   )
 
@@ -332,7 +335,8 @@ test_that("triage_proteins categorizes BSA trypsin (mc=1) as proceed", {
 })
 
 test_that("triage_proteins categorizes Histone H3.1 trypsin as try_other_enzyme", {
-  batch <- .fix_batch_h3
+  batch <- batch_evaluate(system.file("extdata", "P68431.fasta", package = "pepVet"),
+                          enzyme = "trypsin", missed_cleavages = 0L)
   triaged <- triage_proteins(batch)
 
   expect_equal(triaged$action[[1]], "try_other_enzyme")

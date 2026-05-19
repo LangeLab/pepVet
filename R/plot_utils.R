@@ -32,7 +32,7 @@
   too_long   = "#C94040",   # rose-red – too-long peptides
 
   # Scoring tiers
-  good       = "#27AE60",   # green  – score >= 0.70
+  good       = "#27AE60",   # green  – score >= 0.65
   moderate   = "#E8A838",   # amber  – score  0.40–0.69
   poor       = "#C94040",   # red    – score <  0.40
 
@@ -121,9 +121,10 @@
 #' @noRd
 .score_color <- function(x) {
   colors <- character(length(x))
-  colors[x >= 0.7]              <- .pepvet_pal$good
-  colors[x >= 0.4 & x < 0.7]   <- .pepvet_pal$moderate
-  colors[x < 0.4]               <- .pepvet_pal$poor
+  colors[x >= .get_param("verdict_good")]              <- .pepvet_pal$good
+  colors[x >= .get_param("verdict_moderate") &
+           x < .get_param("verdict_good")]             <- .pepvet_pal$moderate
+  colors[x < .get_param("verdict_moderate")]           <- .pepvet_pal$poor
   colors
 }
 
@@ -611,8 +612,10 @@
     value = vals,
     stringsAsFactors = FALSE
   )
-  df$tier  <- ifelse(df$value >= 0.7, "Good",
-                ifelse(df$value >= 0.4, "Moderate", "Poor"))
+  good_thresh <- .get_param("verdict_good")
+  mod_thresh  <- .get_param("verdict_moderate")
+  df$tier  <- ifelse(df$value >= good_thresh, "Good",
+                ifelse(df$value >= mod_thresh, "Moderate", "Poor"))
   # Ordered factor so highest-priority score is at top of chart
   df$label <- factor(df$label, levels = rev(df$label))
 
@@ -691,7 +694,7 @@
     ) +
     ggplot2::labs(
       title    = "Component Scores",
-      subtitle = "Dotted thresholds at 0.40 (Moderate) and 0.70 (Good)  \u00b7  Dashed line = composite",
+      subtitle = "Dotted thresholds at 0.40 (Moderate) and 0.65 (Good)  \u00b7  Dashed line = composite",
       x        = "Score (0 \u2013 1)",
       y        = NULL
     ) +

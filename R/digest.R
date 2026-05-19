@@ -215,7 +215,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 # nolint start: object_usage_linter.
 digest_protein <- function(sequence,
                            enzyme = "trypsin",
-                           missed_cleavages = 0L,
+                            missed_cleavages = 1L,
                            include_cleavage_efficiency = FALSE) {
   normalized_input <- .read_input(sequence)
   normalized_enzyme <- .normalize_enzyme(enzyme)

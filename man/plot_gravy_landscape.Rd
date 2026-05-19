@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_distribution.R
 \name{plot_gravy_landscape}
 \alias{plot_gravy_landscape}
-\title{GRAVY Landscape — 2D Scatter of Peptide Length vs. Hydrophobicity}
+\title{GRAVY Landscape: 2D Scatter of Peptide Length vs. Hydrophobicity}
 \usage{
 plot_gravy_landscape(
   result,

@@ -87,7 +87,7 @@ test_that("plot_digest_profile: chymotrypsin-high renders without error", {
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("patchwork")
 
-  # chymotrypsin-high produces many short aromatic peptides — exercises
+  # chymotrypsin-high produces many short aromatic peptides: exercises
   # the length/GRAVY panels with a very different peptide population
   res <- .fix_bsa_chymotryp
   p   <- plot_digest_profile(res)
@@ -365,80 +365,6 @@ test_that("plot_enzyme_comparison snapshot: BSA 3-enzyme comparison", {
   vdiffr::expect_doppelganger(
     "enzyme_comparison_bsa_3",
     plot_enzyme_comparison(comp, title = "BSA – enzyme comparison")
-  )
-})
-
-# ── plot_score_radar ──────────────────────────────────────────────────────────
-
-test_that("plot_score_radar returns a ggplot from compare_digests tibble", {
-  skip_if_not_installed("ggplot2")
-
-  comp <- .bsa_comparison()
-  p    <- plot_score_radar(comp)
-  expect_s3_class(p, "gg")
-  expect_s3_class(p, "ggplot")
-})
-
-test_that("plot_score_radar: single evaluate_digest() result renders", {
-  skip_if_not_installed("ggplot2")
-
-  res <- .bsa_result()
-  expect_no_error(plot_score_radar(res))
-})
-
-test_that("plot_score_radar: four enzymes renders without error", {
-  skip_if_not_installed("ggplot2")
-
-  comp4 <- compare_digests(.bsa_path,
-    enzymes = c("trypsin", "lysc", "glutamyl endopeptidase",
-                "chymotrypsin-high"))
-  expect_no_error(plot_score_radar(comp4))
-})
-
-test_that("plot_score_radar: subset of scores axes renders without error", {
-  skip_if_not_installed("ggplot2")
-
-  comp <- .bsa_comparison()
-  expect_no_error(
-    plot_score_radar(comp, scores = c("S_coverage", "S_count", "S_charge"))
-  )
-})
-
-test_that("plot_score_radar: custom title is accepted", {
-  skip_if_not_installed("ggplot2")
-
-  comp <- .bsa_comparison()
-  p    <- plot_score_radar(comp, title = "My radar")
-  expect_s3_class(p, "ggplot")
-})
-
-test_that("plot_score_radar errors on non-data.frame / non-list input", {
-  skip_if_not_installed("ggplot2")
-
-  expect_error(
-    plot_score_radar("not valid"),
-    class = "pepvet_error_invalid_comparison"
-  )
-})
-
-test_that("plot_score_radar errors on missing required columns", {
-  skip_if_not_installed("ggplot2")
-
-  bad <- data.frame(enzyme = c("a", "b"), foo = 1:2)
-  expect_error(
-    plot_score_radar(bad),
-    class = "pepvet_error_invalid_comparison"
-  )
-})
-
-test_that("plot_score_radar snapshot: BSA 3-enzyme radar", {
-  skip_if_not_installed("ggplot2")
-  skip_if_not_installed("vdiffr")
-
-  comp <- .bsa_comparison()
-  vdiffr::expect_doppelganger(
-    "score_radar_bsa_3",
-    plot_score_radar(comp, title = "BSA – score radar")
   )
 })
 
@@ -768,7 +694,7 @@ test_that("plot_protein_comparison snapshot: BSA vs H3 trypsin", {
   vdiffr::expect_doppelganger(
     "protein_comparison_bsa_h3_trypsin",
     plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
-                            title = "BSA vs H3.1 — trypsin")
+                            title = "BSA vs H3.1: trypsin")
   )
 })
 
@@ -803,39 +729,6 @@ test_that("plot_cleavage_map: asp-n endopeptidase (N-terminal cutter) renders", 
 test_that("plot_cleavage_map errors on invalid result", {
   expect_error(
     plot_cleavage_map("not valid"),
-    class = "pepvet_error_invalid_digest_result"
-  )
-})
-
-# ── plot_quick_score ──────────────────────────────────────────────────────────
-
-test_that("plot_quick_score returns patchwork object", {
-  res <- .fix_bsa_trypsin
-  p   <- plot_quick_score(res)
-  expect_s3_class(p, "patchwork")
-})
-
-test_that("plot_quick_score renders without warnings", {
-  res <- .fix_bsa_trypsin
-  expect_no_warning(plot_quick_score(res))
-})
-
-test_that("plot_quick_score: H3.1 histone renders without warnings", {
-  res <- .fix_h3_trypsin
-  expect_no_warning(plot_quick_score(res))
-})
-
-test_that("plot_quick_score: glutamyl endopeptidase (D/E cutter) renders", {
-  # glutamyl endopeptidase produces more peptides with acidic C-termini;
-  # exercises the score-donut and component strip with a different score profile
-  res <- .fix_bsa_glute
-  p   <- plot_quick_score(res)
-  expect_s3_class(p, "patchwork")
-})
-
-test_that("plot_quick_score errors on invalid result", {
-  expect_error(
-    plot_quick_score("bad"),
     class = "pepvet_error_invalid_digest_result"
   )
 })

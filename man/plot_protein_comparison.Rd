@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_comparison.R
 \name{plot_protein_comparison}
 \alias{plot_protein_comparison}
-\title{Protein Comparison — Component Scores Across Multiple Proteins}
+\title{Protein Comparison: Component Scores Across Multiple Proteins}
 \usage{
 plot_protein_comparison(
   results,

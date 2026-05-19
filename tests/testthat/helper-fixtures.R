@@ -11,7 +11,7 @@
 # unlikely to clash with test-local variables.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Path helpers — shared across all test files (previously local to each file)
+# Path helpers: shared across all test files (previously local to each file)
 reference_fasta <- function(file_name) {
   system.file("extdata", file_name, package = "pepVet")
 }
@@ -28,12 +28,12 @@ reference_fasta <- function(file_name) {
 .fix_h3_trypsin     <- evaluate_digest(.h3_path,  enzyme = "trypsin")
 .fix_bsa_lysc       <- evaluate_digest(.bsa_path, enzyme = "lysc")
 .fix_h3_lysc        <- evaluate_digest(.h3_path,  enzyme = "lysc")
-# chymotrypsin-high cuts after F/Y/W/L — very different peptide size profile
+# chymotrypsin-high cuts after F/Y/W/L: very different peptide size profile
 .fix_bsa_chymotryp  <- evaluate_digest(.bsa_path, enzyme = "chymotrypsin-high")
 .fix_h3_chymotryp   <- evaluate_digest(.h3_path,  enzyme = "chymotrypsin-high")
-# asp-n endopeptidase cuts N-terminal to D — unique directionality
+# asp-n endopeptidase cuts N-terminal to D: unique directionality
 .fix_bsa_aspn       <- evaluate_digest(.bsa_path, enzyme = "asp-n endopeptidase")
-# glutamyl endopeptidase cuts after D/E — moderate count, different than trypsin
+# glutamyl endopeptidase cuts after D/E: moderate count, different than trypsin
 .fix_bsa_glute      <- evaluate_digest(.bsa_path, enzyme = "glutamyl endopeptidase")
 .fix_bsa_mc0        <- evaluate_digest(.bsa_path, enzyme = "trypsin",
                                         missed_cleavages = 0L)

@@ -3,7 +3,7 @@
     Code
       digest_report(ev)
     Output
-      -- sp|P02769|ALBU_BOVIN Albumin OS=Bos taurus OX=9913 GN=ALB PE=1 SV=4  —  tryps
+      -- sp|P02769|ALBU_BOVIN Albumin OS=Bos taurus OX=9913 GN=ALB PE=1 SV=4  /  tryps
       sp|P02769|ALBU_BOVIN Albumin OS=Bos taurus OX=9913 GN=ALB PE=1 SV=4  v Good  (composite: 0.853)
         S_length   ███████░░░ 0.688
         S_coverage ██████████ 0.997
@@ -17,7 +17,7 @@
     Code
       digest_report(ev)
     Output
-      -- sp|P68431|H31_HUMAN Histone H3.1 OS=Homo sapiens OX=9606 GN=H3C1 PE=1 SV=2  —
+      -- sp|P68431|H31_HUMAN Histone H3.1 OS=Homo sapiens OX=9606 GN=H3C1 PE=1 SV=2  /
       sp|P68431|H31_HUMAN Histone H3.1 OS=Homo sapiens OX=9606 GN=H3C1 PE=1 SV=2  x Poor  (composite: 0.297)
         S_length   █░░░░░░░░░ 0.133
         S_coverage ██░░░░░░░░ 0.235
@@ -31,7 +31,7 @@
     Code
       digest_report(ev)
     Output
-      -- sp|P02769|ALBU_BOVIN Albumin OS=Bos taurus OX=9913 GN=ALB PE=1 SV=4  —  lysc 
+      -- sp|P02769|ALBU_BOVIN Albumin OS=Bos taurus OX=9913 GN=ALB PE=1 SV=4  /  lysc 
       sp|P02769|ALBU_BOVIN Albumin OS=Bos taurus OX=9913 GN=ALB PE=1 SV=4  ! Moderate  (composite: 0.640)
         S_length   ██████░░░░ 0.623
         S_coverage ████████░░ 0.761

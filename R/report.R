@@ -167,7 +167,7 @@ digest_report <- function(x, title = NULL) {
   header_text <- if (!is.null(title)) {
     title
   } else {
-    paste0(params$protein_ids[[1]], "  \u2014  ", params$enzyme,
+    paste0(params$protein_ids[[1]], "  /  ", params$enzyme,
            "  (mc=", params$missed_cleavages, ")")
   }
 

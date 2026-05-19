@@ -343,13 +343,13 @@ summary$verdict_counts
 # Composite score distribution
 summary$score_distribution
 
-# Per-component mean scores — lowest value is the weakest dimension
+# Per-component mean scores: lowest value is the weakest dimension
 summary$component_summary
 
 # Proteins in the bottom 10% by composite score
 summary$problem_proteins
 
-# Moderate / Poor proteins where hydrophobicity or short-protein flags are set —
+# Moderate / Poor proteins where hydrophobicity or short-protein flags are set:
 # likely candidates for switching to a less specific enzyme
 summary$enzyme_switch_candidates
 ```

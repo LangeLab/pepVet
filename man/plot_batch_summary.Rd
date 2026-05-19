@@ -24,10 +24,10 @@ results from \code{\link[=batch_evaluate]{batch_evaluate()}}:
 }
 \details{
 \itemize{
-\item \strong{(A) Score distribution} — histogram of composite scores across all
+\item \strong{(A) Score distribution:} histogram of composite scores across all
 proteins, colored by verdict (Good=green, Moderate=amber, Poor=red).
 Vertical dashed lines at the 0.40 and 0.70 thresholds.
-\item \strong{(B) Score vs. length scatter} — composite score on y, protein length on
+\item \strong{(B) Score vs. length scatter:} composite score on y, protein length on
 x.  Points colored by verdict.  Poor-verdict proteins labeled with their
 tidy protein ID.  A LOESS trend line reveals whether longer proteins
 systematically score differently.

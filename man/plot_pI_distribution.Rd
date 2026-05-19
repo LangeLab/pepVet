@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_distribution.R
 \name{plot_pI_distribution}
 \alias{plot_pI_distribution}
-\title{pI Distribution — Histogram of Peptide Isoelectric Points}
+\title{pI Distribution: Histogram of Peptide Isoelectric Points}
 \usage{
 plot_pI_distribution(
   result,

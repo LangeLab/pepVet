@@ -36,16 +36,16 @@ protein–enzyme pair from an \code{\link[=evaluate_digest]{evaluate_digest()}} 
 }
 \details{
 \itemize{
-\item \strong{(A) Length distribution} — histogram of peptide lengths with the valid
+\item \strong{(A) Length distribution:} histogram of peptide lengths with the valid
 window shaded.  Bars are colored by length class: valid (blue), too short
 (amber), too long (rose).
-\item \strong{(B) GRAVY distribution} — histogram of GRAVY hydrophobicity scores.
+\item \strong{(B) GRAVY distribution:} histogram of GRAVY hydrophobicity scores.
 The LC-friendly range is shaded and bounded by dashed lines.
-\item \strong{(C) Coverage map} — protein drawn as a horizontal track with
+\item \strong{(C) Coverage map:} protein drawn as a horizontal track with
 valid-length peptides overlaid as colored segments.  Uncovered regions
 are highlighted in red.  Peptide length labels appear inside segments of
 8 aa or longer.
-\item \strong{(D) Component scores} — horizontal bar chart for each scoring
+\item \strong{(D) Component scores:} horizontal bar chart for each scoring
 component, colored by tier (green \eqn{\geq} 0.70, amber 0.40–0.69, red
 < 0.40).  The composite score is marked with a dashed vertical line.
 }

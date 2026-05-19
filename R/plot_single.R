@@ -3,16 +3,16 @@
 #' `plot_digest_profile()` assembles a four-panel figure for a single
 #' protein–enzyme pair from an [evaluate_digest()] result.  The panels are:
 #'
-#' * **(A) Length distribution** — histogram of peptide lengths with the valid
+#' * **(A) Length distribution:** histogram of peptide lengths with the valid
 #'   window shaded.  Bars are colored by length class: valid (blue), too short
 #'   (amber), too long (rose).
-#' * **(B) GRAVY distribution** — histogram of GRAVY hydrophobicity scores.
+#' * **(B) GRAVY distribution:** histogram of GRAVY hydrophobicity scores.
 #'   The LC-friendly range is shaded and bounded by dashed lines.
-#' * **(C) Coverage map** — protein drawn as a horizontal track with
+#' * **(C) Coverage map:** protein drawn as a horizontal track with
 #'   valid-length peptides overlaid as colored segments.  Uncovered regions
 #'   are highlighted in red.  Peptide length labels appear inside segments of
 #'   8 aa or longer.
-#' * **(D) Component scores** — horizontal bar chart for each scoring
+#' * **(D) Component scores:** horizontal bar chart for each scoring
 #'   component, colored by tier (green \eqn{\geq} 0.70, amber 0.40–0.69, red
 #'   < 0.40).  The composite score is marked with a dashed vertical line.
 #'
@@ -140,7 +140,7 @@ plot_digest_profile <- function(result,
 #'       invalid-length peptide.}
 #'     \item{`"length_class"`}{Three-way coloring: valid (blue), too short
 #'       (amber), too long (rose-red).}
-#'     \item{`"hydrophobicity"`}{Continuous GRAVY gradient for every peptide —
+#'     \item{`"hydrophobicity"`}{Continuous GRAVY gradient for every peptide:
 #'       brand blue (very hydrophilic) → green (LC-optimal) → amber
 #'       (borderline) → rose-red (very hydrophobic).}
 #'   }
@@ -737,9 +737,9 @@ plot_cleavage_map <- function(result,
           x = .data$position + 0.5, xend = .data$position + 0.5,
           y = 0.10, yend = 0.88
         ),
-        color     = .pepvet_pal$brand,
-        linewidth = 0.8,
-        alpha     = 0.70
+        color     = .pepvet_pal$brand_dark,
+        linewidth = 1.0,
+        alpha     = 1.0
       )
     }
   }
@@ -765,6 +765,9 @@ plot_cleavage_map <- function(result,
         "%d cleavage sites  \u00b7  %d / %d valid fragments  \u00b7  protein length %d aa",
         n_sites, n_valid, n_total, protein_length
       ),
+      caption  = if (!has_efficiency)
+        "Tip: pass annotate_cleavage_sites() output to see efficiency coloring"
+        else NULL,
       x = "Residue position",
       y = NULL
     ) +
@@ -778,142 +781,3 @@ plot_cleavage_map <- function(result,
 }
 
 
-# ── plot_quick_score ──────────────────────────────────────────────────────────
-
-#' Quick Score Summary
-#'
-#' `plot_quick_score()` produces a compact two-panel summary for a single
-#' protein-enzyme pair:
-#'
-#' - **(A)** A gauge arc showing the composite score (0–1), filled to the
-#'   score value and color-coded by verdict (Good=green, Moderate=amber,
-#'   Poor=red), with the numeric score and verdict label centered below.
-#' - **(B)** A compact horizontal bar strip of all component scores, colored by
-#'   tier, with dashed threshold lines at 0.40 and 0.70.
-#'
-#' @param result A named list returned by [evaluate_digest()].
-#' @param title Optional character title.  Auto-generated when `NULL`.
-#'
-#' @return A `patchwork` object (gauge panel / component strip panel).
-#' @export
-plot_quick_score <- function(result, title = NULL) {
-  rlang::check_installed("ggplot2",
-    reason = "to produce pepVet visualization plots")
-  rlang::check_installed("patchwork",
-    reason = "to assemble plot_quick_score panels")
-
-  .validate_digest_result_for_plot(result)
-
-  scores      <- result$scores
-  params      <- result$params
-  protein_id  <- params$protein_ids[[1L]]
-  enzyme_name <- params$enzyme
-  display_id  <- .tidy_protein_id(protein_id)
-
-  composite <- as.numeric(scores$composite_score[[1L]])
-  verdict   <- as.character(scores$verdict[[1L]])
-
-  gauge_color <- switch(verdict,
-    Good     = .pepvet_pal$good,
-    Moderate = .pepvet_pal$moderate,
-    Poor     = .pepvet_pal$poor,
-    .pepvet_pal$brand
-  )
-
-  # ── Panel A: Gauge arc ──────────────────────────────────────────────────
-  # Build arc as stacked bar in polar coordinates (donut style)
-  arc_df <- data.frame(
-    segment = c("filled", "empty"),
-    value   = c(composite, 1 - composite),
-    stringsAsFactors = FALSE
-  )
-  arc_df$segment <- factor(arc_df$segment, levels = c("filled", "empty"))
-
-  pa <- ggplot2::ggplot(arc_df, ggplot2::aes(
-    x    = 2,
-    y    = value,
-    fill = segment
-  )) +
-    ggplot2::geom_col(width = 1.0, color = NA) +
-    ggplot2::scale_fill_manual(
-      values = c(filled = gauge_color, empty = "#EBEBEB"),
-      guide  = "none"
-    ) +
-    ggplot2::coord_polar(theta = "y", start = pi) +
-    # Center text: score + verdict
-    ggplot2::annotate(
-      "text",
-      x = 0, y = 0,
-      label    = sprintf("%.2f\n%s", composite, verdict),
-      size     = 5.8,
-      fontface = "bold",
-      color    = gauge_color,
-      hjust    = 0.5,
-      vjust    = 0.5
-    ) +
-    # Threshold ticks (0.4 and 0.7 on the arc)
-    ggplot2::annotate("text", x = 2.7, y = 0.40,
-      label = "0.40", size = 2.5, color = .pepvet_pal$moderate, hjust = 0.5) +
-    ggplot2::annotate("text", x = 2.7, y = 0.70,
-      label = "0.70", size = 2.5, color = .pepvet_pal$good,     hjust = 0.5) +
-    ggplot2::xlim(0, 3.5) +
-    ggplot2::theme_void() +
-    ggplot2::theme(plot.margin = ggplot2::margin(4, 4, 0, 4))
-
-  # ── Panel B: Component score strip ────────────────────────────────────
-  score_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
-  score_cols <- score_cols[score_cols %in% names(scores)]
-  score_labels <- c(
-    S_length   = "Length",
-    S_coverage = "Coverage",
-    S_count    = "Count",
-    S_hydro    = "Hydrophobicity",
-    S_charge   = "Charge"
-  )
-  vals <- as.numeric(scores[1L, score_cols])
-  strip_df <- data.frame(
-    label = factor(score_labels[score_cols], levels = rev(score_labels[score_cols])),
-    value = vals,
-    tier  = ifelse(vals >= 0.7, "Good",
-              ifelse(vals >= 0.4, "Moderate", "Poor")),
-    stringsAsFactors = FALSE
-  )
-  tier_colors <- c(Good = .pepvet_pal$good,
-                   Moderate = .pepvet_pal$moderate,
-                   Poor = .pepvet_pal$poor)
-
-  pb <- ggplot2::ggplot(strip_df,
-    ggplot2::aes(x = value, y = label, fill = tier)) +
-    ggplot2::geom_vline(xintercept = 0.40, linetype = "dashed",
-      color = .pepvet_pal$moderate, linewidth = 0.5, alpha = 0.8) +
-    ggplot2::geom_vline(xintercept = 0.70, linetype = "dashed",
-      color = .pepvet_pal$good, linewidth = 0.5, alpha = 0.8) +
-    ggplot2::geom_col(width = 0.65, alpha = 0.90) +
-    ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%.2f", value), x = value + 0.01),
-      hjust = 0, size = 2.8, color = "#333333"
-    ) +
-    ggplot2::scale_fill_manual(values = tier_colors, guide = "none") +
-    ggplot2::scale_x_continuous(limits = c(0, 1.15),
-      breaks = c(0, 0.4, 0.7, 1.0),
-      expand = ggplot2::expansion(add = c(0, 0))) +
-    ggplot2::labs(x = "Score", y = NULL) +
-    .pepvet_theme() +
-    ggplot2::theme(plot.margin = ggplot2::margin(0, 10, 4, 10))
-
-  # ── Assemble ────────────────────────────────────────────────────────────
-  auto_title <- title %||% paste0(display_id, "  \u00b7  ", enzyme_name)
-
-  (pa / pb) +
-    patchwork::plot_layout(heights = c(2.2, 1)) +
-    patchwork::plot_annotation(
-      title = auto_title,
-      theme = ggplot2::theme(
-        plot.title = ggplot2::element_text(
-          face = "bold", size = 12,
-          color = .pepvet_pal$brand_dark,
-          margin = ggplot2::margin(b = 4)
-        )
-      )
-    )
-}

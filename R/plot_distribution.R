@@ -154,7 +154,7 @@ plot_length_distribution <- function(
       linewidth = 0.15,
       alpha     = 0.88
     ) +
-    # Optional density overlay — computed over ALL peptides (one curve,
+    # Optional density overlay: computed over ALL peptides (one curve,
     # independent of fill grouping) to avoid group-size warnings
     {
       if (show_density) {
@@ -272,7 +272,7 @@ plot_length_distribution <- function(
   x_lo <- max(0L, min(peps$length) - 1L)
   x_hi <- max(peps$length) + 1L
 
-  auto_title <- title %||% "Peptide length distribution — comparison"
+  auto_title <- title %||% "Peptide length distribution: comparison"
 
   ggplot2::ggplot(peps, ggplot2::aes(x = .data$length, fill = .data$length_class)) +
     ggplot2::annotate("rect",
@@ -319,7 +319,7 @@ plot_length_distribution <- function(
 
 # ── plot_gravy_landscape ──────────────────────────────────────────────────────
 
-#' GRAVY Landscape — 2D Scatter of Peptide Length vs. Hydrophobicity
+#' GRAVY Landscape: 2D Scatter of Peptide Length vs. Hydrophobicity
 #'
 #' `plot_gravy_landscape()` plots each peptide as a point in the
 #' length \eqn{\times} GRAVY physicochemical space.  The LC-friendly valid
@@ -645,7 +645,7 @@ plot_gravy_landscape <- function(
                     "Invalid GRAVY"  = .pepvet_pal$moderate,
                     "Invalid both"   = .pepvet_pal$poor)
 
-  auto_title <- title %||% "GRAVY landscape — comparison"
+  auto_title <- title %||% "GRAVY landscape: comparison"
 
   ggplot2::ggplot(
     peps, ggplot2::aes(x = .data$length, y = .data$gravy,
@@ -684,7 +684,7 @@ plot_gravy_landscape <- function(
 
 # ── plot_pI_distribution ──────────────────────────────────────────────────────
 
-#' pI Distribution — Histogram of Peptide Isoelectric Points
+#' pI Distribution: Histogram of Peptide Isoelectric Points
 #'
 #' `plot_pI_distribution()` draws a histogram of peptide isoelectric points
 #' coloured by SCX fraction bin (e.g., pH 3–4, 4–5, …) to preview
@@ -740,7 +740,7 @@ plot_pI_distribution <- function(
 
   } else if (is.list(result) && !is.data.frame(result) &&
              all(c("peptides", "params") %in% names(result))) {
-    # evaluate_digest() list — compute pI for valid peptides
+    # evaluate_digest() list: compute pI for valid peptides
     peps   <- result$peptides
     lr     <- result$params$length_range %||% c(7L, 25L)
     valid  <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], , drop = FALSE]
@@ -754,7 +754,7 @@ plot_pI_distribution <- function(
 
   } else if (is.data.frame(result)) {
     if ("pI" %in% names(result) && is.list(result$pI)) {
-      # score_peptides(include_pI = TRUE) — unlist the list column
+      # score_peptides(include_pI = TRUE): unlist the list column
       vals <- unlist(result$pI, use.names = FALSE)
       as.numeric(vals[!is.na(vals)])
     } else if ("pI" %in% names(result)) {
@@ -953,7 +953,7 @@ plot_pI_distribution <- function(
   cols  <- grDevices::hcl.colors(n, palette = "Dark 2")
   names(cols) <- labels
 
-  auto_title <- title %||% "pI distribution — comparison"
+  auto_title <- title %||% "pI distribution: comparison"
 
   p <- ggplot2::ggplot(df, ggplot2::aes(
     x = .data$pI, color = .data$.label, fill = .data$.label

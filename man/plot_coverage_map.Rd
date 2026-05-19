@@ -23,7 +23,7 @@ a single protein.}
 invalid-length peptide.}
 \item{\code{"length_class"}}{Three-way coloring: valid (blue), too short
 (amber), too long (rose-red).}
-\item{\code{"hydrophobicity"}}{Continuous GRAVY gradient for every peptide —
+\item{\code{"hydrophobicity"}}{Continuous GRAVY gradient for every peptide:
 brand blue (very hydrophilic) → green (LC-optimal) → amber
 (borderline) → rose-red (very hydrophobic).}
 }}

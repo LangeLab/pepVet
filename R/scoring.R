@@ -184,11 +184,15 @@
   }
 
   protein_length <- max(protein_digest$end)
-  covered_ranges <- IRanges::reduce(
-    IRanges::IRanges(valid_digest$start, valid_digest$end)
-  )
 
-  sum(IRanges::width(covered_ranges)) / protein_length
+  # Compute covered bases without S4 IRanges dispatch: sort intervals by start,
+  # then use cummax of prior ends to merge overlaps in one vectorized pass.
+  s   <- valid_digest$start
+  e   <- valid_digest$end
+  ord <- order(s)
+  s   <- s[ord]; e <- e[ord]
+  prev_max_end <- c(0L, cummax(e[-length(e)]))
+  sum(pmax(0L, e - pmax(s - 1L, prev_max_end))) / protein_length
 }
 
 .score_count <- function(protein_digest,
@@ -218,7 +222,9 @@
     return(0)
   }
 
-  gravy_values <- vapply(valid_digest$peptide, .calculate_gravy, numeric(1))
+  # Batch GRAVY: builds the hydrophobicity lookup once and calls strsplit on
+  # the whole vector instead of once per peptide.
+  gravy_values <- .calculate_gravy_vec(valid_digest$peptide)
   tolerance <- sqrt(.Machine$double.eps)
 
   mean(
@@ -234,21 +240,11 @@
     return(0)
   }
 
-  aa_properties <- .get_aa_properties()
-  basic_residues <- aa_properties$amino_acid[aa_properties$is_basic]
-  charge_rich <- vapply(
-    valid_digest$peptide,
-    function(peptide) {
-      internal_residues <- substr(peptide, 1L, nchar(peptide) - 1L)
-      any(
-        strsplit(internal_residues, split = "", fixed = TRUE)[[1]] %in%
-          basic_residues
-      )
-    },
-    logical(1)
-  )
-
-  mean(charge_rich)
+  # Vectorized: check for any internal basic residue (K, R, H) using grepl
+  # with a character class instead of strsplit + %in% per peptide.
+  # Trim the last character to check only internal positions (non-C-terminal).
+  internal_seqs <- substr(valid_digest$peptide, 1L, nchar(valid_digest$peptide) - 1L)
+  mean(grepl("[KRH]", internal_seqs, perl = TRUE))
 }
 
 .score_unique <- function(protein_digest,

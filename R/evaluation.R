@@ -296,30 +296,49 @@ batch_evaluate <- function(sequences,
                            weights = NULL,
                            ...) {
   normalized_input <- .read_input(sequences)
+  protein_ids <- names(normalized_input)
 
-  rows <- lapply(seq_along(normalized_input), function(index) {
-    ev <- evaluate_digest(
-      normalized_input[index],
-      enzyme = enzyme,
-      missed_cleavages = missed_cleavages,
-      include_cleavage_efficiency = include_cleavage_efficiency,
-      proteome = proteome,
-      weights = weights,
-      ...
+  # Digest all proteins in one call — eliminates 20K individual evaluate_digest
+  # invocations and the extra .read_input() overhead inside each one.
+  all_peptides <- digest_protein(
+    normalized_input,
+    enzyme = enzyme,
+    missed_cleavages = missed_cleavages,
+    include_cleavage_efficiency = include_cleavage_efficiency
+  )
+
+  # Score all proteins in one call — eliminates 20K separate score_peptides
+  # setup overheads and the .cleavage_efficiency_summary() call that
+  # evaluate_digest runs per protein even though batch_evaluate discards it.
+  all_scores <- score_peptides(
+    all_peptides,
+    proteome = proteome,
+    weights  = weights,
+    ...,
+    enzyme = enzyme
+  )
+
+  score_cols <- intersect(
+    names(all_scores),
+    c(
+      "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+      "S_unique", "composite_score", "verdict", "median_peptide_length"
     )
+  )
 
-    pid <- names(normalized_input)[index]
-    peps <- ev$peptides
-    scores_row <- ev$scores[1L, , drop = FALSE]
+  # Split the full peptide tibble by protein once for cheap per-protein subset.
+  pep_idx   <- split(
+    seq_len(nrow(all_peptides)),
+    factor(all_peptides$protein_id, levels = protein_ids)
+  )
+  # Pre-compute which row of all_scores corresponds to each protein_id.
+  score_row <- match(protein_ids, all_scores$protein_id)
+
+  rows <- lapply(seq_along(protein_ids), function(i) {
+    pid  <- protein_ids[[i]]
+    idx  <- pep_idx[[pid]]
+    peps <- all_peptides[idx, , drop = FALSE]
     flags <- .compute_difficulty_flags(peps)
-
-    score_cols <- intersect(
-      names(scores_row),
-      c(
-        "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
-        "S_unique", "composite_score", "verdict", "median_peptide_length"
-      )
-    )
 
     tibble::as_tibble(c(
       list(
@@ -328,7 +347,7 @@ batch_evaluate <- function(sequences,
         n_peptides       = nrow(peps),
         n_valid_peptides = flags$n_valid_peptides
       ),
-      as.list(scores_row[score_cols]),
+      as.list(all_scores[score_row[[i]], score_cols, drop = FALSE]),
       list(
         flag_short_protein     = flags$flag_short_protein,
         flag_hydrophobic       = flags$flag_hydrophobic,
@@ -389,7 +408,7 @@ batch_evaluate <- function(sequences,
   flag_no_valid_peptides <- n_valid == 0L
 
   flag_hydrophobic <- if (n_valid > 0L) {
-    gravy_vals <- vapply(valid_peps$peptide, .calculate_gravy, numeric(1))
+    gravy_vals <- .calculate_gravy_vec(valid_peps$peptide)
     stats::median(gravy_vals) > 0.6
   } else {
     FALSE
@@ -565,34 +584,31 @@ triage_proteins <- function(batch_result) {
     c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge", "S_unique")
   )
 
-  action <- vapply(seq_len(nrow(flat)), function(i) {
-    row <- flat[i, , drop = FALSE]
-    verdict <- row$verdict
+  # Fully vectorized: avoids row-by-row subsetting via vapply.
+  # any_component_low: TRUE when at least one component score < 0.5.
+  any_component_low <- if (length(score_cols) > 0L) {
+    rowSums(as.matrix(flat[score_cols]) < 0.5, na.rm = TRUE) > 0L
+  } else {
+    rep(FALSE, nrow(flat))
+  }
 
-    if (identical(verdict, "Good")) {
-      return("proceed")
-    }
-
-    if (isTRUE(row$flag_no_valid_peptides) ||
-          isTRUE(row$flag_low_complexity)) {
-      return("skip")
-    }
-
-    if (isTRUE(row$flag_hydrophobic) || isTRUE(row$flag_short_protein)) {
-      return("try_other_enzyme")
-    }
-
-    if (identical(verdict, "Poor")) {
-      return("try_other_enzyme")
-    }
-
-    component_vals <- unlist(row[score_cols])
-    if (any(component_vals < 0.5, na.rm = TRUE)) {
-      return("consider_alternative")
-    }
-
-    "consider_alternative"
-  }, character(1))
+  action <- ifelse(
+    flat$verdict == "Good",
+    "proceed",
+    ifelse(
+      flat$flag_no_valid_peptides | flat$flag_low_complexity,
+      "skip",
+      ifelse(
+        flat$flag_hydrophobic | flat$flag_short_protein | flat$verdict == "Poor",
+        "try_other_enzyme",
+        ifelse(
+          any_component_low,
+          "consider_alternative",
+          "consider_alternative"
+        )
+      )
+    )
+  )
 
   tibble::add_column(flat, action = action)
 }

@@ -74,7 +74,7 @@ plot_digest_profile <- function(result,
   display_id  <- .tidy_protein_id(protein_id)
 
   # Add GRAVY scores to the peptide table (computed from sequences)
-  peps$gravy <- vapply(peps$peptide, .calculate_gravy, numeric(1L))
+  peps$gravy <- .calculate_gravy_vec(peps$peptide)
 
   protein_length <- max(peps$end)
 
@@ -231,7 +231,7 @@ plot_coverage_map <- function(result,
   protein_length <- max(peps$end)
 
   # ── GRAVY (computed once, used for coloring or silently ignored) ────────────
-  peps$gravy <- vapply(peps$peptide, .calculate_gravy, numeric(1L))
+  peps$gravy <- .calculate_gravy_vec(peps$peptide)
 
   # ── Determine MC levels present and build lane coordinates ─────────────────
   has_mc     <- "missed_cleavages" %in% names(peps)

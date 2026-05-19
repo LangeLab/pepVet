@@ -224,49 +224,75 @@ digest_protein <- function(sequence,
   sequence_strings <- as.character(normalized_input)
   protein_ids <- names(normalized_input)
 
+  # One batch call for all proteins instead of one Biostrings::AAString()
+  # conversion + one S4 cleavageRanges dispatch per protein.
+  # Returns an IRangesList with one IRanges element per protein.
+  all_strict_ranges <- .cleavage_ranges(normalized_input, enzym = normalized_enzyme)
+
+  # Compute all digest ranges first so we know the total row count.
+  all_digest_ranges <- lapply(
+    seq_along(sequence_strings),
+    function(index) .build_digest_ranges(all_strict_ranges[[index]], max_missed_cleavages)
+  )
+
+  if (!isTRUE(include_efficiency)) {
+    # Fast path: pre-allocate six vectors and fill with a single for-loop, then
+    # construct one tibble at the end.  This replaces 20K tibble::tibble()
+    # constructions + do.call(rbind, 20K_tibbles), which dominated the profile.
+    n_per_protein <- vapply(
+      all_digest_ranges, function(dr) length(dr$start), integer(1L)
+    )
+    total_rows   <- sum(n_per_protein)
+    offsets      <- c(0L, cumsum(n_per_protein))
+
+    col_protein_id <- character(total_rows)
+    col_peptide    <- character(total_rows)
+    col_start      <- integer(total_rows)
+    col_end        <- integer(total_rows)
+    col_length     <- integer(total_rows)
+    col_mc         <- integer(total_rows)
+
+    for (index in seq_along(sequence_strings)) {
+      k <- offsets[[index]] + 1L
+      e <- offsets[[index + 1L]]
+      if (k > e) next
+      dr <- all_digest_ranges[[index]]
+      col_protein_id[k:e] <- protein_ids[[index]]
+      col_peptide[k:e]    <- substring(sequence_strings[[index]], dr$start, dr$end)
+      col_start[k:e]      <- dr$start
+      col_end[k:e]        <- dr$end
+      col_length[k:e]     <- dr$end - dr$start + 1L
+      col_mc[k:e]         <- dr$missed_cleavages
+    }
+
+    return(tibble::tibble(
+      protein_id       = col_protein_id,
+      peptide          = col_peptide,
+      start            = col_start,
+      end              = col_end,
+      length           = col_length,
+      missed_cleavages = col_mc
+    ))
+  }
+
+  # Slow path (include_cleavage_efficiency = TRUE): build per-protein tibbles
+  # and rbind, so cleavage annotations can be appended per protein.
   digest_tables <- lapply(
     seq_along(sequence_strings),
     function(index) {
       protein_sequence <- sequence_strings[[index]]
       protein_id <- protein_ids[[index]]
-      strict_ranges <- .cleavage_ranges(
-        Biostrings::AAString(protein_sequence),
-        enzym = normalized_enzyme
-      )
-      digest_ranges <- .build_digest_ranges(
-        strict_ranges,
-        max_missed_cleavages
-      )
+      digest_ranges <- all_digest_ranges[[index]]
 
+      n_rows <- length(digest_ranges$start)
       digest_table <- tibble::tibble(
-        protein_id = rep(protein_id, length(digest_ranges)),
-        peptide = vapply(
-          digest_ranges,
-          function(range_row) {
-            substr(protein_sequence, range_row$start, range_row$end)
-          },
-          character(1)
-        ),
-        start = as.integer(vapply(digest_ranges, `[[`, integer(1), "start")),
-        end = as.integer(vapply(digest_ranges, `[[`, integer(1), "end")),
-        length = as.integer(vapply(
-          digest_ranges,
-          function(range_row) {
-            range_row$end - range_row$start + 1L
-          },
-          integer(1)
-        )),
-        missed_cleavages = as.integer(vapply(
-          digest_ranges,
-          `[[`,
-          integer(1),
-          "missed_cleavages"
-        ))
+        protein_id       = rep(protein_id, n_rows),
+        peptide          = substring(protein_sequence, digest_ranges$start, digest_ranges$end),
+        start            = digest_ranges$start,
+        end              = digest_ranges$end,
+        length           = digest_ranges$end - digest_ranges$start + 1L,
+        missed_cleavages = digest_ranges$missed_cleavages
       )
-
-      if (!isTRUE(include_efficiency)) {
-        return(digest_table)
-      }
 
       if (!.supports_cleavage_efficiency_annotations(normalized_enzyme)) {
         digest_table$cleavage_efficiency <- rep(NA_character_, nrow(digest_table))

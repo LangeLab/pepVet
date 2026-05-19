@@ -39,6 +39,5 @@ matches the recommendation in panel A.
 }
 }
 \seealso{
-\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}}, \code{\link[=plot_proteome_overview]{plot_proteome_overview()}},
-\code{\link[=plot_batch_summary]{plot_batch_summary()}}
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}}, \code{\link[=plot_proteome_overview]{plot_proteome_overview()}}
 }

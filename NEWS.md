@@ -29,6 +29,13 @@
 * Added `U` (selenocysteine, Sec) to the `aa_properties` reference table. 25 human proteins contain selenocysteine and were previously rejected during input validation.
 * Added `O` (pyrrolysine, Pyl) to the `aa_properties` reference table (row 22). Monoisotopic mass verified from PubChem CID 119813 and ChEBI CHEBI:91273 (C₁₂H₂₁N₃O₃, 255.15829 Da). Hydrophobicity and pKa are `NA`: the Kyte–Doolittle scale predates the discovery of pyrrolysine (1982 vs 2002), and the ε-amino group is tied up in an amide bond and is not titratable. `calculate_gravy()` now passes `na.rm = TRUE` so sequences containing O return a valid GRAVY score computed from the remaining residues.
 
+## Removals
+
+* Removed `plot_enzyme_protein_heatmap()`. The 2D tile matrix did not add enough over the other comparison functions (`plot_enzyme_comparison()`, `plot_batch_comparison()`) to justify maintenance.
+* Removed `plot_component_scatter()`. The 2D scatter of component scores was redundant with the information already visible in `plot_proteome_overview()` and `plot_batch_comparison()`.
+* Removed `plot_batch_summary()`. The two-panel overview was superseded by the richer `plot_proteome_overview()` and `plot_batch_comparison()`.
+* Removed `plot_protein_comparison()`. The grouped bar chart did not add enough insight beyond `plot_enzyme_comparison()` and the batch-level comparison functions.
+
 # pepVet 0.1.2
 
 ## Visualization

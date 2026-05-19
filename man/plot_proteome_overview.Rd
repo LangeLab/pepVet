@@ -36,6 +36,5 @@ prevalence (most common at top).
 }
 }
 \seealso{
-\code{\link[=batch_evaluate]{batch_evaluate()}}, \code{\link[=plot_batch_summary]{plot_batch_summary()}},
-\code{\link[=plot_component_scatter]{plot_component_scatter()}}, \code{\link[=plot_batch_comparison]{plot_batch_comparison()}}
+ \code{\link[=batch_evaluate]{batch_evaluate()}}, \code{\link[=plot_batch_comparison]{plot_batch_comparison()}}
 }

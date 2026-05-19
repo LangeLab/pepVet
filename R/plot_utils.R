@@ -117,25 +117,6 @@ NULL
 }
 
 
-# -- Internal score-to-color helper ------------------------------------------
-
-#' Map numeric scores to tier colors
-#'
-#' @param x Numeric vector of score values between 0 and 1.
-#' @return Character vector of hex color strings.
-#' @noRd
-.score_color <- function(x) {
-  colors <- character(length(x))
-  colors[x >= .get_param("verdict_good")] <- .pepvet_pal$good
-  colors[
-    x >= .get_param("verdict_moderate") &
-      x < .get_param("verdict_good")
-  ] <- .pepvet_pal$moderate
-  colors[x < .get_param("verdict_moderate")] <- .pepvet_pal$poor
-  colors
-}
-
-
 # -- Internal: tidy protein display ID ---------------------------------------
 
 #' Shorten a FASTA header to an accession + gene label
@@ -411,19 +392,6 @@ NULL
 #' @param lo,hi       Clamp limits. Values outside the lo-to-hi interval are clamped.
 #' @return Character vector of hex color strings, same length as input.
 #' @noRd
-.gravy_to_color <- function(gravy_values, lo = -2.0, hi = 2.0) {
-  stops <- c(
-    .pepvet_pal$brand, .pepvet_pal$good,
-    .pepvet_pal$moderate, .pepvet_pal$poor
-  )
-  ramp <- grDevices::colorRamp(stops, interpolate = "spline")
-  scaled <- pmax(0, pmin(1, (gravy_values - lo) / (hi - lo)))
-  m <- ramp(scaled)
-  grDevices::rgb(m[, 1L], m[, 2L], m[, 3L], maxColorValue = 255)
-}
-
-
-#' Greedy interval packing for non-overlapping peptide display (shared helper)
 #'
 #' Assigns each peptide to the lowest-numbered "track" (sub-row) where it does
 #' not overlap any previously placed peptide.  Peptides are processed in order

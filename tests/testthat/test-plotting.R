@@ -578,56 +578,6 @@ test_that("plot_pI_distribution: multi-input renders without warnings", {
   )
 })
 
-# ── plot_protein_comparison ───────────────────────────────────────────────────
-
-test_that("plot_protein_comparison returns ggplot from named list", {
-  bsa_res <- .fix_bsa_trypsin
-  h3_res <- .fix_h3_trypsin
-  p <- plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res))
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_protein_comparison accepts batch_evaluate tibble", {
-  skip_if_not_installed("Biostrings")
-  batch <- .fix_batch_trypsin
-  p <- plot_protein_comparison(batch)
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_protein_comparison: show_verdict = FALSE renders without error", {
-  bsa_res <- .fix_bsa_trypsin
-  h3_res <- .fix_h3_trypsin
-  expect_no_error(
-    plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
-      show_verdict = FALSE
-    )
-  )
-})
-
-test_that("plot_protein_comparison: custom title accepted", {
-  bsa_res <- .fix_bsa_trypsin
-  h3_res <- .fix_h3_trypsin
-  p <- plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res),
-    title = "My comparison"
-  )
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_protein_comparison: renders without warnings", {
-  bsa_res <- .fix_bsa_trypsin
-  h3_res <- .fix_h3_trypsin
-  expect_no_warning(
-    plot_protein_comparison(list(BSA = bsa_res, H3 = h3_res))
-  )
-})
-
-test_that("plot_protein_comparison errors on invalid input", {
-  expect_error(
-    plot_protein_comparison("not valid"),
-    class = "pepvet_error_invalid_digest_result"
-  )
-})
-
 
 # ── plot_cleavage_map ─────────────────────────────────────────────────────────
 
@@ -660,54 +610,6 @@ test_that("plot_cleavage_map errors on invalid result", {
   expect_error(
     plot_cleavage_map("not valid"),
     class = "pepvet_error_invalid_digest_result"
-  )
-})
-
-# ── plot_enzyme_protein_heatmap ───────────────────────────────────────────────
-
-test_that("plot_enzyme_protein_heatmap returns ggplot from nested list", {
-  nested <- list(
-    BSA = list(
-      trypsin = .fix_bsa_trypsin,
-      lysc    = .fix_bsa_lysc
-    ),
-    H3 = list(
-      trypsin = .fix_h3_trypsin,
-      lysc    = .fix_h3_lysc
-    )
-  )
-  p <- plot_enzyme_protein_heatmap(nested)
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_enzyme_protein_heatmap: component argument works", {
-  nested <- list(
-    BSA = list(trypsin = .fix_bsa_trypsin),
-    H3  = list(trypsin = .fix_h3_trypsin)
-  )
-  p <- plot_enzyme_protein_heatmap(nested, component = "S_length")
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_enzyme_protein_heatmap renders without warnings", {
-  nested <- list(
-    BSA = list(
-      trypsin = .fix_bsa_trypsin,
-      lysc = .fix_bsa_lysc
-    ),
-    H3 = list(
-      trypsin = .fix_h3_trypsin,
-      lysc = .fix_h3_lysc
-    )
-  )
-  expect_no_warning(plot_enzyme_protein_heatmap(nested))
-})
-
-test_that("plot_enzyme_protein_heatmap errors on bad component", {
-  nested <- list(BSA = list(trypsin = .fix_bsa_trypsin))
-  expect_error(
-    plot_enzyme_protein_heatmap(nested, component = "not_a_score"),
-    class = "pepvet_error_invalid_component"
   )
 })
 
@@ -754,81 +656,5 @@ test_that("plot_missed_cleavage_impact errors on single-element list", {
   )
 })
 
-# ── plot_batch_summary ────────────────────────────────────────────────────────
 
-test_that("plot_batch_summary returns patchwork from batch_evaluate", {
-  skip_if_not_installed("Biostrings")
-  batch <- .fix_batch_trypsin
-  p <- plot_batch_summary(batch)
-  expect_s3_class(p, "patchwork")
-})
 
-test_that("plot_batch_summary renders without warnings", {
-  skip_if_not_installed("Biostrings")
-  batch <- .fix_batch_trypsin
-  expect_no_warning(plot_batch_summary(batch))
-})
-
-test_that("plot_batch_summary: chymotrypsin-high batch renders", {
-  skip_if_not_installed("Biostrings")
-  # chymotrypsin yields higher peptide counts and lower scores than trypsin;
-  # exercises the histogram color-coding and LOESS scatter with a different
-  # verdict distribution
-  batch <- .fix_batch_chymotryp
-  p <- plot_batch_summary(batch)
-  expect_s3_class(p, "patchwork")
-})
-
-test_that("plot_batch_summary errors on missing required columns", {
-  bad_batch <- data.frame(x = 1:3)
-  expect_error(
-    plot_batch_summary(bad_batch),
-    class = "pepvet_error_invalid_batch"
-  )
-})
-
-# ── plot_component_scatter ────────────────────────────────────────────────────
-
-test_that("plot_component_scatter returns ggplot from batch_evaluate", {
-  skip_if_not_installed("Biostrings")
-  batch <- .fix_batch_trypsin
-  p <- plot_component_scatter(batch)
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_component_scatter: custom component axes work", {
-  skip_if_not_installed("Biostrings")
-  batch <- .fix_batch_trypsin
-  p <- plot_component_scatter(batch,
-    x_component = "S_length",
-    y_component = "S_coverage"
-  )
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_component_scatter renders without warnings", {
-  skip_if_not_installed("Biostrings")
-  batch <- .fix_batch_trypsin
-  expect_no_warning(plot_component_scatter(batch))
-})
-
-test_that("plot_component_scatter: chymotrypsin-high batch renders", {
-  skip_if_not_installed("Biostrings")
-  # chymotrypsin batch has a distinctive score cluster; exercises label
-  # rendering for Poor proteins and rug marks with a different distribution
-  batch <- .fix_batch_chymotryp
-  p <- plot_component_scatter(batch)
-  expect_s3_class(p, "gg")
-})
-
-test_that("plot_component_scatter errors on invalid component", {
-  skip_if_not_installed("Biostrings")
-  batch <- batch_evaluate(
-    Biostrings::readAAStringSet(.bsa_path),
-    enzyme = "trypsin"
-  )
-  expect_error(
-    plot_component_scatter(batch, x_component = "not_a_col"),
-    class = "pepvet_error_invalid_component"
-  )
-})

@@ -92,8 +92,8 @@ reference:
 
   - title: "Visualisation"
     desc: >
-      Plot digest quality, score components, enzyme comparisons, batch
-      summaries, and proteome-level overviews.
+      Plot digest quality, score components, enzyme comparisons,
+      and proteome-level overviews.
     contents:
       - plot_digest_profile
       - plot_length_distribution
@@ -104,12 +104,8 @@ reference:
       - plot_cleavage_map
       - plot_missed_cleavage_impact
       - plot_enzyme_comparison
-      - plot_protein_comparison
-      - plot_component_scatter
-      - plot_batch_summary
+      - plot_proteome_overview
       - plot_batch_comparison
-        - plot_proteome_overview
-      - plot_enzyme_protein_heatmap
 
   - title: "Reporting"
     desc: >

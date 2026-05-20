@@ -376,12 +376,11 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ggplot2::theme(
       plot.tag = ggplot2::element_text(
         face  = "bold",
-        size  = 14,
+        size  = .get_param("patchwork_tag_size"),
         color = .pepvet_pal$brand
       )
     )
 }
-
 
 # ── plot_batch_comparison ─────────────────────────────────────────────────────
 
@@ -685,8 +684,8 @@ plot_batch_comparison <- function(comparison, title = NULL) {
       ),
       name = "Median\nscore",
       guide = ggplot2::guide_colorbar(
-        barwidth       = 0.8,
-        barheight      = 5,
+        barwidth       = ggplot2::unit(10, "pt"),
+        barheight      = ggplot2::unit(60, "pt"),
         title.position = "top"
       )
     ) +
@@ -797,7 +796,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::theme(
       plot.tag = ggplot2::element_text(
         face  = "bold",
-        size  = 14,
+        size  = .get_param("patchwork_tag_size"),
         color = .pepvet_pal$brand
       )
     )

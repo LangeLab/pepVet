@@ -324,7 +324,7 @@ plot_enzyme_comparison <- function(
       title = auto_title,
       theme = ggplot2::theme(
         plot.title = ggplot2::element_text(
-          size = 15, face = "bold",
+          size = .get_param("patchwork_title_size"), face = "bold",
           color = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 6)
         )
@@ -332,7 +332,7 @@ plot_enzyme_comparison <- function(
     ) &
     ggplot2::theme(
       plot.tag = ggplot2::element_text(
-        size = 14, face = "bold", color = .pepvet_pal$brand
+        size = .get_param("patchwork_tag_size"), face = "bold", color = .pepvet_pal$brand
       )
     )
 }

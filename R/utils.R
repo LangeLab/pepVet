@@ -195,7 +195,8 @@ NULL
   gravy_hi             =  2.0,
   scatter_alpha        = 0.88,
   scatter_max_pts      = 5000L,
-  patchwork_title_size = 15
+  patchwork_title_size = 15,
+  patchwork_tag_size   = 14
 )
 
 .get_param <- function(name) {

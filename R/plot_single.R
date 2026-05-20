@@ -119,7 +119,7 @@ plot_digest_profile <- function(result,
     ggplot2::theme(
       plot.tag = ggplot2::element_text(
         face   = "bold",
-        size   = 14,
+        size   = .get_param("patchwork_tag_size"),
         color  = .pepvet_pal$brand,
         margin = ggplot2::margin(t = 1, r = 6, b = 1, l = 2)
       )

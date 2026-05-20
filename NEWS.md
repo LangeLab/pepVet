@@ -6,14 +6,16 @@
 
 ## Housekeeping
 
-* Standardised cli error messages across the package. Replaced all `paste0("{.arg ", var, "}")` patterns with `"{.arg {var}}"` cli glue syntax in `.abort()`, `cli_warn()`, and `cli_inform()` calls (G-06). Also converted `"i"` bullet `paste()` calls to `{.val {x}}` formatters.
-* Added `.bind_rows()` helper and replaced all bare `do.call(rbind, ...)` calls with it (G-01). The helper returns an empty tibble for empty input instead of failing silently.
-* Replaced `import(cleaver)` with `@importFrom cleaver cleavageRanges` (G-07). Removed the `.cleavage_ranges` workaround via `get("cleavageRanges", envir = asNamespace("cleaver"))` and now calls `cleaver::cleavageRanges()` directly.
+* Standardised cli error messages across the package. Replaced all `paste0("{.arg ", var, "}")` patterns with `"{.arg {var}}"` cli glue syntax in `.abort()`, `cli_warn()`, and `cli_inform()` calls. Also converted `"i"` bullet `paste()` calls to `{.val {x}}` formatters.
+* Added `.bind_rows()` helper and replaced all bare `do.call(rbind, ...)` calls with it. The helper returns an empty tibble for empty input instead of failing silently.
+* Replaced `import(cleaver)` with `@importFrom cleaver cleavageRanges`. Removed the `.cleavage_ranges` workaround via `get("cleavageRanges", envir = asNamespace("cleaver"))` and now calls `cleaver::cleavageRanges()` directly.
 * Removed dead code: `.compute_difficulty_flags()` in `evaluation.R` was defined but never called. Its logic was superseded by `.batch_difficulty_flags()`.
 * Made `plot_coverage_map()` gradient stops (`color_by = "hydrophobicity"`) data-driven instead of hardcoding the GRAVY valid-range boundary at 0.6. The 4 color stops are now evenly spaced across the actual GRAVY range of the displayed peptides.
 * Suppressed three R CMD check notes by adding `.lintr`, `tmp/`, and `paper/` to `.Rbuildignore`.
 * Added missing `@return` roxygen tags to 10 internal helper functions across the source.
-* Removed duplicate `.classify_verdict()` from `plot_utils.R` (G-04). The function was defined in both `scoring.R` and `plot_utils.R` with identical logic; `plot_utils.R`'s silently shadowed `scoring.R`'s due to file-sourcing order. All verdict classification now uses the single source at `R/scoring.R:263`.
+* Removed duplicate `.classify_verdict()` from `plot_utils.R`. The function was defined in both `scoring.R` and `plot_utils.R` with identical logic; the duplicate silently shadowed the original due to file-sourcing order.
+* Standardised patchwork title and tag sizes across all plot functions. Added `patchwork_tag_size` to `.pepvet_params`. Fixed `plot_gravy_landscape()` title size 13 -> 15. Changed `plot_enzyme_comparison()`, `plot_digest_profile()`, `plot_proteome_overview()`, `plot_batch_comparison()` to use `.get_param()` for tag sizes instead of hardcoded 14.
+* Fixed `plot_batch_comparison()` heatmap colorbar to use explicit `unit(..., "pt")` instead of numeric (lines) values.
 
 ## Bug fixes
 

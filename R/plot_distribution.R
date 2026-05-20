@@ -644,7 +644,8 @@ plot_gravy_landscape <- function(
       title = auto_title,
       theme = ggplot2::theme(
         plot.title = ggplot2::element_text(
-          size = 13, face = "bold",
+          face  = "bold",
+          size  = .get_param("patchwork_title_size"),
           color = .pepvet_pal$brand_dark,
           margin = ggplot2::margin(b = 4)
         )

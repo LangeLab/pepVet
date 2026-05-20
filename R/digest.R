@@ -1,5 +1,3 @@
-.cleavage_ranges <- get("cleavageRanges", envir = asNamespace("cleaver"))
-
 .cleavage_annotation_trypsin_enzymes <- c(
   "trypsin",
   "trypsin-high",
@@ -175,7 +173,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #'   a `cleavage_efficiency` column to the peptide output. Trypsin-family
 #'   digests receive sequence-local high/medium/low annotations; unsupported
 #'   enzymes currently return `NA` in this optional column.
-#' @import cleaver
+#' @importFrom cleaver cleavageRanges
 #'
 #' @return A tibble with one row per peptide and the columns `protein_id`,
 #'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`. Each row
@@ -218,7 +216,7 @@ digest_protein <- function(sequence,
   # One batch call for all proteins instead of one Biostrings::AAString()
   # conversion + one S4 cleavageRanges dispatch per protein.
   # Returns an IRangesList with one IRanges element per protein.
-  all_strict_ranges <- .cleavage_ranges(normalized_input, enzym = normalized_enzyme)
+  all_strict_ranges <- cleaver::cleavageRanges(normalized_input, enzym = normalized_enzyme)
 
   # Compute all digest ranges first so we know the total row count.
   all_digest_ranges <- lapply(

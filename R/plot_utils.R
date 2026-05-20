@@ -118,6 +118,7 @@ NULL
 #' branded color accents, and consistent typography.
 #'
 #' @param base_size Numeric base font size.  Defaults to `11`.
+#' @return A ggplot2 theme object.
 #' @noRd
 .pepvet_theme <- function(base_size = 11) {
   out <- ggplot2::theme_minimal(base_size = base_size) +
@@ -185,6 +186,7 @@ NULL
 # -- Shared classification helpers -------------------------------------------
 
 #' Classify peptide lengths into validity categories
+#' @return A factor with levels "Valid", "Too short", "Too long".
 #' @noRd
 .classify_length <- function(lengths, length_range) {
   lo <- length_range[[1L]]
@@ -197,6 +199,7 @@ NULL
 }
 
 #' Length-class color map
+#' @return A named character vector of hex colors.
 #' @noRd
 .length_class_colors <- function() {
   c(
@@ -206,20 +209,18 @@ NULL
   )
 }
 
-#' Classify numeric scores into verdict tiers
-#' @noRd
-.classify_verdict <- function(x) {
-  ifelse(x >= .get_param("verdict_good"), "Good",
-    ifelse(x >= .get_param("verdict_moderate"), "Moderate", "Poor"))
-}
-
 #' Nice x-axis step for protein-length scales
+#' @return An integer step size for x-axis breaks.
 #' @noRd
 .nice_x_step <- function(protein_length) {
   max(50L, as.integer(round(protein_length / 10.0 / 50.0) * 50L))
 }
 
 #' Guard against empty peptide tables
+#' @param data A data frame to check.
+#' @param name Character string, argument name for error message.
+#' @param class Character string, error class to raise.
+#' @return `data`, invisibly.
 #' @noRd
 .validate_nonempty <- function(data, name = "data", class = "pepvet_error_invalid_input") {
   if (is.data.frame(data) && nrow(data) == 0L) {
@@ -240,6 +241,7 @@ NULL
 #'
 #' @param protein_id Character string - the raw protein ID from the pepVet
 #'   peptide table.
+#' @return A character string with a shortened display label.
 #' @noRd
 .tidy_protein_id <- function(protein_id) {
   # UniProt format: sp|ACC|GENE or tr|ACC|GENE
@@ -275,6 +277,7 @@ NULL
 #' Validate an evaluate_digest result for plotting
 #'
 #' @param result Object to validate.
+#' @return `NULL`, invisibly. Raises an error on invalid input.
 #' @noRd
 .validate_digest_result_for_plot <- function(result) {
   if (
@@ -327,6 +330,7 @@ NULL
 # -- Panel builders (internal) -----------------------------------------------
 
 #' Panel A - Peptide length distribution
+#' @return A ggplot object.
 #' @noRd
 .panel_length <- function(peps, length_range) {
   length_lo <- length_range[[1L]]
@@ -390,6 +394,7 @@ NULL
 
 
 #' Panel B - GRAVY hydrophobicity distribution
+#' @return A ggplot object.
 #' @noRd
 .panel_gravy <- function(peps, gravy_range) {
   gravy_lo <- gravy_range[[1L]]
@@ -723,6 +728,7 @@ NULL
 
 
 #' Panel C - Sequence coverage map
+#' @return A ggplot object.
 #' @noRd
 .panel_coverage <- function(peps, protein_length, length_range) {
   # Delegate statistics to the shared helper (MC=0 only for coverage %)
@@ -838,6 +844,7 @@ NULL
 
 
 #' Panel D - Component score bar chart
+#' @return A ggplot object.
 #' @noRd
 .panel_scores <- function(scores) {
   score_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")

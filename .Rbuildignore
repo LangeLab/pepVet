@@ -38,3 +38,5 @@
 ^\.lintr$
 ^tmp$
 ^tmp/
+^paper$
+^paper/

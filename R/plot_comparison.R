@@ -3,6 +3,7 @@
 
 #' Validate comparison tibble for plotting (internal helper)
 #'
+#' @return The validated `comparison` tibble, invisibly.
 #' @noRd
 .validate_comparison_for_plot <- function(comparison) {
   if (!is.data.frame(comparison)) {

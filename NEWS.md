@@ -11,7 +11,9 @@
 * Replaced `import(cleaver)` with `@importFrom cleaver cleavageRanges` (G-07). Removed the `.cleavage_ranges` workaround via `get("cleavageRanges", envir = asNamespace("cleaver"))` and now calls `cleaver::cleavageRanges()` directly.
 * Removed dead code: `.compute_difficulty_flags()` in `evaluation.R` was defined but never called. Its logic was superseded by `.batch_difficulty_flags()`.
 * Made `plot_coverage_map()` gradient stops (`color_by = "hydrophobicity"`) data-driven instead of hardcoding the GRAVY valid-range boundary at 0.6. The 4 color stops are now evenly spaced across the actual GRAVY range of the displayed peptides.
-* Suppressed two R CMD check notes by adding `.lintr` and `tmp/` to `.Rbuildignore`.
+* Suppressed three R CMD check notes by adding `.lintr`, `tmp/`, and `paper/` to `.Rbuildignore`.
+* Added missing `@return` roxygen tags to 10 internal helper functions across the source.
+* Removed duplicate `.classify_verdict()` from `plot_utils.R` (G-04). The function was defined in both `scoring.R` and `plot_utils.R` with identical logic; `plot_utils.R`'s silently shadowed `scoring.R`'s due to file-sourcing order. All verdict classification now uses the single source at `R/scoring.R:263`.
 
 ## Bug fixes
 

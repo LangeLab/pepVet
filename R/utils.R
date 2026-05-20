@@ -279,7 +279,7 @@ NULL
     .abort(
       c(
         "Named {.arg weights} must match the scoring component names.",
-        "i" = paste("Expected names:", paste(expected_names, collapse = ", "))
+        "i" = "Expected names: {.val {expected_names}}"
       ),
       class = "pepvet_error_invalid_weights"
     )
@@ -304,11 +304,7 @@ NULL
   expected_lengths <- if (isTRUE(has_proteome)) c(6L) else c(5L, 6L)
   if (!length(weights) %in% expected_lengths) {
     .abort(
-      paste0(
-        "{.arg weights} must contain exactly ",
-        paste(expected_lengths, collapse = " or "),
-        " value(s) in this scoring mode."
-      ),
+      "{.arg weights} must contain exactly {paste(expected_lengths, collapse = ' or ')} value(s) in this scoring mode.",
       class = "pepvet_error_invalid_weights"
     )
   }
@@ -319,10 +315,7 @@ NULL
     if (normalized_weights[["S_unique"]] > 0) {
       .abort(
         c(
-          paste(
-            "{.arg weights} assigns a non-zero value to",
-            "{.field S_unique} but no {.arg proteome} was supplied."
-          ),
+          "{.arg weights} assigns a non-zero value to {.field S_unique} but no {.arg proteome} was supplied.",
           "i" = "Provide a proteome digest for uniqueness scoring or set S_unique to 0."
         ),
         class = "pepvet_error_invalid_weights"
@@ -423,7 +416,7 @@ pepvet_preset <- function(type = "standard") {
     .abort(
       c(
         "{.arg type} must be one of pepVet's supported preset names.",
-        "i" = paste("Supported presets:", paste(names(.pepvet_presets), collapse = ", "))
+        "i" = "Supported presets: {.val {names(.pepvet_presets)}}"
       ),
       class = "pepvet_error_invalid_preset"
     )
@@ -515,14 +508,8 @@ pepvet_preset <- function(type = "standard") {
   if (!enzyme %in% .supported_digest_enzymes) {
     .abort(
       c(
-        paste(
-          "{.arg enzyme} must be one of pepVet's supported",
-          "cleaver-compatible enzyme names."
-        ),
-        "i" = paste(
-          "Supported enzymes:",
-          paste(.supported_digest_enzymes, collapse = ", ")
-        )
+        "{.arg enzyme} must be one of pepVet's supported cleaver-compatible enzyme names.",
+        "i" = "Supported enzymes: {.val { .supported_digest_enzymes}}"
       ),
       class = "pepvet_error_invalid_enzyme"
     )
@@ -599,14 +586,14 @@ pepvet_preset <- function(type = "standard") {
 
   if (is.na(sequence)) {
     .abort(
-      paste0("Sequence '", sequence_name, "' must not be missing."),
+      "Sequence '{sequence_name}' must not be missing.",
       class = "pepvet_error_invalid_sequence"
     )
   }
 
   if (!nzchar(trimws(sequence))) {
     .abort(
-      paste0("Sequence '", sequence_name, "' must not be empty."),
+      "Sequence '{sequence_name}' must not be empty.",
       class = "pepvet_error_invalid_sequence"
     )
   }
@@ -618,13 +605,7 @@ pepvet_preset <- function(type = "standard") {
 
   if (length(invalid_residues) > 0L) {
     .abort(
-      paste0(
-        "Sequence '",
-        sequence_name,
-        "' contains unsupported amino acid code(s): ",
-        paste(invalid_residues, collapse = ", "),
-        "."
-      ),
+      "Sequence '{sequence_name}' contains unsupported amino acid code(s): {paste(invalid_residues, collapse = ', ')}.",
       class = "pepvet_error_invalid_sequence"
     )
   }
@@ -659,11 +640,7 @@ pepvet_preset <- function(type = "standard") {
     if (length(sequence) == 1L && !is.na(sequence) && file.exists(sequence)) {
       if (dir.exists(sequence)) {
         .abort(
-          paste0(
-            "Expected a FASTA file path, but '",
-            sequence,
-            "' is a directory."
-          ),
+          "Expected a FASTA file path, but '{sequence}' is a directory.",
           class = "pepvet_error_missing_file"
         )
       }
@@ -678,7 +655,7 @@ pepvet_preset <- function(type = "standard") {
           .looks_like_path(sequence)
       ) {
         .abort(
-          paste0("FASTA file not found: '", sequence, "'."),
+          "FASTA file not found: '{sequence}'.",
           class = "pepvet_error_missing_file"
         )
       }
@@ -773,11 +750,7 @@ pepvet_preset <- function(type = "standard") {
 
   if (anyNA(residue_index)) {
     .abort(
-      paste0(
-        "Unknown amino acid code(s): ",
-        paste(unique(residues[is.na(residue_index)]), collapse = ", "),
-        "."
-      )
+      "Unknown amino acid code(s): {paste(unique(residues[is.na(residue_index)]), collapse = ', ')}."
     )
   }
 
@@ -812,11 +785,7 @@ pepvet_preset <- function(type = "standard") {
 .normalize_peptide_sequences <- function(sequence, arg_name = "sequence") {
   if (!is.character(sequence) || length(sequence) == 0L) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        "} must be a non-empty character vector of peptide sequences."
-      ),
+      "{.arg {arg_name}} must be a non-empty character vector of peptide sequences.",
       class = "pepvet_error_invalid_sequence"
     )
   }
@@ -1013,11 +982,7 @@ calculate_pI <- function(sequence) {
 
   if (length(normalized_sequences) > .get_param("scatter_max_pts")) {
     cli::cli_inform(
-      paste0(
-        "Calculating peptide pI values for ",
-        length(normalized_sequences),
-        " sequences."
-      )
+      "Calculating peptide pI values for {length(normalized_sequences)} sequences."
     )
   }
 

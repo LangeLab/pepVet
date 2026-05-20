@@ -216,10 +216,7 @@ plot_coverage_map <- function(result,
     ) {
       .abort(
         c(
-          "!" = paste0(
-            "{.arg cleavage_sites} must be a data.frame from ",
-            "{.fn annotate_cleavage_sites}."
-          ),
+          "!" = "{.arg cleavage_sites} must be a data.frame from {.fn annotate_cleavage_sites}.",
           "i" = "Required columns: {.code position}, {.code efficiency}."
         ),
         class = "pepvet_error_invalid_cleavage_sites"
@@ -233,10 +230,7 @@ plot_coverage_map <- function(result,
     ) {
       .abort(
         c(
-          "!" = paste0(
-            "{.arg domains} must be a data.frame with columns ",
-            "{.code name}, {.code start}, {.code end}."
-          ),
+          "!" = "{.arg domains} must be a data.frame with columns {.code name}, {.code start}, {.code end}.",
           "i" = "Each row describes one annotated protein domain."
         ),
         class = "pepvet_error_invalid_domains"

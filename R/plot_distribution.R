@@ -843,11 +843,7 @@ plot_pI_distribution <- function(
   } else {
     .abort(
       c(
-        paste(
-          "{.arg result} must be an {.fn evaluate_digest} list,",
-          "a {.fn score_peptides} tibble, a data.frame with a",
-          "{.field pI} column, or a numeric vector."
-        ),
+        "{.arg result} must be an {.fn evaluate_digest} list, a {.fn score_peptides} tibble, a data.frame with a {.field pI} column, or a numeric vector.",
         "x" = "Got {.cls {class(result)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -1404,11 +1400,7 @@ plot_mz_distribution <- function(
   } else {
     .abort(
       c(
-        paste0(
-          "{.arg result} must be an {.fn evaluate_digest} list, a",
-          " named list of such results, or a data.frame with a",
-          " {.field peptide} column."
-        ),
+        "{.arg result} must be an {.fn evaluate_digest} list, a named list of such results, or a data.frame with a {.field peptide} column.",
         "x" = "Got {.cls {class(result)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -1424,10 +1416,7 @@ plot_mz_distribution <- function(
     # Filter to valid length range, compute m/z per charge state
     if (!"peptide" %in% names(peps)) {
       .abort(
-        paste0(
-          "{.arg result} must contain a {.field peptide} column",
-          " to compute m/z values."
-        ),
+        "{.arg result} must contain a {.field peptide} column to compute m/z values.",
         class = "pepvet_error_invalid_digest_result"
       )
     }

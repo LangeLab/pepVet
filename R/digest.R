@@ -133,10 +133,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 
   if (length(normalized_input) != 1L) {
     .abort(
-      paste(
-        "{.arg sequence} must resolve to exactly one protein for cleavage-site",
-        "annotation."
-      ),
+      "{.arg sequence} must resolve to exactly one protein for cleavage-site annotation.",
       class = "pepvet_error_invalid_input"
     )
   }
@@ -146,14 +143,8 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
   if (!.supports_cleavage_efficiency_annotations(normalized_enzyme)) {
     .abort(
       c(
-        paste(
-          "Cleavage-efficiency annotations are currently implemented only for",
-          "the trypsin family."
-        ),
-        "i" = paste(
-          "Supported annotation enzymes:",
-          paste(.cleavage_annotation_trypsin_enzymes, collapse = ", ")
-        )
+        "Cleavage-efficiency annotations are currently implemented only for the trypsin family.",
+        "i" = "Supported annotation enzymes: {.val { .cleavage_annotation_trypsin_enzymes}}"
       ),
       class = "pepvet_error_unsupported_cleavage_annotation"
     )

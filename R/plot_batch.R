@@ -430,10 +430,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   if (length(missing_cols) > 0L) {
     .abort(
       c(
-        "!" = paste0(
-          "{.arg comparison} must be a tibble from ",
-          "{.fn batch_compare_enzymes}."
-        ),
+        "!" = "{.arg comparison} must be a tibble from {.fn batch_compare_enzymes}.",
         "i" = "Missing columns: {.val {missing_cols}}."
       ),
       class = "pepvet_error_invalid_batch"

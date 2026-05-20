@@ -10,11 +10,7 @@
 .validate_digest_result <- function(digest_result, arg_name = "digest_result") {
   if (!inherits(digest_result, "data.frame")) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        "} must be a digest tibble or data frame with pepVet digest columns."
-      ),
+      "{.arg {arg_name}} must be a digest tibble or data frame with pepVet digest columns.",
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -24,12 +20,8 @@
   if (length(missing_columns) > 0L) {
     .abort(
       c(
-        paste0(
-          "{.arg ",
-          arg_name,
-          "} is missing required digest columns."
-        ),
-        "i" = paste("Missing columns:", paste(missing_columns, collapse = ", "))
+        "{.arg {arg_name}} is missing required digest columns.",
+        "i" = "Missing columns: {.val {missing_columns}}"
       ),
       class = "pepvet_error_invalid_digest"
     )
@@ -37,7 +29,7 @@
 
   if (nrow(digest_result) == 0L) {
     .abort(
-      paste0("{.arg ", arg_name, "} must contain at least one peptide row."),
+      "{.arg {arg_name}} must contain at least one peptide row.",
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -49,14 +41,7 @@
       !is.character(digest_result$peptide)
   ) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        paste(
-          "} must store {.field protein_id} and {.field peptide}",
-          "as character columns."
-        )
-      ),
+      "{.arg {arg_name}} must store {.field protein_id} and {.field peptide} as character columns.",
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -65,18 +50,14 @@
 
   if (!all(vapply(digest_result[numeric_columns], is.numeric, logical(1)))) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        "} must store coordinate and count columns as numeric values."
-      ),
+      "{.arg {arg_name}} must store coordinate and count columns as numeric values.",
       class = "pepvet_error_invalid_digest"
     )
   }
 
   if (anyNA(digest_result)) {
     .abort(
-      paste0("{.arg ", arg_name, "} must not contain missing values."),
+      "{.arg {arg_name}} must not contain missing values.",
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -89,11 +70,7 @@
 
   if (any(row_starts < 1L) || any(row_ends < row_starts)) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        "} contains invalid start/end coordinates."
-      ),
+      "{.arg {arg_name}} contains invalid start/end coordinates.",
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -103,22 +80,14 @@
       any(row_lengths != (row_ends - row_starts + 1L))
   ) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        "} must have internally consistent peptide lengths."
-      ),
+      "{.arg {arg_name}} must have internally consistent peptide lengths.",
       class = "pepvet_error_invalid_digest"
     )
   }
 
   if (any(row_missed < 0L)) {
     .abort(
-      paste0(
-        "{.arg ",
-        arg_name,
-        "} must not contain negative missed-cleavage counts."
-      ),
+      "{.arg {arg_name}} must not contain negative missed-cleavage counts.",
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -202,10 +171,7 @@
                          valid_digest = NULL) {
   if (.has_no_cleavage_sites(protein_digest)) {
     cli::cli_warn(
-      paste(
-        "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage",
-        "sites for {.val {enzyme}}. S_count set to 0."
-      )
+      "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage sites for {.val {enzyme}}. S_count set to 0."
     )
 
     return(0)

@@ -148,10 +148,7 @@ digest_report <- function(x, title = NULL) {
     .report_comparison(x, title)
   } else {
     .abort(
-      paste(
-        "{.arg x} must be a list from {.fn evaluate_digest} or a tibble from",
-        "{.fn compare_digests}."
-      ),
+      "{.arg x} must be a list from {.fn evaluate_digest} or a tibble from {.fn compare_digests}.",
       class = "pepvet_error_invalid_report_input"
     )
   }

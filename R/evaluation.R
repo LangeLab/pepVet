@@ -156,10 +156,7 @@ compare_digests <- function(sequence,
                             ...) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
     .abort(
-      paste(
-        "{.arg enzymes} must be a non-empty character vector",
-        "with no missing values."
-      ),
+      "{.arg enzymes} must be a non-empty character vector with no missing values.",
       class = "pepvet_error_invalid_enzymes"
     )
   }
@@ -168,10 +165,7 @@ compare_digests <- function(sequence,
 
   if (length(normalized_input) != 1L) {
     .abort(
-      paste(
-        "{.arg sequence} must resolve to exactly one protein",
-        "for enzyme comparison."
-      ),
+      "{.arg sequence} must resolve to exactly one protein for enzyme comparison.",
       class = "pepvet_error_invalid_input"
     )
   }
@@ -447,7 +441,7 @@ batch_evaluate <- function(sequences,
     .abort(
       c(
         "{.arg batch_result} is missing required columns from {.fn batch_evaluate}.",
-        "i" = paste("Missing:", paste(missing_cols, collapse = ", "))
+        "i" = "Missing: {.val {missing_cols}}"
       ),
       class = "pepvet_error_invalid_batch_result"
     )

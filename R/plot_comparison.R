@@ -8,8 +8,7 @@
   if (!is.data.frame(comparison)) {
     .abort(
       c(
-        "{.arg comparison} must be a data.frame / tibble returned by
-         {.fn compare_digests}.",
+        "{.arg comparison} must be a data.frame / tibble returned by {.fn compare_digests}.",
         "x" = "Got {.cls {class(comparison)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_comparison"

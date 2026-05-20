@@ -101,10 +101,7 @@ export_peptide_list <- function(peptides,
 .validate_export_peptides <- function(peptides) {
   if (!inherits(peptides, "data.frame")) {
     .abort(
-      paste(
-        "{.arg peptides} must be a peptide tibble from {.fn digest_protein}",
-        "or {.fn evaluate_digest}{.code $peptides}."
-      ),
+      "{.arg peptides} must be a peptide tibble from {.fn digest_protein} or {.fn evaluate_digest}{.code $peptides}.",
       class = "pepvet_error_invalid_export_input"
     )
   }
@@ -116,7 +113,7 @@ export_peptide_list <- function(peptides,
     .abort(
       c(
         "{.arg peptides} is missing required columns.",
-        "i" = paste("Missing:", paste(missing_cols, collapse = ", "))
+        "i" = "Missing: {.val {missing_cols}}"
       ),
       class = "pepvet_error_invalid_export_input"
     )
@@ -145,7 +142,7 @@ export_peptide_list <- function(peptides,
     .abort(
       c(
         "{.arg format} {.val {format}} is not supported.",
-        "i" = paste("Supported formats:", paste(supported, collapse = ", "))
+        "i" = "Supported formats: {.val {supported}}"
       ),
       class = "pepvet_error_invalid_export_format"
     )
@@ -163,10 +160,7 @@ export_peptide_list <- function(peptides,
       any(charges != as.integer(charges))
   ) {
     .abort(
-      paste(
-        "{.arg charges} must be a non-empty integer vector of positive",
-        "charge states (e.g., {.code 2:3})."
-      ),
+      "{.arg charges} must be a non-empty integer vector of positive charge states (e.g., {.code 2:3}).",
       class = "pepvet_error_invalid_charges"
     )
   }

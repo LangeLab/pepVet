@@ -528,10 +528,7 @@ NULL
 
   if (nrow(mc0_peps) == 0L) {
     .abort(
-      paste(
-        "Could not reconstruct the full protein sequence because no MC=0",
-        "peptides were available."
-      ),
+      "Could not reconstruct the full protein sequence because no MC=0 peptides were available.",
       class = "pepvet_error_invalid_digest_result"
     )
   }
@@ -545,10 +542,7 @@ NULL
 
     if (length(peptide_chars) != length(residue_positions)) {
       .abort(
-        paste(
-          "Peptide coordinates do not match peptide sequence length during",
-          "sequence reconstruction."
-        ),
+        "Peptide coordinates do not match peptide sequence length during sequence reconstruction.",
         class = "pepvet_error_invalid_digest_result"
       )
     }
@@ -557,10 +551,7 @@ NULL
     has_mismatch <- !is.na(existing_chars) & existing_chars != peptide_chars
     if (any(has_mismatch)) {
       .abort(
-        paste(
-          "Peptide table contains inconsistent residue assignments and cannot",
-          "be rendered as a sequence map."
-        ),
+        "Peptide table contains inconsistent residue assignments and cannot be rendered as a sequence map.",
         class = "pepvet_error_invalid_digest_result"
       )
     }
@@ -570,10 +561,7 @@ NULL
 
   if (anyNA(sequence_chars)) {
     .abort(
-      paste(
-        "Could not reconstruct a complete protein sequence from the peptide",
-        "table."
-      ),
+      "Could not reconstruct a complete protein sequence from the peptide table.",
       class = "pepvet_error_invalid_digest_result"
     )
   }

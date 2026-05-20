@@ -953,10 +953,9 @@ NULL
     ) +
     ggplot2::labs(
       title = "Component Scores",
-      subtitle = paste0(
-        "Dotted thresholds at ", .get_param("verdict_moderate"),
-        " (Moderate) and ", .get_param("verdict_good"),
-        " (Good). Dashed line = composite"
+      subtitle = sprintf(
+        "Dotted thresholds at %s (Moderate) and %s (Good). Dashed line = composite",
+        .get_param("verdict_moderate"), .get_param("verdict_good")
       ),
       x = "Score (0 \u2013 1)",
       y = NULL

@@ -11,10 +11,10 @@ peptide-set scoring, enzyme comparison, workflow preset
 selection, and console reporting for bottom-up proteomics.
 }
 \details{
-Version 0.1.3 adds the Phase 3 usability and visualization
-layers, including batch enzyme comparison, proteome-scale
-plotting, export helpers, and the current AHP-derived
-default scoring thresholds.
+Version 0.1.4 adds code quality improvements across the package:
+cli message standardisation, do.call(rbind) safety, cleaver import
+cleanup, duplicate verdict function removal, plot theme centralisation,
+dead code removal, roxygen doc completion, and .Rbuildignore cleanup.
 }
 \seealso{
 Useful links:

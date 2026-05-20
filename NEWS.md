@@ -2,8 +2,6 @@
 
 # pepVet 0.1.4
 
-> Current working version. Not yet released.
-
 ## Housekeeping
 
 * Standardised cli error messages across the package. Replaced all `paste0("{.arg ", var, "}")` patterns with `"{.arg {var}}"` cli glue syntax in `.abort()`, `cli_warn()`, and `cli_inform()` calls. Also converted `"i"` bullet `paste()` calls to `{.val {x}}` formatters.

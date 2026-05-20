@@ -621,9 +621,9 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ) +
     ggplot2::labs(
       title = "Score Distributions",
-      subtitle = paste0(
-        "Violin + IQR box  \u00b7  Fill = median verdict  ",
-        "\u00b7  Dashed lines = ", .get_param("verdict_moderate"), " / ", .get_param("verdict_good")
+      subtitle = sprintf(
+        "Violin + IQR box  \u00b7  Fill = median verdict  \u00b7  Dashed lines = %s / %s",
+        .get_param("verdict_moderate"), .get_param("verdict_good")
       ),
       x = "Composite score",
       y = NULL

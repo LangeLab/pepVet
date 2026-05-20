@@ -1276,10 +1276,9 @@ plot_missed_cleavage_impact <- function(
     ggplot2::coord_cartesian(ylim = c(0, 1.05)) +
     ggplot2::labs(
       title = auto_title,
-      subtitle = paste0(
-        "Bold line = composite  \u00b7  Dotted thresholds at ",
-        .get_param("verdict_moderate"), " / ", .get_param("verdict_good"),
-        "  \u00b7  Best MC highlighted"
+      subtitle = sprintf(
+        "Bold line = composite  \u00b7  Dotted thresholds at %s / %s  \u00b7  Best MC highlighted",
+        .get_param("verdict_moderate"), .get_param("verdict_good")
       ),
       x = "Missed cleavages allowed",
       y = "Score (0 \u2013 1)"

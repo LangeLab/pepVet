@@ -15,16 +15,21 @@
     }
     if (is.null(env$theme_overrides)) env$theme_overrides <- list()
 
-    # Unlock bindings and replace with active bindings
-    if (exists(".pepvet_pal", envir = ns, inherits = FALSE)) {
+    # Replace with active bindings (only on first load, before namespace lock).
+    # bindingIsActive is FALSE for regular bindings and TRUE for active ones,
+    # which makes this block idempotent and prevents rm() failures on locked
+    # namespaces during repeated .onLoad calls (e.g. from tests).
+    if (exists(".pepvet_pal", envir = ns, inherits = FALSE) &&
+        !bindingIsActive(".pepvet_pal", ns)) {
       unlockBinding(".pepvet_pal", ns)
-      rm(".pepvet_pal", envir = ns)
+      rm(list = ".pepvet_pal", envir = ns)
       makeActiveBinding(".pepvet_pal", function() env$pal, ns)
       lockBinding(".pepvet_pal", ns)
     }
-    if (exists(".pepvet_params", envir = ns, inherits = FALSE)) {
+    if (exists(".pepvet_params", envir = ns, inherits = FALSE) &&
+        !bindingIsActive(".pepvet_params", ns)) {
       unlockBinding(".pepvet_params", ns)
-      rm(".pepvet_params", envir = ns)
+      rm(list = ".pepvet_params", envir = ns)
       makeActiveBinding(".pepvet_params", function() env$params, ns)
       lockBinding(".pepvet_params", ns)
     }

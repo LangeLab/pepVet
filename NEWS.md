@@ -8,6 +8,8 @@
 
 * Standardised cli error messages across the package. Replaced all `paste0("{.arg ", var, "}")` patterns with `"{.arg {var}}"` cli glue syntax in `.abort()`, `cli_warn()`, and `cli_inform()` calls (G-06). Also converted `"i"` bullet `paste()` calls to `{.val {x}}` formatters.
 
+* Added `.bind_rows()` helper and replaced all bare `do.call(rbind, ...)` calls with it (G-01). The helper returns an empty tibble for empty input instead of failing silently.
+
 # pepVet 0.1.3
 
 ## Defaults

@@ -718,7 +718,7 @@ NULL
       stringsAsFactors = FALSE
     )
   })
-  do.call(rbind, rows)
+  .bind_rows(rows)
 }
 
 

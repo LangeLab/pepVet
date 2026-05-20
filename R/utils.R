@@ -206,6 +206,12 @@ NULL
   cli::cli_abort(message, ..., class = c(class, "pepvet_error"), call = call, .envir = call)
 }
 
+.bind_rows <- function(df_list) {
+  if (length(df_list) == 0L) return(tibble::tibble())
+  if (length(df_list) == 1L) return(tibble::as_tibble(df_list[[1L]]))
+  tibble::as_tibble(do.call(rbind, df_list))
+}
+
 .validate_gravy_range <- function(gravy_range) {
   if (!is.numeric(gravy_range) || length(gravy_range) != 2L || anyNA(gravy_range)) {
     .abort(

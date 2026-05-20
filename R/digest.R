@@ -307,6 +307,6 @@ digest_protein <- function(sequence,
     }
   )
 
-  do.call(rbind, digest_tables)
+  .bind_rows(digest_tables)
 }
 # nolint end

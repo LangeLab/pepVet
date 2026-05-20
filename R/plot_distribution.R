@@ -266,7 +266,7 @@ plot_length_distribution <- function(
     df$.label <- factor(labels[[i]], levels = labels)
     df
   })
-  peps <- do.call(rbind, peps_list)
+  peps <- .bind_rows(peps_list)
 
   # Use the first result's range as global default for shading
   g_lo <- peps_list[[1L]]$length_range_lo[[1L]]
@@ -677,7 +677,7 @@ plot_gravy_landscape <- function(
     df$.label <- factor(labels[[i]], levels = labels)
     df
   })
-  peps <- do.call(rbind, peps_list)
+  peps <- .bind_rows(peps_list)
 
   g_len_lo <- peps_list[[1L]]$length_lo[[1L]]
   g_len_hi <- peps_list[[1L]]$length_hi[[1L]]
@@ -1024,7 +1024,7 @@ plot_pI_distribution <- function(
       class = "pepvet_error_invalid_digest_result"
     )
   }
-  df <- do.call(rbind, pI_list)
+  df <- .bind_rows(pI_list)
 
   breaks <- sort(unique(as.numeric(fraction_breaks)))
   lo_break <- breaks[[1L]]
@@ -1144,7 +1144,7 @@ plot_missed_cleavage_impact <- function(
       stringsAsFactors = FALSE
     )
   })
-  df <- do.call(rbind, rows)
+  df <- .bind_rows(rows)
   df$mc_label <- factor(df$mc_label, levels = names(results))
   df$x_idx <- as.integer(df$mc_label)
 
@@ -1175,7 +1175,7 @@ plot_missed_cleavage_impact <- function(
     is_composite = TRUE,
     stringsAsFactors = FALSE
   )
-  long_df <- do.call(rbind, long_rows)
+  long_df <- .bind_rows(long_rows)
   rownames(long_df) <- NULL
 
   # ── Best MC for composite ────────────────────────────────────────────────
@@ -1442,7 +1442,7 @@ plot_mz_distribution <- function(
     charge_states_int <- sort(unique(as.integer(charge_states)))
     n_total <- nrow(valid_peps)
 
-    mz_long <- do.call(rbind, lapply(charge_states_int, function(z) {
+    mz_long <- .bind_rows(lapply(charge_states_int, function(z) {
       mz_vals <- as.numeric(
         calculate_peptide_mass(valid_peps$peptide, charge = z)
       )
@@ -1473,7 +1473,7 @@ plot_mz_distribution <- function(
   )
 
   # ── Per-charge-state % inside scan window ─────────────────────────────────
-  window_stats <- do.call(rbind, lapply(z_levels, function(z) {
+  window_stats <- .bind_rows(lapply(z_levels, function(z) {
     sub <- mz_long$mz[mz_long$charge_state == z]
     n_in <- sum(sub >= scan_lo & sub <= scan_hi, na.rm = TRUE)
     n_all <- sum(!is.na(sub))
@@ -1664,7 +1664,7 @@ plot_mz_distribution <- function(
 
   charge_states_int <- sort(unique(as.integer(charge_states)))
 
-  mz_all <- do.call(rbind, lapply(seq_along(results), function(i) {
+  mz_all <- .bind_rows(lapply(seq_along(results), function(i) {
     r <- results[[i]]
     lr <- r$params$length_range %||% length_range
     peps <- r$peptides
@@ -1675,7 +1675,7 @@ plot_mz_distribution <- function(
       return(NULL)
     }
 
-    rows <- do.call(rbind, lapply(charge_states_int, function(z) {
+    rows <- .bind_rows(lapply(charge_states_int, function(z) {
       mz_vals <- as.numeric(
         calculate_peptide_mass(peps$peptide, charge = z)
       )

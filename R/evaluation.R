@@ -95,7 +95,7 @@ evaluate_digest <- function(sequence,
       )
     }
   )
-  cleavage_counts <- tibble::as_tibble(do.call(rbind, cleavage_counts))
+  cleavage_counts <- .bind_rows(cleavage_counts)
   score_index <- match(scores$protein_id, cleavage_counts$protein_id)
   scores <- tibble::add_column(
     scores,
@@ -182,7 +182,7 @@ compare_digests <- function(sequence,
     tibble::add_column(ev$scores, enzyme = ev$params$enzyme, .before = 1L)
   })
 
-  result <- tibble::as_tibble(do.call(rbind, scored_rows))
+  result <- .bind_rows(scored_rows)
   result[order(result$composite_score, decreasing = TRUE), , drop = FALSE]
 }
 # nolint end
@@ -342,7 +342,7 @@ batch_evaluate <- function(sequences,
       }
     }
 
-    return(do.call(rbind, results))
+    return(.bind_rows(results))
   }
 
   .batch_evaluate_inner(
@@ -770,10 +770,10 @@ batch_compare_enzymes <- function(
     tibble::add_column(row, enzyme = enz, .after = "protein_id")
   })
 
-  combined <- do.call(rbind, results)
+  combined <- .bind_rows(results)
   combined$enzyme <- factor(combined$enzyme, levels = normalized_enzymes)
 
-  result <- tibble::as_tibble(combined)
+  result <- combined
   class(result) <- c("pepvet_batch_comparison", class(result))
   attr(result, "n_proteins") <- n_proteins
   attr(result, "n_enzymes") <- n_enzymes
@@ -824,7 +824,7 @@ print.pepvet_batch_comparison <- function(x, ...) {
       stringsAsFactors = FALSE
     )
   })
-  summary_tbl <- tibble::as_tibble(do.call(rbind, summary_rows))
+  summary_tbl <- .bind_rows(summary_rows)
 
   cat("\n")
   print(summary_tbl, n = n_enz)

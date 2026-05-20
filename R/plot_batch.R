@@ -274,7 +274,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
 
     ordered_flags <- present_flags[order(flag_pcts)]
 
-    flag_long <- do.call(rbind, lapply(ordered_flags, function(fc) {
+    flag_long <- .bind_rows(lapply(ordered_flags, function(fc) {
       vals <- as.logical(batch[[fc]])
       vals[is.na(vals)] <- FALSE
       n_flagged <- sum(vals)
@@ -457,7 +457,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   verdict_colors <- .pepvet_pal$verdict
 
   # ── Per-enzyme verdict summary table ─────────────────────────────────────
-  enz_stats <- do.call(rbind, lapply(enz_levels, function(enz) {
+  enz_stats <- .bind_rows(lapply(enz_levels, function(enz) {
     sub <- comparison[comparison$enzyme == enz, ]
     n <- nrow(sub)
     n_g <- sum(sub$verdict == "Good", na.rm = TRUE)
@@ -480,7 +480,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   best_enzyme <- enz_order[[1L]]
 
   # ── Panel A: Verdict summary (stacked 100% horizontal bars) ──────────────
-  enz_long <- do.call(rbind, lapply(enz_levels, function(enz) {
+  enz_long <- .bind_rows(lapply(enz_levels, function(enz) {
     row <- enz_stats[enz_stats$enzyme == enz, ]
     data.frame(
       enzyme = enz,
@@ -641,7 +641,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     S_charge   = "Charge"
   )
 
-  tile_rows <- do.call(rbind, lapply(enz_levels, function(enz) {
+  tile_rows <- .bind_rows(lapply(enz_levels, function(enz) {
     sub <- comparison[comparison$enzyme == enz, ]
     meds <- vapply(
       comp_cols,

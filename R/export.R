@@ -190,7 +190,7 @@ export_peptide_list <- function(peptides,
     })
   })
 
-  tibble::as_tibble(do.call(rbind, do.call(c, rows)))
+  .bind_rows(do.call(c, rows))
 }
 
 .export_generic <- function(peptides, valid_mask) {

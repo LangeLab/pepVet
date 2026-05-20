@@ -134,7 +134,7 @@ plot_enzyme_comparison <- function(
   comparison$enzyme <- factor(comparison$enzyme, levels = ordered_enzymes)
 
   # ── Reshape to long for Panel A ───────────────────────────────────────────
-  long <- do.call(rbind, lapply(seq_along(scores), function(i) {
+  long <- .bind_rows(lapply(seq_along(scores), function(i) {
     data.frame(
       enzyme = comparison$enzyme,
       score_name = display_names[[i]],

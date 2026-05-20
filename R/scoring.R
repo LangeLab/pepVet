@@ -466,5 +466,5 @@ score_peptides <- function(digest_result,
     }
   )
 
-  tibble::as_tibble(do.call(rbind, scored_rows))
+  .bind_rows(scored_rows)
 }

@@ -515,44 +515,6 @@ batch_evaluate <- function(sequences,
   )
 }
 
-.compute_difficulty_flags <- function(peptides) {
-  protein_length <- max(peptides$end)
-  valid_mask <-
-    peptides$length >= .get_param("length_lo") &
-    peptides$length <= .get_param("length_hi")
-  n_valid <- sum(valid_mask)
-  valid_peps <- peptides[valid_mask, , drop = FALSE]
-
-  flag_short_protein <- protein_length < 100L
-  flag_no_valid_peptides <- n_valid == 0L
-
-  flag_hydrophobic <- if (n_valid > 0L) {
-    gravy_vals <- .calculate_gravy_vec(valid_peps$peptide)
-    stats::median(gravy_vals) > 0.6
-  } else {
-    FALSE
-  }
-
-  mc0_peps <- peptides[peptides$missed_cleavages == 0L, , drop = FALSE]
-  mc0_peps <- mc0_peps[order(mc0_peps$start), , drop = FALSE]
-  protein_seq <- paste(mc0_peps$peptide, collapse = "")
-  flag_low_complexity <- if (nchar(protein_seq) > 0L) {
-    aa_counts <- table(strsplit(protein_seq, "", fixed = TRUE)[[1]])
-    max(aa_counts) / sum(aa_counts) > 0.5
-  } else {
-    FALSE
-  }
-
-  list(
-    protein_length = protein_length,
-    n_valid_peptides = n_valid,
-    flag_short_protein = flag_short_protein,
-    flag_no_valid_peptides = flag_no_valid_peptides,
-    flag_hydrophobic = flag_hydrophobic,
-    flag_low_complexity = flag_low_complexity
-  )
-}
-
 #' Summarize a Batch Digest Evaluation
 #'
 #' `summarize_batch()` extracts aggregate statistics from a [batch_evaluate()]

@@ -35,3 +35,6 @@
 ^.*\.BiocCheck$
 ^.*\.BiocCheck/
 ^\.DS_Store$
+^\.lintr$
+^tmp$
+^tmp/

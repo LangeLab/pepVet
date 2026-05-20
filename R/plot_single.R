@@ -522,9 +522,8 @@ plot_coverage_map <- function(result,
   # ── Fill scale ─────────────────────────────────────────────────────────────
   if (color_by == "hydrophobicity") {
     # Gradient: brand blue → green → amber → poor red
-    # values rescaled over the display range [-2, 2]
-    gravy_stops <- c(-2.0, -0.5, 0.6, 2.0)
-    rescaled <- (gravy_stops - (-2.0)) / 4.0
+    # 4 evenly-spaced color stops spanning the data GRAVY range
+    rescaled <- seq(0, 1, length.out = 4)
     p <- p + ggplot2::scale_fill_gradientn(
       colors = c(
         .pepvet_pal$brand, .pepvet_pal$good,

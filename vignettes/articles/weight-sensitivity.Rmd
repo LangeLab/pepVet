@@ -1,0 +1,161 @@
+---
+title: "Weight Sensitivity Analysis"
+description: >
+  Assess whether pepVet's verdicts and enzyme recommendations are robust to
+  plausible changes in the scoring weights, using Dirichlet-based Monte Carlo
+  perturbation.
+output:
+  rmarkdown::html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pepVet)
+```
+
+## What this analysis tells you
+
+pepVet's scoring weights (S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088) determine how each component score contributes to the composite. `sensitivity_analysis()` perturbs these weights thousands of times and measures whether the verdict or enzyme ranking holds up. The result answers one question: **does the conclusion depend on the exact weight values, or is it structurally sound?**
+
+A stable verdict (e.g. >95% Good across perturbations) means the conclusion is robust. An unstable verdict means the protein sits near a decision boundary and small changes in emphasis could tip it. That is not a weakness in pepVet. It is useful information: some proteins are genuinely borderline for a given enzyme, and the analysis flags them honestly.
+
+## A stable case: BSA with trypsin
+
+```{r bsa}
+bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+sens <- sensitivity_analysis(res, n_iter = 5000L)
+```
+
+The default composite for BSA trypsin is 0.885, well above the 0.65 Good threshold. The sensitivity analysis gives us the probabilistic verdict:
+
+```{r bsa-verdict}
+sens$summary$verdict_pct
+```
+
+100% Good. The composite varies (95% CI: `r round(sens$summary$composite_ci[1], 3)` to `r round(sens$summary$composite_ci[2], 3)`) but never drops below 0.65. The conclusion: **the Good verdict is not a consequence of the specific weight values. Any reasonable reweighting of the five dimensions still produces a Good score.**
+
+## A borderline case: Histone H3.1 with trypsin
+
+```{r histone}
+h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
+res_h3 <- evaluate_digest(h3_path, enzyme = "trypsin", missed_cleavages = 1L)
+sens_h3 <- sensitivity_analysis(res_h3, n_iter = 5000L)
+```
+
+Histone H3.1 is lysine- and arginine-rich. Trypsin over-digests it. The default composite sits near the 0.65 boundary. The sensitivity analysis reveals genuine uncertainty:
+
+```{r histone-verdict}
+sens_h3$summary$verdict_pct
+```
+
+The verdict flips between Good and Moderate depending on the weights. This is honest: H3.1 with trypsin is a borderline case by every measure. A user should not treat a Good verdict here as definitive. They should consider a different enzyme (Lys-C avoids the over-digestion problem entirely).
+
+## Visualising single-protein verdict distributions
+
+```{r plot, fig.width=7, fig.height=4}
+p <- plot_weight_sensitivity(sens_h3)
+p
+```
+
+The density shows composite scores spanning both sides of the 0.65 boundary. Compare with BSA, where the entire density sits safely in the Good region:
+
+```{r plot-bsa, fig.width=7, fig.height=3}
+p_bsa <- plot_weight_sensitivity(sens)
+p_bsa
+```
+
+## Proteome-scale analysis: 50 proteins across 10 enzymes
+
+Single-protein examples show the extremes. The real question is: across an entire proteome, what fraction of protein-enzyme pairs have stable verdicts? We use the built-in 50-protein fixture to find out.
+
+```{r batch}
+small_path <- system.file("extdata", "small_proteome_50_proteins.fasta",
+  package = "pepVet")
+enzymes <- c("trypsin", "lysc", "chymotrypsin-high", "asp-n endopeptidase",
+  "glutamyl endopeptidase", "arg-c proteinase", "thermolysin",
+  "pepsin", "staphylococcal peptidase i", "proteinase k")
+batch_comp <- batch_compare_enzymes(small_path, enzymes = enzymes)
+sens <- sensitivity_analysis(batch_comp, n_iter = 2000L)
+```
+
+Overall instability across the entire proteome:
+
+```{r total-inst}
+sens$summary$total_instability
+```
+
+This means `r round(sens$summary$total_instability * 100, 1)`% of all protein-enzyme-iteration triples produced a different verdict than the default weights would give.
+
+### The stable majority
+
+```{r stable-fraction}
+mean(sens$per_protein$verdict_instability < 0.05)
+```
+
+`r round(mean(sens$per_protein$verdict_instability < 0.05) * 100)`% of protein-enzyme pairs have a verdict that changes in fewer than 5% of iterations. For these, the default verdict is trustworthy.
+
+### Where does instability come from?
+
+Proteins near the 0.65 or 0.40 thresholds drive the instability. Proteins deep in Good or Poor territory stay put.
+
+```{r worst-proteins}
+worst <- head(sens$per_protein[order(sens$per_protein$verdict_instability,
+  decreasing = TRUE), ], 10)
+worst[, c("protein_id", "verdict_instability", "composite_mean",
+  "composite_lo", "composite_hi")]
+```
+
+The mean composites cluster around the 0.65 and 0.40 boundaries. The confidence intervals straddle the threshold. These are the same pattern we saw with Histone H3.1, now identified systematically across the proteome.
+
+### Which enzymes produce the most stable verdicts?
+
+The mean verdict instability is the fraction of iterations where the verdict changed. Lower is better — it means the verdict is robust to weight perturbation. A value of 0.05 means 95% of iterations kept the same verdict.
+
+```{r by-enzyme}
+sort(tapply(sens$per_protein$verdict_instability,
+  sens$per_protein$enzyme, mean))
+```
+
+Trypsin at ~0.08 means for a typical trypsin-protein pair, the verdict changes in only 8% of iterations — 92% stability. That is low instability and indicates robust verdicts. Lys-C is similar. Pepsin and thermolysin are higher because their broad specificity produces digests that straddle the verdict boundary more often.
+
+### Visualising the batch results
+
+```{r batch-plot, fig.width=10, fig.height=6}
+p_batch <- plot_weight_sensitivity(sens)
+p_batch
+```
+
+Each panel shows the distribution of per-protein verdict instability for one enzyme. Most values cluster near zero (stable). The long tail to the right are the borderline proteins we identified earlier.
+
+## What the analysis does and does not tell you
+
+It tells you whether the verdict or ranking is robust to the particular weight values. At single-protein scale, it distinguishes stable verdicts (BSA with trypsin, 100% Good) from genuinely uncertain ones (H3.1 with trypsin, ~15% Good / 85% Moderate). At proteome scale, it shows the fraction of your proteome that falls into each category and which enzymes minimize borderline cases.
+
+It does not tell you whether the weights are correct in an absolute sense. That would require empirical calibration against observed peptide detection rates. It does not tell you whether the verdict thresholds (0.65, 0.40) are optimal. Those are held fixed during the analysis.
+
+The practical use is this: when you see a verdict with >95% stability, you can trust it. When instability is high, the protein is genuinely borderline and deserves closer attention. Without sensitivity analysis, you have no way to distinguish trustworthy from uncertain classifications.
+
+## Technical notes
+
+The perturbation uses a Dirichlet distribution with concentration parameters alpha_i = nu * w0_i (nu = 63). This gives a standard deviation of approximately 0.05 for a weight of 0.2. The Dirichlet naturally respects the simplex constraint (weights sum to 1) without the clamping bias of uniform + renormalise. The method is a simplified form of Stochastic Multicriteria Acceptability Analysis (Lahdelma et al., 1998; Tervonen & Figueira, 2008).
+
+For batch inputs, the analysis processes proteins in chunks of 10,000 to keep memory under 1 GB regardless of proteome size.
+
+Proteins with no cleavage sites for a given enzyme receive composite = 0 and verdict = "Poor" as a hard override. This ensures undigestible proteins remain negative controls under all weight perturbations.
+
+### References
+
+Butler J, Jia J, Dyer J. Simulation techniques for the sensitivity analysis of multi-criteria decision models. *European Journal of Operational Research*. 1997;103:531-546.
+
+Lahdelma R, Hokkanen J, Salminen P. SMAA: Stochastic multiobjective acceptability analysis. *European Journal of Operational Research*. 1998;106(1):137-143.
+
+Mazurek J, Strzałka D. On the Monte Carlo weights in multiple criteria decision analysis. *PLOS ONE*. 2022;17(10):e0268950.
+
+Tervonen T, Figueira JR. A survey on stochastic multicriteria acceptability analysis methods. *Journal of Multi-Criteria Decision Analysis*. 2008;15(1-2):1-14.

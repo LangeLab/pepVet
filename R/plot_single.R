@@ -1049,3 +1049,249 @@ plot_cleavage_map <- function(result,
       legend.position    = if (has_efficiency) "bottom" else "none"
     )
 }
+
+
+#' Weight Sensitivity Plot
+#'
+#' `plot_weight_sensitivity()` visualises the result of
+#' [sensitivity_analysis()].  For single-protein input it draws a density plot
+#' of composite scores with verdict shading, threshold lines, and a rug mark
+#' at the default composite.  For batch input it draws a faceted histogram of
+#' per-protein verdict instability with per-enzyme mean and median annotations.
+#'
+#' @param x A list returned by [sensitivity_analysis()].
+#' @param title Optional character string for the plot title.  When `NULL`
+#'   (default) a title is auto-generated.
+#'
+#' @return A `ggplot` object.
+#'
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   sens <- sensitivity_analysis(res, n_iter = 1000L)
+#'   p <- plot_weight_sensitivity(sens)
+#'   print(p)
+#' }
+#'
+#' @seealso [sensitivity_analysis()]
+#' @family plot-single
+#' @export
+plot_weight_sensitivity <- function(x, title = NULL) {
+  rlang::check_installed("ggplot2",
+    reason = "to produce pepVet visualization plots"
+  )
+
+  if ("per_protein" %in% names(x)) {
+    .plot_sensitivity_batch(x, title)
+  } else {
+    .plot_sensitivity_single(x, title)
+  }
+}
+
+
+.plot_sensitivity_single <- function(x, title) {
+  iter <- x$iterations
+  summ <- x$summary
+  default_comp <- summ$composite_mean
+  n_iter <- nrow(iter)
+
+  auto_title <- title %||% "Weight Sensitivity Analysis"
+
+  iter_df <- iter
+  n_good <- sum(iter_df$verdict == "Good")
+  n_mod  <- sum(iter_df$verdict == "Moderate")
+  n_poor <- sum(iter_df$verdict == "Poor")
+
+  verdict_pct_str <- paste(
+    sprintf("%s (%.0f%%)", names(summ$verdict_pct), summ$verdict_pct * 100),
+    collapse = " / "
+  )
+
+  fill_scale <- c(
+    "Good"     = .pepvet_pal$good,
+    "Moderate" = .pepvet_pal$moderate,
+    "Poor"     = .pepvet_pal$poor
+  )
+
+  p <- ggplot2::ggplot(iter_df, ggplot2::aes(x = .data$composite_score))
+
+  if (n_mod > 0L && n_poor > 0L) {
+    p <- p + ggplot2::geom_density(
+      ggplot2::aes(fill = .data$verdict, color = .data$verdict),
+      alpha = 0.30, bw = 0.025, linewidth = 0.3
+    )
+  } else if (n_mod > 0L) {
+    p <- p +
+      ggplot2::geom_density(fill = .pepvet_pal$good, colour = .pepvet_pal$good,
+        alpha = 0.30, bw = 0.025, linewidth = 0.3) +
+      ggplot2::geom_density(
+        data = iter_df[iter_df$verdict == "Moderate", , drop = FALSE],
+        fill = .pepvet_pal$moderate, colour = .pepvet_pal$moderate,
+        alpha = 0.30, bw = 0.025, linewidth = 0.3
+      )
+  } else {
+    p <- p + ggplot2::geom_density(
+      fill = .pepvet_pal$good, color = .pepvet_pal$brand_dark,
+      alpha = 0.20, bw = 0.025, linewidth = 0.4
+    )
+  }
+
+  ci_lo <- summ$composite_ci[[1L]]
+  ci_hi <- summ$composite_ci[[2L]]
+
+  p <- p +
+    # Verdict zone annotations
+    ggplot2::annotate("text", x = 0.20, y = Inf,
+      label = "Poor", hjust = 0.5, vjust = 1.8, size = 3,
+      colour = .pepvet_pal$poor, fontface = "italic", alpha = 0.6) +
+    ggplot2::annotate("text", x = 0.525, y = Inf,
+      label = "Moderate", hjust = 0.5, vjust = 1.8, size = 3,
+      colour = .pepvet_pal$moderate, fontface = "italic", alpha = 0.6) +
+    ggplot2::annotate("text", x = 0.825, y = Inf,
+      label = "Good", hjust = 0.5, vjust = 1.8, size = 3,
+      colour = .pepvet_pal$good, fontface = "italic", alpha = 0.6) +
+    # Threshold lines
+    ggplot2::geom_vline(
+      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
+      linetype = "dashed", colour = .pepvet_pal$text_axis_title,
+      linewidth = 0.5) +
+    # CI ribbon
+    ggplot2::annotate("rect",
+      xmin = ci_lo, xmax = ci_hi, ymin = 0, ymax = Inf,
+      fill = .pepvet_pal$brand, alpha = 0.06) +
+    # Default composite rug
+    ggplot2::geom_rug(
+      data = data.frame(x = default_comp),
+      ggplot2::aes(x = .data$x),
+      sides = "b", colour = .pepvet_pal$brand_dark, linewidth = 0.8) +
+    ggplot2::annotate("text",
+      x = default_comp, y = 0,
+      label = sprintf("default = %.3f", default_comp),
+      hjust = 0, vjust = -0.5, size = 2.8,
+      colour = .pepvet_pal$brand_dark, fontface = "bold") +
+    ggplot2::scale_fill_manual(values = fill_scale, guide = "none") +
+    ggplot2::scale_colour_manual(values = fill_scale, guide = "none") +
+    ggplot2::labs(
+      title = auto_title,
+      subtitle = sprintf(
+        "%s  |  95%% CI [%.3f, %.3f]  |  %d iterations",
+        verdict_pct_str, ci_lo, ci_hi, n_iter
+      ),
+      x = "Composite score",
+      y = NULL
+    ) +
+    ggplot2::scale_x_continuous(
+      limits = c(0, 1),
+      expand = ggplot2::expansion(mult = 0.05)
+    ) +
+    .pepvet_theme() +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_blank(),
+      axis.text.y        = ggplot2::element_blank(),
+      axis.ticks.y       = ggplot2::element_blank()
+    )
+  p
+}
+
+
+# Batch sensitivity histogram
+.plot_sensitivity_batch <- function(x, title) {
+  pp <- x$per_protein
+  total_inst <- x$summary$total_instability
+  n_prot <- length(unique(pp$protein_id))
+  n_iter_est <- NULL  # not stored in summary, infer from data if possible
+
+  auto_title <- title %||% "Proteome Verdict Stability"
+
+  has_enzyme <- "enzyme" %in% names(pp)
+
+  if (!has_enzyme) {
+    median_inst <- stats::median(pp$verdict_instability, na.rm = TRUE)
+    pct_stable <- mean(pp$verdict_instability < 0.05, na.rm = TRUE) * 100
+
+    ggplot2::ggplot(pp, ggplot2::aes(x = .data$verdict_instability)) +
+      ggplot2::geom_histogram(bins = 30, fill = .pepvet_pal$brand,
+        colour = "white", alpha = 0.85, linewidth = 0.2) +
+      ggplot2::geom_vline(xintercept = total_inst,
+        colour = .pepvet_pal$poor, linewidth = 0.7, linetype = "dashed") +
+      ggplot2::geom_vline(xintercept = median_inst,
+        colour = .pepvet_pal$moderate, linewidth = 0.5, linetype = "dotted") +
+      ggplot2::annotate("text",
+        x = total_inst, y = Inf,
+        label = sprintf("Mean = %.1f%%", total_inst * 100),
+        hjust = if (total_inst > 0.5) 1 else -0.1,
+        vjust = 1.5, size = 2.8, colour = .pepvet_pal$poor,
+        fontface = "italic") +
+      ggplot2::labs(
+        title = auto_title,
+        subtitle = sprintf(
+          "%.0f%% of proteins have <5%% verdict instability  |  Median = %.1f%%  |  %d proteins",
+          pct_stable, median_inst * 100, n_prot
+        ),
+        x = "Verdict instability (fraction of iterations where verdict changed)",
+        y = "Count"
+      ) +
+      .pepvet_theme()
+  } else {
+    enz_means <- tapply(pp$verdict_instability, pp$enzyme, mean, na.rm = TRUE)
+    enz_medians <- tapply(pp$verdict_instability, pp$enzyme, stats::median, na.rm = TRUE)
+    enz_n <- tapply(pp$verdict_instability, pp$enzyme, function(v) sum(!is.na(v)))
+
+    enz_order <- names(sort(enz_means))
+    pp$enzyme <- factor(pp$enzyme, levels = enz_order)
+
+    ann_df <- data.frame(
+      enzyme = names(enz_means),
+      mean_inst = as.numeric(enz_means),
+      median_inst = as.numeric(enz_medians),
+      n_prots = as.integer(enz_n),
+      stringsAsFactors = FALSE
+    )
+    ann_df$enzyme <- factor(ann_df$enzyme, levels = enz_order)
+    ann_df$label <- sprintf(
+      "mean = %.1f%%\nmedian = %.1f%%\nn = %d",
+      ann_df$mean_inst * 100, ann_df$median_inst * 100, ann_df$n_prots
+    )
+
+    pct_stable <- mean(pp$verdict_instability < 0.05, na.rm = TRUE) * 100
+
+    # Wrap long enzyme names for facet labels
+    enz_levels <- levels(pp$enzyme)
+    wrapped <- vapply(enz_levels, function(e) {
+      paste(strwrap(e, width = 20), collapse = "\n")
+    }, character(1))
+    names(wrapped) <- enz_levels
+    pp$enzyme_wrapped <- factor(wrapped[as.character(pp$enzyme)],
+      levels = wrapped[enz_order])
+
+    ann_df$enzyme_wrapped <- factor(wrapped[as.character(ann_df$enzyme)],
+      levels = wrapped[enz_order])
+
+    ggplot2::ggplot(pp, ggplot2::aes(x = .data$verdict_instability)) +
+      ggplot2::geom_histogram(bins = 25, fill = .pepvet_pal$brand,
+        colour = "white", alpha = 0.75, linewidth = 0.15) +
+      ggplot2::geom_vline(data = ann_df,
+        ggplot2::aes(xintercept = .data$mean_inst),
+        colour = .pepvet_pal$poor, linewidth = 0.5, linetype = "dashed") +
+      ggplot2::geom_text(data = ann_df,
+        ggplot2::aes(x = Inf, y = Inf, label = .data$label),
+        hjust = 1.05, vjust = 1.2, size = 2.5,
+        colour = .pepvet_pal$text_subtitle, lineheight = 0.9) +
+      ggplot2::facet_wrap(~ .data$enzyme_wrapped, ncol = 5, scales = "free_y") +
+      ggplot2::labs(
+        title = auto_title,
+        subtitle = sprintf(
+          "%.0f%% of protein-enzyme pairs have <5%% verdict instability  |  %d proteins  |  %d enzymes",
+          pct_stable, n_prot, length(enz_means)
+        ),
+        x = "Verdict instability (fraction of iterations where verdict changed)",
+        y = "Count"
+      ) +
+      .pepvet_theme() +
+      ggplot2::theme(
+        strip.text = ggplot2::element_text(size = 7, face = "bold",
+          colour = .pepvet_pal$brand_dark, lineheight = 0.85)
+      )
+  }
+}

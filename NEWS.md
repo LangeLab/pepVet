@@ -2,6 +2,15 @@
 
 # pepVet 0.1.5
 
+## New functions
+
+* `sensitivity_analysis()` performs Monte Carlo weight perturbation via Dirichlet sampling. Reports probabilistic verdicts, composite CI, rank stability (top-1, Kendall tau), per-protein instability in batch mode, weight importance (R squared), and corner-case composites. Optional `importance` and `corner_cases` diagnostics.
+* `plot_weight_sensitivity()` generates a verdict-coloured density ridge plot from a sensitivity analysis result, with threshold lines and a rug mark at the default composite score.
+
+## Scoring
+
+* Zero-cleavage hard-fail: proteins with no cleavage sites for a given enzyme now receive composite = 0 and verdict = "Poor" regardless of other scores. Previously an uncuttable protein with ideal length/hydro/charge could score up to 0.426, crossing the Moderate threshold. The fix belongs in the scoring engine so sensitivity analysis treats these as deterministic negative controls.
+
 ## Plot fixes
 
 * `plot_digest_profile()` coverage panel now filters to the exact requested MC level instead of showing all levels. Overlapping peptides are stacked into sub-tracks via greedy interval packing, and the panel title includes the MC level. Gap overlays remain but the subtitle no longer counts uncovered regions; a small italic caption notes when some gaps are too narrow to render at plot scale.
@@ -10,7 +19,8 @@
 
 * Updated pkgdown color palette to match the new pepVet logo colors. Primary/secondary swapped for better link contrast. Favicons regenerated.
 * Replaced all logo references with the new `pepVet-logo.png`. Navbar shadow, rounded code blocks, sticky TOC sidebar added.
-* Flattened the Articles dropdown, removed redundant "Getting Started" entry and section headers.
+* Flattened the Articles dropdown. Removed redundant "Getting Started" entry and section headers.
+* Added prev/next navigation buttons to reference pages (client-side JS).
 
 # pepVet 0.1.4
 

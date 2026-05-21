@@ -85,6 +85,7 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
 Other plot-single:
 \code{\link[=plot_cleavage_map]{plot_cleavage_map()}},
 \code{\link[=plot_digest_profile]{plot_digest_profile()}},
-\code{\link[=plot_peptide_overlap_map]{plot_peptide_overlap_map()}}
+\code{\link[=plot_peptide_overlap_map]{plot_peptide_overlap_map()}},
+\code{\link[=plot_weight_sensitivity]{plot_weight_sensitivity()}}
 }
 \concept{plot-single}

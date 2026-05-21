@@ -874,3 +874,302 @@ triage_proteins <- function(batch_result) {
   tibble::add_column(flat, action = action)
 }
 # nolint end
+
+
+# ---- Weight sensitivity analysis ----
+
+#' Weight Sensitivity Analysis
+#'
+#' `sensitivity_analysis()` perturbs the default scoring weights using a
+#' Dirichlet distribution and reports how often the verdict (or enzyme ranking)
+#' changes. This answers the question: "If the weights were slightly different,
+#' would the recommendation change?"
+#'
+#' @param x An [evaluate_digest()], [compare_digests()], or [batch_evaluate()]
+#'   result.
+#' @param nu Dirichlet concentration scaling factor.  Controls how much the
+#'   perturbed weights are allowed to vary from the defaults.  Default `63`
+#'   gives a standard deviation of approximately 0.05 for a weight of 0.2.
+#'   Larger values produce tighter distributions; smaller values allow more
+#'   variation.
+#' @param n_iter Number of Monte Carlo iterations.  Default `10000L`.
+#' @param chunk_size Number of proteins to process per chunk in batch mode.
+#'   Default `10000L`.  Set lower on memory-constrained machines.
+#' @param importance Logical.  If `TRUE`, compute the squared Pearson
+#'   correlation (R squared) between each z-scored weight and the composite
+#'   score across iterations, indicating which weight drives the most variance.
+#' @param corner_cases Logical.  If `TRUE`, report the composite score when
+#'   each weight is at its 95 percent Dirichlet interval bound (others held at
+#'   default and renormalised).
+#'
+#' @return A list.  For single-protein input: `iterations` (tibble of per-draw
+#'   weights and composites), `convergence` (cumulative stability trace),
+#'   `summary` (probabilistic verdict, composite CI, optional R squared values
+#'   and corner-case table).  For multi-enzyme input: additionally reports
+#'   `top1_stability` and Kendall rank correlation.  For batch input: returns
+#'   `per_protein` (instability per protein) and `summary` aggregates.
+#'
+#' @examples
+#' bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#' res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#' sens <- sensitivity_analysis(res, n_iter = 1000L)
+#' sens$summary$verdict_pct
+#'
+#' @export
+sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
+                                  chunk_size = 10000L,
+                                  importance = FALSE,
+                                  corner_cases = FALSE) {
+  if (is.data.frame(x)) {
+    if ("enzyme" %in% names(x) && length(unique(x$protein_id)) == 1L) {
+      .sensitivity_enzymes(x, nu, n_iter, importance, corner_cases)
+    } else {
+      .sensitivity_batch(x, nu, n_iter, chunk_size, importance)
+    }
+  } else if (is.list(x) && "scores" %in% names(x)) {
+    .sensitivity_single(x$scores, x$params, nu, n_iter, importance, corner_cases)
+  } else {
+    .abort(
+      "{.arg x} must be an {.fn evaluate_digest}, {.fn compare_digests}, or {.fn batch_evaluate} result.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+}
+
+
+# ---- Single-protein sensitivity ----
+
+.sensitivity_single <- function(scores, params, nu, n_iter,
+                                 importance, corner_cases) {
+  score_row <- as.list(scores[1L, , drop = FALSE])
+  has_unique <- "S_unique" %in% names(score_row)
+  w0 <- if (has_unique) {
+    .default_scoring_weights$proteome_aware
+  } else {
+    .default_scoring_weights$protein_only
+  }
+
+  comp_names <- names(w0)
+  s_vec <- unlist(score_row[comp_names], use.names = FALSE)
+
+  alpha <- nu * w0
+  W <- .rdirichlet(as.integer(n_iter), alpha)
+  colnames(W) <- comp_names
+
+  composites <- drop(W %*% s_vec)
+  verdicts <- ifelse(
+    composites >= .get_param("verdict_good"), "Good",
+    ifelse(composites >= .get_param("verdict_moderate"), "Moderate", "Poor")
+  )
+
+  default_comp <- sum(w0 * s_vec)
+  default_verdict <- ifelse(
+    default_comp >= .get_param("verdict_good"), "Good",
+    ifelse(default_comp >= .get_param("verdict_moderate"), "Moderate", "Poor")
+  )
+
+  iter_df <- as.data.frame(W)
+  iter_df$iteration <- seq_len(n_iter)
+  iter_df$composite_score <- composites
+  iter_df$verdict <- verdicts
+  iter_df <- tibble::as_tibble(iter_df)
+
+  stab <- cumsum(verdicts == default_verdict) / seq_len(n_iter)
+  conv <- tibble::tibble(
+    iteration = seq_len(n_iter),
+    cumulative_stability = stab,
+    mc_se = sqrt(stab * (1 - stab) / seq_len(n_iter))
+  )
+
+  vtab <- table(verdicts)
+  verdict_pct <- as.numeric(prop.table(vtab))
+  names(verdict_pct) <- names(vtab)
+  qi <- stats::quantile(composites, c(0.025, 0.975), na.rm = TRUE)
+
+  out <- list(
+    iterations = iter_df,
+    convergence = conv,
+    summary = list(
+      verdict_pct      = verdict_pct,
+      composite_ci     = unname(qi),
+      composite_mean   = mean(composites, na.rm = TRUE)
+    )
+  )
+
+  if (importance) {
+    zW <- scale(W)
+    r2 <- vapply(seq_len(ncol(zW)), function(j) {
+      stats::cor(zW[, j], composites)^2
+    }, numeric(1))
+    names(r2) <- comp_names
+    out$summary$weight_importance <- r2
+  }
+
+  if (corner_cases) {
+    half_span <- sqrt(w0 * (1 - w0) / (nu + 1)) * stats::qnorm(0.975)
+    lo <- pmax(0, w0 - half_span)
+    hi <- pmin(1, w0 + half_span)
+    cc <- data.frame(
+      weight = comp_names,
+      default = w0,
+      lo = lo,
+      hi = hi,
+      composite_at_lo = NA_real_,
+      composite_at_hi = NA_real_,
+      stringsAsFactors = FALSE
+    )
+    for (i in seq_along(comp_names)) {
+      w_lo <- w0
+      w_lo[i] <- lo[i]
+      w_lo <- w_lo / sum(w_lo)
+      cc$composite_at_lo[i] <- sum(w_lo * s_vec)
+
+      w_hi <- w0
+      w_hi[i] <- hi[i]
+      w_hi <- w_hi / sum(w_hi)
+      cc$composite_at_hi[i] <- sum(w_hi * s_vec)
+    }
+    out$summary$corner_cases <- tibble::as_tibble(cc)
+  }
+
+  out
+}
+
+
+# ---- Multi-enzyme sensitivity ----
+
+.sensitivity_enzymes <- function(enzyme_tbl, nu, n_iter,
+                                  importance, corner_cases) {
+  enzymes <- unique(enzyme_tbl$enzyme)
+  res_list <- lapply(enzymes, function(enz) {
+    sub <- enzyme_tbl[enzyme_tbl$enzyme == enz, , drop = FALSE]
+    params <- list(enzyme = enz, protein_ids = sub$protein_id[[1L]])
+    .sensitivity_single(sub, params, nu, n_iter, importance, corner_cases)
+  })
+
+  n_enz <- length(enzymes)
+  rank_matrix <- matrix(NA_real_, nrow = n_iter, ncol = n_enz)
+  for (k in seq_len(n_enz)) {
+    rank_matrix[, k] <- res_list[[k]]$iterations$composite_score
+  }
+  top1 <- apply(rank_matrix, 1, function(row) enzymes[which.max(row)])
+  top1_stab <- prop.table(table(top1))
+
+  default_composites <- vapply(res_list, function(r) r$summary$composite_mean,
+    numeric(1))
+  default_rank <- order(default_composites, decreasing = TRUE)
+  kendalls <- apply(rank_matrix, 1, function(row) {
+    iter_rank <- order(row, decreasing = TRUE)
+    stats::cor(default_rank, iter_rank, method = "kendall")
+  })
+  kendall_mean <- mean(kendalls, na.rm = TRUE)
+
+  list(
+    summary = list(
+      top1_stability = top1_stab,
+      kendall_mean   = kendall_mean
+    )
+  )
+}
+
+
+# ---- Batch sensitivity ----
+
+.sensitivity_batch <- function(batch_tbl, nu, n_iter, chunk_size,
+                                importance) {
+  has_unique <- "S_unique" %in% names(batch_tbl)
+  w0 <- if (has_unique) {
+    .default_scoring_weights$proteome_aware
+  } else {
+    .default_scoring_weights$protein_only
+  }
+  comp_names <- names(w0)
+
+  S <- as.matrix(batch_tbl[, comp_names, drop = FALSE])
+  n_prot <- nrow(S)
+
+  alpha <- nu * w0
+  W <- .rdirichlet(as.integer(n_iter), alpha)
+
+  n_chunks <- ceiling(n_prot / chunk_size)
+  chunk_starts <- seq(1L, n_prot, by = chunk_size)
+
+  per_protein_list <- vector("list", n_chunks)
+
+  for (ci in seq_len(n_chunks)) {
+    idx <- chunk_starts[ci]:min(chunk_starts[ci] + chunk_size - 1L, n_prot)
+    S_chunk <- S[idx, , drop = FALSE]
+    C_chunk <- S_chunk %*% t(W)
+
+    def <- drop(S_chunk %*% w0)
+    def_verdict <- ifelse(
+      def >= .get_param("verdict_good"), "Good",
+      ifelse(def >= .get_param("verdict_moderate"), "Moderate", "Poor")
+    )
+
+    # Compare each iteration verdict with the default verdict
+    same <- (C_chunk >= .get_param("verdict_good")) == (def >= .get_param("verdict_good"))
+    instability <- 1 - rowMeans(same, na.rm = TRUE)
+
+    # Empirical quantiles (one pass per row for both tails)
+    ci_mat <- apply(C_chunk, 1L, stats::quantile, probs = c(0.025, 0.975), na.rm = TRUE)
+    ci_lo <- ci_mat[1L, ]
+    ci_hi <- ci_mat[2L, ]
+    comp_mean <- rowMeans(C_chunk, na.rm = TRUE)
+
+    per_protein_list[[ci]] <- tibble::tibble(
+      protein_id          = batch_tbl$protein_id[idx],
+      verdict_instability = instability,
+      composite_mean      = comp_mean,
+      composite_lo        = ci_lo,
+      composite_hi        = ci_hi
+    )
+
+    # Keep composites for importance calculation (shared across chunks)
+    if (importance) {
+      if (ci == 1L) {
+        C_all <- C_chunk
+      } else {
+        C_all <- rbind(C_all, C_chunk)
+      }
+    }
+
+    rm(C_chunk, same)
+  }
+
+  per_protein <- .bind_rows(per_protein_list)
+
+  # Preserve extra grouping columns from the input (e.g. enzyme)
+  extra_cols <- setdiff(names(batch_tbl), names(per_protein))
+  for (ec in extra_cols) {
+    per_protein[[ec]] <- batch_tbl[[ec]]
+  }
+
+  total_inst <- mean(per_protein$verdict_instability, na.rm = TRUE)
+  ci_widths <- per_protein$composite_hi - per_protein$composite_lo
+
+  out <- list(
+    per_protein = per_protein,
+    summary = list(
+      total_instability   = total_inst,
+      mean_ci_width       = mean(ci_widths, na.rm = TRUE),
+      ci_width_quantiles  = stats::quantile(ci_widths,
+        c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE)
+    )
+  )
+
+  if (importance) {
+    # C_all is n_prot x n_iter, W is n_iter x n_comp
+    r2_per_prot <- vapply(seq_len(n_prot), function(i) {
+      vapply(seq_along(comp_names), function(j) {
+        stats::cor(W[, j], C_all[i, ])^2
+      }, numeric(1))
+    }, numeric(length(comp_names)))
+
+    r2_mean <- rowMeans(r2_per_prot, na.rm = TRUE)
+    names(r2_mean) <- comp_names
+    out$summary$weight_importance <- r2_mean
+  }
+
+  out
+}

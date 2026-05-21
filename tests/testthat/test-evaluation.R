@@ -373,3 +373,88 @@ test_that("triage_proteins flat tibble contains expected score columns", {
     )
   )
 })
+
+# ── Weight sensitivity analysis ──────────────────────────────────────────────
+
+test_that("sensitivity_analysis returns correct structure for evaluate_digest input", {
+  res <- .fix_bsa_trypsin
+  sens <- sensitivity_analysis(res, n_iter = 500L)
+  expect_type(sens, "list")
+  expect_named(sens, c("iterations", "convergence", "summary"))
+  expect_s3_class(sens$iterations, "tbl_df")
+  expect_true("composite_score" %in% names(sens$iterations))
+  expect_true("verdict" %in% names(sens$iterations))
+  expect_equal(nrow(sens$iterations), 500L)
+  expect_true(sens$summary$verdict_pct["Good"] > 0.95)
+  expect_length(sens$summary$composite_ci, 2L)
+})
+
+test_that("sensitivity_analysis importance returns R2 values", {
+  res <- .fix_bsa_trypsin
+  sens <- sensitivity_analysis(res, n_iter = 500L, importance = TRUE)
+  expect_named(sens$summary$weight_importance,
+    c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge"))
+  expect_true(all(sens$summary$weight_importance >= 0))
+  expect_true(all(sens$summary$weight_importance <= 1))
+})
+
+test_that("sensitivity_analysis corner_cases returns table", {
+  res <- .fix_bsa_trypsin
+  sens <- sensitivity_analysis(res, n_iter = 500L, corner_cases = TRUE)
+  expect_s3_class(sens$summary$corner_cases, "tbl_df")
+  expect_true("composite_at_lo" %in% names(sens$summary$corner_cases))
+  expect_true("composite_at_hi" %in% names(sens$summary$corner_cases))
+})
+
+test_that("sensitivity_analysis verdict matches expectation for zero-cleavage protein", {
+  no_cleave <- "MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  res <- evaluate_digest(no_cleave, enzyme = "trypsin", missed_cleavages = 1L)
+  expect_identical(res$scores$verdict, "Poor")
+  expect_equal(res$scores$composite_score, 0)
+})
+
+test_that("sensitivity_analysis on multi-enzyme input returns rank stability", {
+  bsa_path <- .bsa_path
+  comp <- compare_digests(bsa_path,
+    enzymes = c("trypsin", "lysc"),
+    missed_cleavages = 1L
+  )
+  sens <- sensitivity_analysis(comp, n_iter = 500L)
+  expect_named(sens$summary, c("top1_stability", "kendall_mean"))
+  expect_true("trypsin" %in% names(sens$summary$top1_stability))
+  expect_true(sens$summary$kendall_mean > 0)
+})
+
+test_that("sensitivity_analysis on batch input returns per-protein instability", {
+  batch <- .fix_batch_small
+  sens <- sensitivity_analysis(batch, n_iter = 500L, chunk_size = 50L)
+  expect_named(sens, c("per_protein", "summary"))
+  expect_s3_class(sens$per_protein, "tbl_df")
+  expect_true("verdict_instability" %in% names(sens$per_protein))
+  expect_true("protein_id" %in% names(sens$per_protein))
+  expect_equal(nrow(sens$per_protein), nrow(batch))
+  expect_named(sens$summary, c("total_instability", "mean_ci_width", "ci_width_quantiles"))
+})
+
+test_that("Dirichlet sampler produces correct mean and variance", {
+  w0 <- c(a = 0.2, b = 0.3, c = 0.5)
+  nu <- 100
+  set.seed(42)
+  samples <- .rdirichlet(10000, nu * w0)
+  expect_equal(nrow(samples), 10000)
+  expect_equal(ncol(samples), 3L)
+  expect_equal(rowSums(samples), rep(1, 10000), tolerance = 1e-10)
+  col_means <- colMeans(samples)
+  expect_equal(as.numeric(col_means), as.numeric(w0), tolerance = 0.02)
+  col_vars <- apply(samples, 2, var)
+  expected_var <- as.numeric(w0 * (1 - w0) / (nu + 1))
+  expect_equal(as.numeric(col_vars), expected_var, tolerance = 0.005)
+})
+
+test_that("plot_weight_sensitivity returns a ggplot for single-protein input", {
+  skip_if_not_installed("ggplot2")
+  res <- .fix_bsa_trypsin
+  sens <- sensitivity_analysis(res, n_iter = 500L)
+  p <- plot_weight_sensitivity(sens)
+  expect_s3_class(p, "ggplot")
+})

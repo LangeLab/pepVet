@@ -42,6 +42,8 @@ navbar:
           href: articles/scoring-model.html
         - text: Visualising Digest Quality
           href: articles/visualisation.html
+        - text: Weight Sensitivity Analysis
+          href: articles/weight-sensitivity.html
     reference:
       text: Reference
       href: reference/index.html
@@ -81,6 +83,7 @@ reference:
       - evaluate_digest
       - compare_digests
       - recommend_enzyme
+      - sensitivity_analysis
 
   - title: "Batch workflows"
     desc: >
@@ -110,6 +113,7 @@ reference:
       - plot_enzyme_comparison
       - plot_proteome_overview
       - plot_batch_comparison
+      - plot_weight_sensitivity
 
   - title: "Plot Configuration & Output"
     desc: >
@@ -121,6 +125,14 @@ reference:
       - pepvet_theme_manuscript
       - pepvet_theme_presentation
       - pepvet_save_figure
+
+  - title: "Sensitivity analysis"
+    desc: >
+      Assess verdict and rank stability under weight perturbation via
+      Dirichlet-based Monte Carlo simulation.
+    contents:
+      - sensitivity_analysis
+      - plot_weight_sensitivity
 
   - title: "Reporting"
     desc: >

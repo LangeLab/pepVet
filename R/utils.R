@@ -203,6 +203,14 @@ NULL
   .pepvet_params[[name]]
 }
 
+# Dirichlet random vector generator (base R, no dependencies)
+# Returns an n x k matrix where each row sums to 1.
+.rdirichlet <- function(n, alpha) {
+  k <- length(alpha)
+  m <- matrix(rgamma(n * k, shape = rep(alpha, each = n)), nrow = n, ncol = k)
+  m / rowSums(m)
+}
+
 .abort <- function(message, ..., class = NULL, call = rlang::caller_env()) {
   cli::cli_abort(message, ..., class = c(class, "pepvet_error"), call = call, .envir = call)
 }

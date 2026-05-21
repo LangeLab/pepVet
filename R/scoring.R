@@ -436,6 +436,14 @@ score_peptides <- function(digest_result,
       )
       weighted_components <- component_scores[names(normalized_weights)]
       composite_score <- sum(weighted_components * normalized_weights)
+
+      # Zero-cleavage hard-fail: S_count == 0 and S_coverage == 0 means
+      # the protein was not digested by this enzyme.  Override composite
+      # and verdict so an undigestible protein is always "Poor".
+      if (component_scores[["S_count"]] == 0 && component_scores[["S_coverage"]] == 0) {
+        composite_score <- 0
+      }
+
       median_peptide_length <- .expected_peptide_length(
         protein_digest,
         normalized_enzyme

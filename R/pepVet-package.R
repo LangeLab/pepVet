@@ -4,7 +4,7 @@
 #' peptide-set scoring, enzyme comparison, workflow preset
 #' selection, and console reporting for bottom-up proteomics.
 #'
-#' Version 0.1.4 adds code quality improvements across the package:
+#' Version 0.1.5 adds weight sensitivity analysis, zero-cleavage hard-fail, and improved coverage panel.
 #' cli message standardisation, do.call(rbind) safety, cleaver import
 #' cleanup, duplicate verdict function removal, plot theme centralisation,
 #' dead code removal, roxygen doc completion, and .Rbuildignore cleanup.

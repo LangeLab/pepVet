@@ -59,7 +59,7 @@
 
 ## New functions
 
-* Added `batch_compare_enzymes()` to score an entire proteome against multiple enzymes in one call, returning a tidy tibble of class `pepvet_batch_comparison` with one row per protein–enzyme pair. Parallel execution is supported via `parallel::mclapply` on Unix (fork copy-on-write, zero serialization overhead) and `parallel::parLapply` on Windows; both are part of base R. Proteins are split into equal chunks, so all `cores` workers are utilised regardless of the number of enzymes.
+* Added `batch_compare_enzymes()` to score an entire proteome against multiple enzymes in one call, returning a tidy tibble of class `pepvet_batch_comparison` with one row per protein-enzyme pair. Parallel execution is supported via `parallel::mclapply` on Unix (fork copy-on-write, zero serialization overhead) and `parallel::parLapply` on Windows; both are part of base R. Proteins are split into equal chunks, so all `cores` workers are utilised regardless of the number of enzymes.
 
 ## Parallel robustness
 
@@ -68,7 +68,7 @@
 ## Amino acid data
 
 * Added `U` (selenocysteine, Sec) to the `aa_properties` reference table. 25 human proteins contain selenocysteine and were previously rejected during input validation.
-* Added `O` (pyrrolysine, Pyl) to the `aa_properties` reference table (row 22). Monoisotopic mass verified from PubChem CID 119813 and ChEBI CHEBI:91273 (C₁₂H₂₁N₃O₃, 255.15829 Da). Hydrophobicity and pKa are `NA`: the Kyte–Doolittle scale predates the discovery of pyrrolysine (1982 vs 2002), and the ε-amino group is tied up in an amide bond and is not titratable. `calculate_gravy()` now passes `na.rm = TRUE` so sequences containing O return a valid GRAVY score computed from the remaining residues.
+* Added `O` (pyrrolysine, Pyl) to the `aa_properties` reference table (row 22). Monoisotopic mass verified from PubChem CID 119813 and ChEBI CHEBI:91273 (C₁₂H₂₁N₃O₃, 255.15829 Da). Hydrophobicity and pKa are `NA`: the Kyte-Doolittle scale predates the discovery of pyrrolysine (1982 vs 2002), and the ε-amino group is tied up in an amide bond and is not titratable. `calculate_gravy()` now passes `na.rm = TRUE` so sequences containing O return a valid GRAVY score computed from the remaining residues.
 
 ## Removals
 

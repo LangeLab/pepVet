@@ -116,14 +116,14 @@ The mean composites cluster around the 0.65 and 0.40 boundaries. The confidence 
 
 ### Which enzymes produce the most stable verdicts?
 
-The mean verdict instability is the fraction of iterations where the verdict changed. Lower is better — it means the verdict is robust to weight perturbation. A value of 0.05 means 95% of iterations kept the same verdict.
+The mean verdict instability is the fraction of iterations where the verdict changed. Lower is better ;  it means the verdict is robust to weight perturbation. A value of 0.05 means 95% of iterations kept the same verdict.
 
 ```{r by-enzyme}
 sort(tapply(sens$per_protein$verdict_instability,
   sens$per_protein$enzyme, mean))
 ```
 
-Trypsin at ~0.08 means for a typical trypsin-protein pair, the verdict changes in only 8% of iterations — 92% stability. That is low instability and indicates robust verdicts. Lys-C is similar. Pepsin and thermolysin are higher because their broad specificity produces digests that straddle the verdict boundary more often.
+Trypsin at ~0.08 means for a typical trypsin-protein pair, the verdict changes in only 8% of iterations ;  92% stability. That is low instability and indicates robust verdicts. Lys-C is similar. Pepsin and thermolysin are higher because their broad specificity produces digests that straddle the verdict boundary more often.
 
 ### Visualising the batch results
 

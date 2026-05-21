@@ -1,7 +1,7 @@
 Package: pepVet
 Type: Package
 Title: Evaluate Proteolytic Digests for Proteomics Workflows
-Version: 0.1.4
+Version: 0.1.5
 Authors@R:
     person("Enes K. Ergin", email = "eneskemalergin@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-9810-7399"))

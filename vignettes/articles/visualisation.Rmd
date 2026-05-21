@@ -55,7 +55,7 @@ plot_cleavage_map(bsa_trypsin, cleavage_sites = cs)
 ### Peptide overlap map
 
 `plot_peptide_overlap_map()` colours each residue by how many
-detected peptides cover it — useful for assessing redundancy.
+detected peptides cover it. Useful for assessing redundancy.
 
 ```{r overlap-map, fig.width=12, fig.height=8}
 plot_peptide_overlap_map(bsa_trypsin)

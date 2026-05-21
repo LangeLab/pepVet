@@ -354,7 +354,7 @@ batch_evaluate <- function(sequences,
 
 # ---- Private batch helpers ----
 
-# Core pipeline for a pre-parsed AAStringSet — called by batch_evaluate() both
+# Core pipeline for a pre-parsed AAStringSet, called by batch_evaluate() both
 # in serial mode and from within each mclapply worker. Accepts extra scoring
 # arguments as a captured list (extra_args) so they survive fork serialization.
 .batch_evaluate_inner <- function(normalized_input, enzyme, missed_cleavages,
@@ -699,7 +699,7 @@ batch_compare_enzymes <- function(
     )
   }
 
-  # Parse input once — each per-enzyme batch_evaluate() call receives the
+  # Parse input once. Each per-enzyme batch_evaluate() call receives the
   # same in-memory AAStringSet, which fork workers share via copy-on-write.
   normalized_input <- .read_input(sequences)
   normalized_enzymes <- vapply(enzymes, .normalize_enzyme, character(1L),

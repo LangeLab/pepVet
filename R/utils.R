@@ -360,26 +360,26 @@ NULL
 #'
 #' ## Preset descriptions
 #'
-#' **`"standard"`** — Routine DDA. Default scoring configuration with default
+#' **`"standard"`** : Routine DDA. Default scoring configuration with default
 #' AHP-derived weights. Length range `[7, 25]` captures ~85% of identified
 #' tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range `[-1.0, 0.6]`
 #' covers the Kyte-Doolittle window for standard C18 LC-MS.
 #'
-#' **`"dia"`** — Data-independent acquisition (DIA / SWATH). Wider length range
+#' **`"dia"`** : Data-independent acquisition (DIA / SWATH). Wider length range
 #' `[7, 30]` because DIA fragments all precursors simultaneously and longer
 #' peptides can still be identified from fragment traces (Ludwig et al. 2018,
 #' \emph{Cell Systems}). Wider GRAVY range `[-1.0, 0.8]` since DIA decouples
 #' fragmentation from precursor selection, tolerating more hydrophobic peptides.
 #' Elevated coverage weight reflects the importance of sequence coverage in DIA.
 #'
-#' **`"targeted"`** — SRM / PRM / MRM quantification. Narrow length range
+#' **`"targeted"`** : SRM / PRM / MRM quantification. Narrow length range
 #' `[8, 20]`; shorter peptides fragment more reproducibly and produce cleaner
 #' transition traces (Lange et al. 2008, \emph{Mol Syst Biol}). Tight GRAVY
-#' range `[-0.8, 0.4]` for reliable LC retention. \code{S_unique} at 30\% —
+#' range `[-0.8, 0.4]` for reliable LC retention. \code{S_unique} at 30\%
 #' shared peptides cannot be used for quantification (Picotti & Aebersold 2012,
 #' \emph{Nat Methods}).
 #'
-#' **`"membrane"`** — Hydrophobic and membrane proteins. Extended GRAVY range
+#' **`"membrane"`** : Hydrophobic and membrane proteins. Extended GRAVY range
 #' `[-1.0, 2.0]` to accommodate transmembrane helices; membrane proteins contain
 #' long hydrophobic stretches with GRAVY values far exceeding soluble proteins
 #' (Vit & Petrak 2017, \emph{J Proteomics}; Helbig et al. 2010). Low
@@ -387,14 +387,14 @@ NULL
 #' defines this class. Wider length range `[7, 30]` captures longer
 #' transmembrane segments.
 #'
-#' **`"ffpe_degraded"`** — Archived FFPE tissue and degraded samples. Lowered
+#' **`"ffpe_degraded"`** : Archived FFPE tissue and degraded samples. Lowered
 #' minimum length `[6, 30]` because FFPE-derived peptides are shorter due to
 #' formalin-induced cross-linking and degradation (Coscia et al. 2020,
 #' \emph{Nat Commun}; Buczak et al. 2023, \emph{Mol Cell Proteomics}).
 #' Elevated \code{S_count} weight prioritises having more quantifiable
 #' peptides to compensate for reduced overall signal.
 #'
-#' **`"fractionated"`** — SCX / high-pH RP fractionation planning. Same
+#' **`"fractionated"`** : SCX / high-pH RP fractionation planning. Same
 #' scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
 #' to append peptide-level pI values for fractionation-aware analysis.
 #'
@@ -703,7 +703,7 @@ pepvet_preset <- function(type = "standard") {
   range_ends <- IRanges::end(strict_ranges)
   peptide_count <- length(strict_ranges)
 
-  # Fast path: no missed cleavages — return vectors directly with no loop.
+  # Fast path: no missed cleavages, return vectors directly with no loop.
   if (missed_cleavages == 0L) {
     return(list(
       start            = range_starts,

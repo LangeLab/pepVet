@@ -2,6 +2,16 @@
 
 # pepVet 0.1.5
 
+## Plot fixes
+
+* `plot_digest_profile()` coverage panel now filters to the exact requested MC level instead of showing all levels. Overlapping peptides are stacked into sub-tracks via greedy interval packing, and the panel title includes the MC level. Gap overlays remain but the subtitle no longer counts uncovered regions; a small italic caption notes when some gaps are too narrow to render at plot scale.
+
+## Site
+
+* Updated pkgdown color palette to match the new pepVet logo colors. Primary/secondary swapped for better link contrast. Favicons regenerated.
+* Replaced all logo references with the new `pepVet-logo.png`. Navbar shadow, rounded code blocks, sticky TOC sidebar added.
+* Flattened the Articles dropdown, removed redundant "Getting Started" entry and section headers.
+
 # pepVet 0.1.4
 
 ## Housekeeping
@@ -32,9 +42,9 @@
 ## Performance
 
 * `digest_protein()` rewritten for batch workloads. `.cleavage_ranges()` is now called once on the full `AAStringSet` instead of once per protein, eliminating repeated S4 dispatch overhead. The non-efficiency path pre-allocates six output vectors and fills them in a single loop before constructing one tibble, replacing ~20 K individual tibble builds followed by `do.call(rbind, ...)`.
-* `batch_evaluate()` restructured around two bulk calls — one `digest_protein()` and one `score_peptides()` for the entire input — instead of a per-protein loop over `evaluate_digest()`. A new internal helper `.batch_difficulty_flags()` computes all four difficulty flags across all proteins simultaneously via `tabulate()`, `tapply()`, and `.calculate_gravy_vec()`, replacing ~20 K per-protein subset/GRAVY/`tibble::as_tibble()` cycles.
+* `batch_evaluate()` restructured around two bulk calls, one `digest_protein()` and one `score_peptides()` for the entire input, instead of a per-protein loop over `evaluate_digest()`. A new internal helper `.batch_difficulty_flags()` computes all four difficulty flags across all proteins simultaneously via `tabulate()`, `tapply()`, and `.calculate_gravy_vec()`, replacing ~20 K per-protein subset/GRAVY/`tibble::as_tibble()` cycles.
 * `triage_proteins()` fully vectorized. Row-by-row `vapply` logic replaced with nested `ifelse()` and a `rowSums(matrix < 0.5)` component check, making the function O(n) in a single pass.
-* `S_coverage` scoring no longer uses `IRanges::reduce()`. Overlapping intervals are now merged inline via `order()` + `cummax()` on sorted starts and ends — same result with no S4 dispatch.
+* `S_coverage` scoring no longer uses `IRanges::reduce()`. Overlapping intervals are now merged inline via `order()` + `cummax()` on sorted starts and ends. Same result with no S4 dispatch.
 * Scoring helpers (`S_coverage`, `S_count`, `S_hydro`, `S_charge`) accept a pre-computed `valid_digest` argument so callers can extract valid peptides once and share it across all four components instead of calling `.extract_valid_digest()` four times per protein.
 
 ## New functions

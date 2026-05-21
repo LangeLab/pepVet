@@ -38,7 +38,52 @@
   display: none;
 }
 
-/* --- Always-visible navbar: disable headroom.js scroll-away behaviour --- */
-.headroom--unpinned {
-  transform: translateY(0) !important;
+/* --- Navbar: subtle shadow for depth --- */
+.navbar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Code blocks: rounded corners, subtle border --- */
+pre {
+  border-radius: 8px;
+  border: 1px solid var(--bs-border-color);
+}
+
+/* --- Tables: cleaner header --- */
+table thead {
+  border-bottom-width: 2px;
+}
+
+/* --- Sidebar TOC: sticky positioning --- */
+#toc {
+  position: sticky;
+  top: 5rem;
+}
+#toc .nav-link {
+  padding: 0.2rem 0.75rem;
+  font-size: 0.875rem;
+  border-left: 2px solid transparent;
+}
+#toc .nav-link.active {
+  border-left-color: var(--bs-primary);
+  font-weight: 600;
+}
+
+/* --- Development mode badge styling --- */
+.dev-status .badge {
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  padding: 0.3em 0.6em;
+}
+
+/* --- Article index: section separation --- */
+.template-article-index dl dt {
+  margin-top: 1.25rem;
+}
+.template-article-index dl dt a {
+  font-size: 1.05rem;
+}
+.template-article-index dl dd {
+  color: var(--bs-secondary-color);
+  margin-bottom: 1.5rem;
 }

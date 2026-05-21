@@ -8,10 +8,10 @@
 #'   (amber), too long (rose).
 #' * **(B) GRAVY distribution:** histogram of GRAVY hydrophobicity scores.
 #'   The LC-friendly range is shaded and bounded by dashed lines.
-#' * **(C) Coverage map:** protein drawn as a horizontal track with
-#'   valid-length peptides overlaid as colored segments.  Uncovered regions
-#'   are highlighted in red.  Peptide length labels appear inside segments of
-#'   8 aa or longer.
+#' * **(C) Coverage map:** protein drawn as horizontal lanes (one per
+#'   missed-cleavage level) with valid-length peptides stacked via a greedy
+#'   interval-packing algorithm.  Uncovered regions are highlighted in red.
+#'   Peptide length labels appear inside segments of 8 aa or longer.
 #' * **(D) Component scores:** horizontal bar chart for each scoring
 #'   component, colored by tier (green \eqn{\geq} 0.65, amber 0.40–0.64, red
 #'   < 0.40).  The composite score is marked with a dashed vertical line.
@@ -24,7 +24,8 @@
 #' @param gravy_range Numeric vector of length 2.  Defines the LC-friendly
 #'   GRAVY range shaded in panel B.  Defaults to `c(-1.0, 0.6)`.
 #' @param title Optional character string for the figure title.  When `NULL`
-#'   (default) a title is auto-generated from the protein accession and enzyme.
+#'   (default) a title is auto-generated from the protein accession, enzyme,
+#'   and missed-cleavage count.
 #'
 #' @return A `patchwork` object combining all four ggplot panels.  The object
 #'   can be printed directly, saved with [ggplot2::ggsave()], or composed
@@ -36,12 +37,15 @@
 #'
 #'   Panel C labels peptide lengths inside segments of 8 aa or longer.  For
 #'   heavily digested proteins this keeps the map readable without overlap.
+#'   When multiple missed-cleavage levels are present, each level occupies its
+#'   own horizontal lane with peptides stacked using the same greedy
+#'   interval-packing algorithm as [plot_coverage_map()].
 #'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
 #'   requireNamespace("patchwork", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
 #'   p <- plot_digest_profile(res)
 #'   print(p)
 #' }
@@ -85,7 +89,9 @@ plot_digest_profile <- function(result,
   # ── Build panels ──────────────────────────────────────────────────────────
   pa <- .panel_length(peps, length_range)
   pb <- .panel_gravy(peps, gravy_range)
-  pc <- .panel_coverage(peps, protein_length, length_range)
+  mc_val <- params$missed_cleavages %||% 1L
+  pc <- .panel_coverage(peps, protein_length, length_range,
+    missed_cleavages = mc_val)
   pd <- .panel_scores(scores)
 
   # ── Assemble with patchwork ───────────────────────────────────────────────
@@ -98,7 +104,8 @@ plot_digest_profile <- function(result,
     patchwork::plot_layout(heights = c(3, 1.8, 2.2))
 
   auto_title <- if (is.null(title)) {
-    paste0(display_id, "    \u00b7    ", enzyme_name)
+    paste0(display_id, "    \u00b7    ", enzyme_name,
+      "    \u00b7    MC = ", mc_val)
   } else {
     title
   }

@@ -1,5 +1,8 @@
 ---
 title: "Getting Started with pepVet"
+description: >
+  A walkthrough of pepVet's core pipeline from a single protein digest to
+  multi-enzyme comparison, batch evaluation, and peptide export.
 output:
   rmarkdown::html_vignette:
     toc: true

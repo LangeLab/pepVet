@@ -2,7 +2,13 @@ template:
   bootstrap: 5
   bootswatch: flatly
   bslib:
-    primary: "#2C5F8A"
+    primary: "#254159"
+    secondary: "#3E787F"
+    success: "#79B3B4"
+    info: "#E2A242"
+    warning: "#D78185"
+    danger: "#D78185"
+    light: "#FCFBFB"
     base_font: {google: "Source Sans Pro"}
     heading_font: {google: "Source Sans Pro"}
     code_font: {google: "JetBrains Mono"}
@@ -28,19 +34,12 @@ navbar:
     articles:
       text: Articles
       menu:
-        - text: "Workflow"
-        - text: Getting Started
-          href: articles/pepVet-introduction.html
-        - text: "---"
-        - text: "Guides"
         - text: Choosing a Proteolytic Enzyme
           href: articles/enzyme-selection.html
         - text: Workflow Presets
           href: articles/workflow-presets.html
         - text: Understanding the Scoring Model
           href: articles/scoring-model.html
-        - text: "---"
-        - text: "Visualisation"
         - text: Visualising Digest Quality
           href: articles/visualisation.html
     reference:

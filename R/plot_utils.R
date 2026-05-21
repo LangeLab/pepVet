@@ -730,42 +730,95 @@ NULL
 #' Panel C - Sequence coverage map
 #' @return A ggplot object.
 #' @noRd
-.panel_coverage <- function(peps, protein_length, length_range) {
-  # Delegate statistics to the shared helper (MC=0 only for coverage %)
-  cs <- .compute_coverage_stats(peps, protein_length, length_range,
-    mc_filter = 0L
+.panel_coverage <- function(peps, protein_length, length_range,
+                            missed_cleavages = NULL) {
+  length_lo <- length_range[[1L]]
+  length_hi <- length_range[[2L]]
+
+  # Filter to the requested MC level only
+  has_mc <- "missed_cleavages" %in% names(peps)
+  if (has_mc && !is.null(missed_cleavages)) {
+    peps <- peps[peps$missed_cleavages == missed_cleavages, , drop = FALSE]
+  }
+
+  valid_peps <- peps[peps$length >= length_lo & peps$length <= length_hi, ,
+    drop = FALSE
+  ]
+  invalid_peps <- peps[peps$length < length_lo | peps$length > length_hi, ,
+    drop = FALSE
+  ]
+
+  # Coverage from valid peptides at this MC level
+  covered <- rep(FALSE, protein_length)
+  for (i in seq_len(nrow(valid_peps))) {
+    s <- valid_peps$start[[i]]
+    e <- min(valid_peps$end[[i]], protein_length)
+    covered[seq.int(s, e)] <- TRUE
+  }
+  pct_cov <- round(100 * sum(covered) / protein_length, 1L)
+
+  # Gap regions (residue-level uncovered runs)
+  rl <- rle(covered)
+  rl_ends <- cumsum(rl$lengths)
+  rl_starts <- c(1L, head(rl_ends, -1L) + 1L)
+  gap_mask <- !rl$values
+  gap_df <- data.frame(
+    xmin = rl_starts[gap_mask],
+    xmax = rl_ends[gap_mask]
   )
-  valid_peps <- cs$valid_peps
-  invalid_peps <- cs$invalid_peps
-  pct_cov <- cs$pct_cov
-  gap_df <- cs$gap_df
+  n_gaps <- nrow(gap_df)
+  n_small <- sum((gap_df$xmax - gap_df$xmin + 1L) <= 3L)
 
-  # Label peptides >= 8 aa (enough room for a 2-digit number)
-  label_peps <- valid_peps[valid_peps$length >= 8L, , drop = FALSE]
-  label_peps$label_x <- (label_peps$start + label_peps$end) / 2.0
-
-  # x-axis break step
   x_step <- .nice_x_step(protein_length)
+  x_lim <- protein_length + 1L
+
+  # Pack valid peptides into sub-tracks
+  if (nrow(valid_peps) > 0L) {
+    valid_peps <- .pack_peptides(valid_peps)
+    n_tracks <- max(valid_peps$track)
+    inner_lo <- 0.12
+    inner_hi <- 0.88
+    track_h <- (inner_hi - inner_lo) / n_tracks
+    margin <- 0.06 * track_h
+    valid_peps$.y_lo <- inner_lo +
+      (valid_peps$track - 1L) * track_h + margin
+    valid_peps$.y_hi <- inner_lo +
+      valid_peps$track * track_h - margin
+    valid_peps$.y_mid <- (valid_peps$.y_lo + valid_peps$.y_hi) / 2.0
+  }
+
+  # Pack invalid peptides into sub-tracks
+  if (nrow(invalid_peps) > 0L) {
+    invalid_peps <- .pack_peptides(invalid_peps)
+    n_tracks_i <- max(invalid_peps$track)
+    ii_lo <- 0.18
+    ii_hi <- 0.82
+    track_h_i <- (ii_hi - ii_lo) / n_tracks_i
+    margin_i <- 0.06 * track_h_i
+    invalid_peps$.y_lo <- ii_lo +
+      (invalid_peps$track - 1L) * track_h_i + margin_i
+    invalid_peps$.y_hi <- ii_lo +
+      invalid_peps$track * track_h_i - margin_i
+  }
 
   p <- ggplot2::ggplot() +
-    # Full protein background bar
-    ggplot2::annotate(
-      "rect",
+    ggplot2::annotate("rect",
       xmin = 0.5, xmax = protein_length + 0.5,
-      ymin = 0.30, ymax = 0.70,
+      ymin = 0.05, ymax = 0.95,
       fill = .pepvet_pal$protein_bg,
       color = .pepvet_pal$protein_brd,
       linewidth = 0.4
     )
 
-  # Invalid peptides (dimmed, behind valid ones)
+  # Invalid peptides (behind valid)
   if (nrow(invalid_peps) > 0L) {
     p <- p + ggplot2::geom_rect(
       data = invalid_peps,
       ggplot2::aes(
         xmin = .data$start - 0.3,
         xmax = .data$end + 0.3,
-        ymin = 0.35, ymax = 0.65
+        ymin = .data$.y_lo,
+        ymax = .data$.y_hi
       ),
       fill = .pepvet_pal$invalid_pep,
       color = "white",
@@ -774,62 +827,84 @@ NULL
     )
   }
 
-  # Valid peptide segments
+  # Valid peptides
   if (nrow(valid_peps) > 0L) {
     p <- p + ggplot2::geom_rect(
       data = valid_peps,
       ggplot2::aes(
         xmin = .data$start - 0.4,
         xmax = .data$end + 0.4,
-        ymin = 0.22, ymax = 0.78
+        ymin = .data$.y_lo,
+        ymax = .data$.y_hi
       ),
       fill = .pepvet_pal$covered,
       color = "white",
       linewidth = 0.15,
       alpha = .get_param("scatter_alpha")
     )
+
+    # Peptide length labels
+    label_v <- valid_peps[valid_peps$length >= 8L, , drop = FALSE]
+    if (nrow(label_v) > 0L) {
+      label_v$label_x <- (label_v$start + label_v$end) / 2.0
+      p <- p + ggplot2::geom_text(
+        data = label_v,
+        ggplot2::aes(
+          x = .data$label_x, y = .data$.y_mid,
+          label = .data$length
+        ),
+        size = 2.3,
+        color = "white",
+        fontface = "bold"
+      )
+    }
   }
 
-  # Gap overlays (red tint on uncovered regions)
+  # Gap overlays
   if (nrow(gap_df) > 0L) {
     p <- p + ggplot2::geom_rect(
       data = gap_df,
-      ggplot2::aes(xmin = xmin, xmax = xmax, ymin = 0.30, ymax = 0.70),
+      ggplot2::aes(xmin = xmin, xmax = xmax, ymin = 0.05, ymax = 0.95),
       fill = .pepvet_pal$gap,
-      alpha = 0.22
+      alpha = 0.18
     )
   }
 
-  # Peptide length labels inside valid segments
-  if (nrow(label_peps) > 0L) {
-    p <- p + ggplot2::geom_text(
-      data = label_peps,
-      ggplot2::aes(x = .data$label_x, y = 0.50, label = .data$length),
-      size = 2.3,
-      color = "white",
-      fontface = "bold"
+  # Title
+  mc_title <- if (!is.null(missed_cleavages)) {
+    sprintf("Sequence Coverage (MC = %d)", missed_cleavages)
+  } else {
+    "Sequence Coverage"
+  }
+
+  gap_note <- if (n_gaps > 0L && n_small > 0L) {
+    sprintf(
+      "%d uncovered region(s); %d too narrow to render at this scale",
+      n_gaps, n_small
     )
+  } else if (n_gaps > 0L) {
+    sprintf("%d uncovered region(s)", n_gaps)
+  } else {
+    NULL
   }
 
   p +
     ggplot2::scale_x_continuous(
       breaks = seq(0L, protein_length, by = x_step),
-      limits = c(0, protein_length + 1),
+      limits = c(0, x_lim),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
     ggplot2::scale_y_continuous(
       limits = c(0, 1),
-      expand = ggplot2::expansion(mult = c(0.05, 0.05))
+      expand = ggplot2::expansion(mult = c(0.02, 0.02))
     ) +
     ggplot2::labs(
-      title = "Sequence Coverage",
+      title = mc_title,
       subtitle = sprintf(
-        paste(
-          "%.0f%% covered by valid-length peptides.",
-          "%d uncovered region(s). Protein length %d aa"
-        ),
-        pct_cov, nrow(gap_df), protein_length
+        "%.0f%% residue coverage. Protein length %d aa",
+        pct_cov, protein_length
       ),
+      caption = gap_note,
       x = "Residue position",
       y = NULL
     ) +
@@ -838,7 +913,14 @@ NULL
       axis.text.y        = ggplot2::element_blank(),
       axis.ticks.y       = ggplot2::element_blank(),
       panel.grid.major.y = ggplot2::element_blank(),
-      panel.grid.minor.y = ggplot2::element_blank()
+      panel.grid.minor.y = ggplot2::element_blank(),
+      plot.caption       = ggplot2::element_text(
+        hjust  = 0,
+        face   = "italic",
+        size   = 7.5,
+        color  = .pepvet_pal$text_axis_title,
+        margin = ggplot2::margin(t = 1)
+      )
     )
 }
 

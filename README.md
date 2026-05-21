@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD033 MD036 MD041 -->
 <br/>
 <p align="center">
-  <img src="man/figures/logo.svg" alt="pepVet logo" width="96">
+  <img src="man/figures/pepVet-logo.png" alt="pepVet logo" width="96">
 </p>
 
 <h1 align="center">pepVet</h1>

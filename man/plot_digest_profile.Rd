@@ -23,7 +23,8 @@ length window, passed to the length and coverage panels.  Defaults to
 GRAVY range shaded in panel B.  Defaults to \code{c(-1.0, 0.6)}.}
 
 \item{title}{Optional character string for the figure title.  When \code{NULL}
-(default) a title is auto-generated from the protein accession and enzyme.}
+(default) a title is auto-generated from the protein accession, enzyme,
+and missed-cleavage count.}
 }
 \value{
 A \code{patchwork} object combining all four ggplot panels.  The object
@@ -41,10 +42,10 @@ window shaded.  Bars are colored by length class: valid (blue), too short
 (amber), too long (rose).
 \item \strong{(B) GRAVY distribution:} histogram of GRAVY hydrophobicity scores.
 The LC-friendly range is shaded and bounded by dashed lines.
-\item \strong{(C) Coverage map:} protein drawn as a horizontal track with
-valid-length peptides overlaid as colored segments.  Uncovered regions
-are highlighted in red.  Peptide length labels appear inside segments of
-8 aa or longer.
+\item \strong{(C) Coverage map:} protein drawn as horizontal lanes (one per
+missed-cleavage level) with valid-length peptides stacked via a greedy
+interval-packing algorithm.  Uncovered regions are highlighted in red.
+Peptide length labels appear inside segments of 8 aa or longer.
 \item \strong{(D) Component scores:} horizontal bar chart for each scoring
 component, colored by tier (green \eqn{\geq} 0.65, amber 0.40–0.64, red
 < 0.40).  The composite score is marked with a dashed vertical line.
@@ -56,12 +57,15 @@ required beyond the standard \code{\link[=evaluate_digest]{evaluate_digest()}} o
 
 Panel C labels peptide lengths inside segments of 8 aa or longer.  For
 heavily digested proteins this keeps the map readable without overlap.
+When multiple missed-cleavage levels are present, each level occupies its
+own horizontal lane with peptides stacked using the same greedy
+interval-packing algorithm as \code{\link[=plot_coverage_map]{plot_coverage_map()}}.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
   requireNamespace("patchwork", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
   p <- plot_digest_profile(res)
   print(p)
 }

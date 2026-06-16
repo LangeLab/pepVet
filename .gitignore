@@ -37,6 +37,8 @@ src/*.gcov
 inst/doc/
 Meta/
 vignettes/*.html
+vignettes/*.png
+vignettes/*.rds
 docs/
 *.BiocCheck/
 

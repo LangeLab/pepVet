@@ -368,8 +368,11 @@ NULL
 #' Presets are intended as editable starting points rather than hard rules.
 #' Each preset is grounded in workflow-specific proteomics literature.
 #'
-#' @details
-#' ## Preset descriptions
+#' @param type Preset name. Defaults to `"standard"`. Supported values are
+#'   `"standard"`, `"dia"`, `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and
+#'   `"fractionated"`. If `NULL`, raises an error.
+#'
+#' @section Presets:
 #'
 #' **`"standard"`** : Routine DDA. Default scoring configuration with default
 #' AHP-derived weights. Length range `[7, 25]` captures ~85% of identified
@@ -409,10 +412,6 @@ NULL
 #' **`"fractionated"`** : SCX / high-pH RP fractionation planning. Same
 #' scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
 #' to append peptide-level pI values for fractionation-aware analysis.
-#'
-#' @param type Preset name. Defaults to `"standard"`. Supported values are
-#'   `"standard"`, `"dia"`, `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and
-#'   `"fractionated"`. If `NULL`, raises an error.
 #'
 #' @return A named list with `gravy_range`, `length_range`, `weights`, and
 #'   `include_pI`.

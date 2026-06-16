@@ -1,0 +1,4 @@
+"protein","n_peptides","pc_identifiable","pepvet_valid","both","pc_only","pepvet_only"
+"BSA",157,113,83,83,30,0
+"H3",59,20,15,15,5,0
+"BACE1",79,42,25,25,17,0

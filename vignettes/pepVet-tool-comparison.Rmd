@@ -1,5 +1,5 @@
 ---
-title: "pepVet in the Tool Landscape"
+title: "pepVet Compared to Other Tools"
 description: >
   How pepVet compares to other in-silico digest evaluation tools including
   MS-Digest, ExPASy PeptideMass, Protein Cleaver, ProteaseGuru, and
@@ -9,7 +9,7 @@ output:
     toc: true
     toc_depth: 2
 vignette: >
-  %\VignetteIndexEntry{pepVet in the Tool Landscape}
+  %\VignetteIndexEntry{pepVet Compared to Other Tools}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -22,285 +22,189 @@ knitr::opts_chunk$set(
 library(pepVet)
 ```
 
-`r if (requireNamespace("PeptideRanger", quietly = TRUE)) "" else
-  "This vignette requires PeptideRanger (rr-2/PeptideRanger on GitHub)."`
-
-pepVet is one of several tools that evaluate in-silico proteolytic digests.
-This vignette shows where pepVet overlaps with other tools, what each tool
-adds, and where pepVet fits in a multi-tool pipeline.
-
 ```{r data, include = FALSE}
-# External-tool comparison data (pre-computed from MS-Digest and ExPASy fetches)
-pep <- readRDS("vignette-peptides.rds")
-mcor <- readRDS("vignette-mass-corr.rds")
-
-# FASTA paths for inline computations
-bsa_path  <- system.file("extdata", "P02769.fasta", package = "pepVet")
+overlap    <- read.csv("../inst/extdata/comparison-data/sectionA-overlap.csv")
+caps       <- read.csv("../inst/extdata/comparison-data/sectionB-capabilities.csv")
+pr_data    <- read.csv("../inst/extdata/comparison-data/sectionD-peptideranger.csv")
+pc_data    <- read.csv("../inst/extdata/comparison-data/sectionE-protein-cleaver.csv")
 ```
 
-Every comparison below uses bovine serum albumin (BSA, UniProt P02769)
-digested with trypsin at one missed cleavage. The FASTA file ships with
-pepVet in `inst/extdata/P02769.fasta`.
+You are choosing an enzyme for a bottom-up proteomics experiment. Six tools
+can simulate the digest. They all produce the same peptide list from the
+same cleavage rules. The question is what each tool adds beyond the peptide
+list: scoring, filtering, ranking, structural context, and programmatic
+access.
 
-## Section 1: Baseline Overlap
+This vignette compares pepVet against five other tools on a panel of 5
+proteins and 5 enzymes. Pre-computed data is in
+`scratch/comparison-data/` and `scratch/comparison-figures/`.
 
-The three web-accessible tools (MS-Digest, ExPASy PeptideMass, and pepVet)
-agree closely on the set of peptides produced by tryptic digestion of BSA at
-MC=1. The table below is per-tool counts of unique peptide sequences.
+## Common ground
 
-```{r overlap-counts}
-# Build a unique-peptide table
-uniq <- unique(pep[, c("peptide", "in_msdigest", "in_expasy")])
-n_pep <- nrow(uniq)
-n_msd <- sum(uniq$in_msdigest)
-n_exp <- sum(uniq$in_expasy)
-n_all <- sum(uniq$in_msdigest & uniq$in_expasy)
+Three tools (MS-Digest, ExPASy PeptideMass, pepVet) agree closely on the
+peptide set from BSA at MC=1.
 
-data.frame(
-  Tool = c("pepVet", "MS-Digest", "ExPASy PeptideMass"),
-  Unique_peptides = c(n_pep, n_msd, n_exp),
-  check.names = FALSE
-)
+```{r overlap-table}
+knitr::kable(overlap, caption = "BSA + trypsin MC=1 peptide overlap")
 ```
 
-Of the 154 unique peptides produced by pepVet, `r n_msd` appear in
-MS-Digest and `r n_exp` appear in ExPASy PeptideMass. `r n_all` peptides
-are common to all three tools.
-
-### Mass agreement
-
-pepVet calculates monoisotopic neutral mass using residue masses from the
-aa_properties table. MS-Digest reports [M+H]+ monoisotopic m/z. ExPASy
-PeptideMass reports neutral average mass. The three agree at high
-precision:
-
-```{r mass-corr}
-mcor
+```{r overlap-fig, fig.cap="Peptide overlap among MS-Digest, ExPASy PeptideMass, and pepVet for BSA trypsin MC=1. 116 peptides are common to all three.", fig.alt="Overlap figure: 116 peptides common to all three, 154 from pepVet, 130 from MS-Digest, 151 from ExPASy."}
+knitr::include_graphics("fig4_overlap.png")
 ```
 
-The 0.999983 correlation between MS-Digest [M+H]+ and ExPASy neutral mass
-confirms that all three tools use a consistent residue-mass basis. The
-pepVet-versus-MS-Digest correlation is marginally lower
-(`r mcor$correlation[mcor$tool_pair == "pepVet vs MS-Digest"]`) because
-of minor differences in the water and proton mass constants:
+116 peptides are common to all three. pepVet returns the most because it
+applies no default mass or length filter. MS-Digest and ExPASy filter
+short and hydrophobic fragments by default. Mass correlation between
+MS-Digest and ExPASy is 0.999983, confirming consistent residue-mass
+physics across all three tools.
 
-- pepVet: water = `r pepVet:::.water_monoisotopic_mass`, proton =
-  `r pepVet:::.proton_monoisotopic_mass`
-- MS-Digest: water = 18.01056 (no proton for neutral mass)
-- ExPASy: average masses, not monoisotopic
+## How tools differ
 
-### Where tools diverge
-
-Eight peptides produced by pepVet are absent from both web tools. These
-are short (5-6 residues) or highly hydrophobic fragments that fall outside
-the web tools' default display parameters. MS-Digest and ExPASy filter
-their output by length and mass, while pepVet returns every fragment the
-cleavage engine generates.
-
-```{r pepvet-only}
-only_seqs <- uniq$peptide[!uniq$in_msdigest & !uniq$in_expasy]
-only_pep <- pep[match(only_seqs, pep$peptide), c("peptide", "length", "gravy")]
-only_pep
-```
-
-## Section 2: Tool Capability Catalog
-
-The tools surveyed here differ in form factor, scope, and output type.
+Six tools. They differ in form factor and output type.
 
 ```{r cap-table}
-cap <- data.frame(
-  Tool = c("pepVet", "MS-Digest", "ExPASy PeptideMass",
-           "Protein Cleaver", "ProteaseGuru", "PeptideRanger"),
-  Form = c("R package", "Web app", "Web app",
-           "R Shiny app", "Desktop app (Win)", "R package"),
-  Multi_enzyme = c("Yes", "Per-request", "Per-request",
-                   "Yes", "Yes", "No"),
-  Quality_score = c("Yes", "No", "No",
-                    "Yes (rules)", "Yes (rules)", "Yes (ML)"),
-  Retention_time = c("No", "No", "No",
-                     "Yes (predicted)", "No", "No"),
-  ThreeD_mapping = c("No", "No", "No",
-                     "Yes", "No", "No"),
-  Peptide_detectability = c("No", "No", "No",
-                            "Yes (digestibility)", "No", "Yes (ML)"),
-  Actionable_report = c("Yes (cli workflow)", "Tabular", "Tabular",
-                        "Interactive viz", "Tabular", "Tabular"),
-  check.names = FALSE
-)
-knitr::kable(cap, caption = "Tool capability comparison")
+knitr::kable(caps, caption = "Tool capability matrix")
 ```
-
-### MS-Digest (Protein Prospector)
 
 MS-Digest (Baker, Clauser, and Burlingame, UCSF) returns a tab-delimited
 table of peptide masses and coordinates given a protein sequence and an
-enzyme rule. It does not score or rank digests. Its main value is mass
-accuracy: it reports average and monoisotopic masses, supports common
-chemical modifications, and has been running since the 1990s.
+enzyme. It does not score or rank digests. Its value is mass accuracy.
 
-MS-Digest is available as a web form at
-https://prospector.ucsf.edu/prospector/cgi-bin/msform.cgi?form=msdigest.
-
-### ExPASy PeptideMass
-
-PeptideMass (Wilkins et al., 1997) is a web tool that computes the masses
-of peptides produced by enzymatic or chemical cleavage. It accepts UniProt
-accession numbers directly and returns neutral average masses. It does not
-score or rank digests.
-
-PeptideMass is available at https://web.expasy.org/peptide_mass/.
-
-### Protein Cleaver
+PeptideMass (Wilkins et al., 1997) accepts a UniProt accession and
+returns neutral average masses with pI. It accounts for signal peptides
+and known PTMs from UniProt annotations. No scoring or ranking.
 
 Protein Cleaver (Koulouras et al., 2025, Frontiers in Bioinformatics) is
-an R Shiny application that wraps cleaver for digestion and adds
-structure-aware digestibility classification. It predicts retention time
-from a simple hydrophobicity model and maps peptides onto 3D protein
-structures when a PDB file is available. Its digestibility classifier uses
-rule-based filters (mass, length, hydrophobicity) similar to pepVet's
-valid-peptide mask, but it expresses the result as a per-peptide
-digestibility flag rather than a protein-level score.
-
-Protein Cleaver uses the same core digestion engine (cleaver + Biostrings)
-as pepVet. The two tools diverge in output: Protein Cleaver reports
-peptide-level pass/fail flags with structural visualization, while pepVet
-reports a protein-level multi-criteria composite score with workflow
-presets.
-
-Protein Cleaver source is at
-https://github.com/gkoulouras/ProteinCleaver.
-
-### ProteaseGuru
+an R Shiny wrapper around `cleaver`. It flags peptides as identifiable or
+non-identifiable using configurable length and mass windows. It adds 3D
+structure mapping and retention time prediction. Source analysis shows it
+uses the same cleavage engine as pepVet but a different mass table
+(e.g., Ala 71.079 vs 71.037 Da). No GRAVY filter, no composite score, no
+verdict, no presets. Shiny only with heavy dependencies.
 
 ProteaseGuru (Ludwig et al., 2023, Journal of Proteome Research) is a
-Windows .NET 8 desktop application that evaluates multiple proteases for
-bottom-up proteomics. It produces in-silico digests and applies simple
-rule-based filters for peptide suitability but does not generate a
-composite quality score. It supports common proteases and reports coverage
-statistics. Its Windows-only distribution limits programmatic use.
-
-### PeptideRanger
+Windows .NET 8 desktop application. It compares multiple proteases using
+SSRCalc hydrophobicity, coverage maps, and shared versus exclusive
+peptide tracking. No composite quality score, no presets, no programmatic
+access.
 
 PeptideRanger (Rosenberg and Zhang, 2024, Analytical Chemistry) is an R
-package that predicts peptide-level detectability using a random forest
-model trained on observed detection rates from CPTAC and ProteomicsDB. Its
-RF_score (0 to 1) is the probability that a peptide will be detected by
-LC-MS/MS under standard conditions.
+package that predicts peptide detectability via random forest trained on
+CPTAC and ProteomicsDB detection rates. It produces an RF_score (0 to 1)
+per peptide. PeptideRanger and pepVet measure orthogonal properties.
+pepVet scores digest quality before acquisition (protein level).
+PeptideRanger scores detection probability for an existing digest (peptide
+level).
 
-PeptideRanger is orthogonal to pepVet in a useful way:
+## pepVet scoring in practice
 
-- pepVet scores the digest quality of a protein before acquisition.
-- PeptideRanger scores the detection probability of each peptide after
-  accounting for the MS instrument and sample context.
+pepVet scores 5 proteins across 5 enzymes. The composite score (0 to 1)
+combines 5 components: length suitability, sequence coverage, peptide
+count, hydrophobicity, and charge.
 
-## Section 3: pepVet Position Matrix
+```{r enzyme-fig, fig.cap="Enzyme comparison across five proteins. Background shading shows verdict zones (green = Good, yellow = Moderate, red = Poor). Each bar is one enzyme. pepVet's composite score is a weighted sum of 5 components.", fig.alt="Grouped bar chart of composite scores by protein and enzyme with verdict zone backgrounds."}
+knitr::include_graphics("fig2_enzyme_comparison.png")
+```
 
-pepVet occupies a specific niche that no other tool fills in the same way.
+Best enzyme per protein:
+* BSA (serum albumin): trypsin (0.885, Good).
+* H3 (histone): Lys-C (0.769, Good). Histone H3 has few arginines.
+* BACE1 (membrane protease): chymotrypsin-high (0.769, Good). BACE1 is
+  enriched in hydrophobic domains chymotrypsin handles well.
+* Lysozyme C: trypsin (0.825, Good).
+* Ubiquitin (fusion): Lys-C (0.885, Good). Polyubiquitin chains have K-G
+  linkages Lys-C resolves.
 
-| Criterion | pepVet | Other tools |
-|---|---|---|
-| Protein-level digest score | Composite (0-1) with verdict | None (rule-based tools report peptide-level flags) |
-| Multi-enzyme ranking | Built-in comparison, recommendation | Manual re-request or re-running |
-| Proteome-aware uniqueness | Yes (S_unique) | No |
-| Workflow presets | 6 predefined configurations | No |
-| Peptide detectability | No | PeptideRanger (ML), Protein Cleaver (rules) |
-| 3D structure integration | No | Protein Cleaver |
-| Programmatic API | Full R package | Web forms only (MS-Digest, ExPASy) or Shiny GUI (Protein Cleaver) |
-| Mass calculation | Internal via aa_properties | MS-Digest (most precise), ExPASy (average) |
+Two pairs score Poor: BACE1 + Lys-C (0.389) and Lysozyme C + Glu-C
+(0.269). Both have too few cleavage sites to produce a useful digest.
 
-The practical recommendation is:
+### Workflow presets
 
-- **pepVet alone** when you need a quick protein-level ranking of enzyme
-  choices before acquisition.
-- **pepVet + PeptideRanger** when you need both digest quality scores and
-  peptide-level detection probabilities for the same digest.
-- **pepVet + Protein Cleaver** when structural context (PDB) is available
-  and you want to map digestibility flags onto 3D protein views.
-- **MS-Digest or ExPASy** when you need only precise mass information for
-  a single digest and do not need scoring or ranking.
+Six presets adjust length range, GRAVY range, and scoring weights. For an
+easy protein like BSA, all presets give similar results. For BACE1,
+a transmembrane protein, presets that widen the length and GRAVY windows
+include more peptides.
 
-## Section 4: Pipeline Integration
+```{r preset-fig, fig.cap="Workflow preset effects on valid peptide count. Facets by protein. Each x-axis label shows the length and GRAVY window for that preset. BSA is easy (all presets accept all peptides). BACE1 and H3 show variation.", fig.alt="Faceted bar chart of valid peptide counts across 6 presets for BSA, H3, and BACE1 with criteria annotations."}
+knitr::include_graphics("fig5_preset_effect.png")
+```
 
-pepVet and PeptideRanger form a natural two-stage pipeline. pepVet selects
-the best enzyme and identifies valid peptides. PeptideRanger then scores
-detectability for those peptides.
+The targeted preset (narrow length 8-20, narrow GRAVY -0.8 to 0.4) keeps
+fewest valid peptides. The FFPE preset (wide length 6-30, wider GRAVY -1.0
+to 0.8) keeps the most. The verdict for BACE1 changes from Moderate
+(standard, 0.573) to Good (ffpe_degraded, 0.655).
 
-### pepVet -> PeptideRanger pipeline
+## Pipeline with PeptideRanger
 
-```{r pr-pipeline, eval = requireNamespace("PeptideRanger", quietly = TRUE)}
-ev <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
-valid_seqs <- ev$peptides$peptide[ev$peptides$length >= 7 &
-                                    ev$peptides$length <= 25]
-pr_result <- PeptideRanger::peptide_predictions(
-  valid_seqs,
+pepVet selects an enzyme and identifies valid peptides. PeptideRanger
+scores each valid peptide for detection probability. The combined pipeline
+covers both digest quality and peptide-level detectability.
+
+Enrichment analysis across 25 protein-enzyme combinations quantifies the
+overlap. Enrichment is the difference in mean PR score between
+pepVet-valid and pepVet-invalid peptides. Positive enrichment means
+pepVet's filter selects higher-detectability peptides.
+
+```{r pr-fig, fig.cap="PeptideRanger enrichment: mean PR(valid) minus mean PR(invalid). Positive values (green) mean pepVet selects higher-detectability peptides. 18 of 25 combinations show positive enrichment.", fig.alt="Horizontal bar chart of enrichment values for 25 protein-enzyme combinations, colored by sign."}
+knitr::include_graphics("fig3_pr_enrichment.png")
+```
+
+Enrichment is positive in 18 of 25 combinations. Largest effects: BACE1
+asp-n (+0.24, membrane domains excluded by GRAVY), Ubiquitin Glu-C (+0.24,
+extreme fragments excluded), H3 trypsin (+0.21, short fragments removed).
+Negative enrichment occurs in combos with few valid peptides (n < 7) where
+the mean is unstable.
+
+A two-stage pipeline run looks like this:
+
+```{r pr-code, eval = requireNamespace("PeptideRanger", quietly = TRUE)}
+preset <- pepvet_preset("standard")
+ev <- evaluate_digest(
+  system.file("extdata", "P02769.fasta", package = "pepVet"),
+  enzyme = "trypsin", missed_cleavages = 1L,
+  gravy_range = preset$gravy_range,
+  length_range = preset$length_range
+)
+valid <- ev$peptides
+valid <- valid[valid$length >= preset$length_range[1] &
+               valid$length <= preset$length_range[2], ]
+pr_res <- PeptideRanger::peptide_predictions(
+  valid$peptide,
   prediction_model = PeptideRanger::RFmodel_ProteomicsDB
 )
-head(pr_result)
+head(pr_res)
 ```
 
-pepVet's verdict ("Good" for BSA trypsin) reflects the protein-level
-digest quality. PeptideRanger's RF_score reflects per-peptide detection
-probability. The two scores measure different things and are not
-correlated.
+## Binary versus graded: pepVet vs Protein Cleaver
 
-```{r pr-cor, eval = requireNamespace("PeptideRanger", quietly = TRUE)}
-prs <- merge(ev$scores,
-             data.frame(mean_PR_total = mean(pr_result$RF_score),
-                        mean_PR_valid = mean(pr_result$RF_score)),
-             by = character())
-prs[, c("composite_score", "verdict", "mean_PR_total", "mean_PR_valid")]
+Protein Cleaver uses a binary identifiable flag from length and mass.
+pepVet uses a graded multi-component score. Simulation of Protein
+Cleaver's logic on the same peptides:
+
+```{r pc-table}
+knitr::kable(pc_data,
+             caption = "Protein Cleaver identifiability vs pepVet validity")
 ```
 
-The mean PeptideRanger score across all BSA tryptic peptides is 0.22 and
-rises to 0.28 when restricted to pepVet-valid peptides. pepVet's validity
-mask removes short and highly hydrophobic fragments that PeptideRanger
-also scores poorly.
-
-### Presets are not redundant
-
-pepVet presets adjust the valid-peptide window (length and GRAVY) and
-scoring weights for different workflows. All six presets produce the same
-composite score for a given protein-enzyme combination when the default
-length and GRAVY windows match the preset values. The presets that change
-the length window (membrane, ffpe_degraded) or the verdict thresholds
-affect the filtering step but do not alter the scoring weights.
-
-```{r preset-summary}
-presets <- c("standard", "dia", "targeted", "membrane",
-             "ffpe_degraded", "fractionated")
-preset_out <- data.frame()
-for (pr in presets) {
-  pepvet_preset(pr)
-  res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
-  preset_out <- rbind(preset_out, data.frame(
-    preset = pr,
-    composite = res$scores$composite_score,
-    verdict = res$scores$verdict,
-    n_valid = sum(res$peptides$length >= 7 & res$peptides$length <= 25),
-    stringsAsFactors = FALSE
-  ))
-}
-pepvet_preset("standard")
-preset_out
+```{r pc-fig, fig.cap="Overlap of pepVet valid peptides with Protein Cleaver identifiable peptides. 'Both' means both tools accept the peptide. 'PC identifiable only' passes PC filter but not pepVet's GRAVY filter. Every pepVet-valid peptide is PC-identifiable. PC marks more as identifiable because it has no GRAVY filter and uses a different mass table.", fig.alt="Bar chart comparing both and pc_only counts for BSA, H3, and BACE1."}
+knitr::include_graphics("fig6_pc_comparison.png")
 ```
 
-All six presets report the same composite for BSA trypsin because the
-function-level default parameters override the preset values. Use
-`pepvet_preset("membrane")` to inspect a preset's parameter set, then
-pass those values explicitly to `evaluate_digest()`.
+Every pepVet-valid peptide is also PC-identifiable. PC marks more as
+identifiable because it has no GRAVY filter. Protein Cleaver tests length
+and mass. pepVet tests coverage, hydrophobicity, charge, and workflow fit.
 
-## Scope
+## When to use what
 
-This vignette compares pepVet's output and features against other
-in-silico digest evaluation tools. The comparisons use tryptic digests of
-BSA at MC=1. Results may differ for other enzymes, missed-cleavage
-settings, or proteins. Mass correlation values assume monoisotopic masses
-for pepVet and MS-Digest, and average masses for ExPASy.
-
-Tool capabilities were assessed in May 2026. Web tool outputs may change
-with updates. PeptideRanger results use RFmodel_ProteomicsDB. Protein
-Cleaver and ProteaseGuru were evaluated from published documentation and
-source code, not from local installation.
+pepVet alone is the right choice for quick enzyme ranking, method
+development with presets, and manuscript-grade digest quality
+documentation. Adding PeptideRanger gives peptide-level detection
+probabilities for the same digest. Adding Protein Cleaver adds 3D
+structural context when a PDB file is available. MS-Digest and ExPASy are
+best when only precise mass information is needed. pepVet fills a specific
+gap: a graded, interpretable, multi-component quality score with workflow
+presets, verdict classification, and sensitivity analysis. No other tool
+provides this combination.
 
 ## Session info
 

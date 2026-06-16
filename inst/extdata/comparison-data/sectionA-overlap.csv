@@ -1,0 +1,4 @@
+"Tool","N_unique","Common_with_pepVet","Shared_all_three","Pct_overlap"
+"MS-Digest",130,121,116,93.1
+"ExPASy PeptideMass",151,141,116,93.4
+"pepVet",154,154,116,100

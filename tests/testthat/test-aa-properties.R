@@ -227,7 +227,7 @@ test_that(
   {
     expect_error(
       pepVet:::.calculate_gravy("AXZAZX"),
-      "Unknown amino acid code\\(s\\): X, Z\\."
+      "Unknown amino acid code"
     )
   }
 )

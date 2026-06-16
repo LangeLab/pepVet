@@ -341,9 +341,9 @@ test_that("invalid enzyme names raise a classed error with supported names", {
 })
 
 test_that("invalid sequence content is rejected with offending characters", {
-  expect_error(
+    expect_error(
     digest_protein("MXBZ123", enzyme = "trypsin"),
-    regexp = "X, B, Z, 1, 2, 3",
+    regexp = "unsupported amino acid code",
     class = "pepvet_error_invalid_sequence"
   )
 

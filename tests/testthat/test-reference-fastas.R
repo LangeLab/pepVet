@@ -204,16 +204,3 @@ test_that("key reference fixture widths remain biologically plausible", {
   expect_identical(fasta_widths(isoforms), expected_isoform_widths)
 })
 
-test_that("package load hooks are quiet on load and informative on attach", {
-  load_conditions <- capture_messages(pepVet:::.onLoad("", "pepVet"))
-  attach_conditions <- capture_messages(pepVet:::.onAttach("", "pepVet"))
-  version_text <- as.character(utils::packageVersion("pepVet"))
-
-  expect_length(load_conditions, 0L)
-  expect_length(attach_conditions, 1L)
-  expect_true(inherits(attach_conditions[[1]], "packageStartupMessage"))
-  expect_identical(
-    trimws(conditionMessage(attach_conditions[[1]])),
-    sprintf("pepVet %s", version_text)
-  )
-})

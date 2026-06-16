@@ -318,8 +318,9 @@ NULL
 
   expected_lengths <- if (isTRUE(has_proteome)) c(6L) else c(5L, 6L)
   if (!length(weights) %in% expected_lengths) {
+    expected_lengths_str <- paste(expected_lengths, collapse = " or ")
     .abort(
-      "{.arg weights} must contain exactly {paste(expected_lengths, collapse = ' or ')} value(s) in this scoring mode.",
+      "{.arg weights} must contain exactly {expected_lengths_str} value(s) in this scoring mode.",
       class = "pepvet_error_invalid_weights"
     )
   }
@@ -620,7 +621,7 @@ pepvet_preset <- function(type = "standard") {
 
   if (length(invalid_residues) > 0L) {
     .abort(
-      "Sequence '{sequence_name}' contains unsupported amino acid code(s): {paste(invalid_residues, collapse = ', ')}.",
+      "Sequence {.val {sequence_name}} contains unsupported amino acid code(s): {.val {invalid_residues}}.",
       class = "pepvet_error_invalid_sequence"
     )
   }
@@ -764,8 +765,9 @@ pepvet_preset <- function(type = "standard") {
   residue_index <- match(residues, aa_properties$amino_acid)
 
   if (anyNA(residue_index)) {
+    unknown_residues <- unique(residues[is.na(residue_index)])
     .abort(
-      "Unknown amino acid code(s): {paste(unique(residues[is.na(residue_index)]), collapse = ', ')}."
+      "Unknown amino acid code(s): {.val {unknown_residues}}."
     )
   }
 

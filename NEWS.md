@@ -1,5 +1,12 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
+# pepVet 0.1.6 (unreleased)
+
+## Housekeeping
+
+* Replaced 3 `paste()` inside cli `.abort()` with pre-computed `{.val}` variables in `utils.R`.
+* Removed `.onAttach` startup message.
+
 # pepVet 0.1.5
 
 ## New functions

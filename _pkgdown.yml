@@ -44,6 +44,8 @@ navbar:
           href: articles/visualisation.html
         - text: Weight Sensitivity Analysis
           href: articles/weight-sensitivity.html
+        - text: pepVet in the Tool Landscape
+          href: articles/pepVet-tool-comparison.html
     reference:
       text: Reference
       href: reference/index.html

@@ -31,6 +31,9 @@ Suggests:
     patchwork,
     ragg,
     testthat (>= 3.0.0),
+    withr,
+    covr,
+    lintr,
     knitr,
     rmarkdown
 VignetteBuilder: knitr

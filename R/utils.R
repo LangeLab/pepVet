@@ -6,6 +6,7 @@
 #' @importFrom cli cat_line cat_rule symbol
 #' @importFrom cli col_blue col_green col_red col_silver col_yellow
 #' @importFrom cli style_bold style_italic
+#' @importFrom stats rgamma
 NULL
 
 .get_aa_properties <- local({

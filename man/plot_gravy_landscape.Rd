@@ -16,7 +16,8 @@ plot_gravy_landscape(
 \item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}, \strong{or} a
 data.frame / tibble with at least \code{length} and \code{gravy} columns.  When a
 bare data.frame lacks a \code{gravy} column but has a \code{peptide} column, GRAVY
-scores are computed automatically.}
+scores are computed automatically.  If \code{NULL} or an unrecognised type,
+raises an error.}
 
 \item{length_range}{Integer vector of length 2.  Valid length window.
 Defaults to \code{c(7L, 25L)}.  Read from \code{result$params} when a full
@@ -27,12 +28,15 @@ Defaults to \code{c(-1.0, 0.6)}.  Read from \code{result$params} when available.
 
 \item{label_outliers_n}{Integer.  Maximum number of outlier points to label
 with their peptide sequences.  Labels are suppressed when the count
-exceeds this threshold.  Defaults to \code{15L}.}
+exceeds this threshold.  Defaults to \code{15L}.  If \code{NULL}, raises an error.}
 
-\item{title}{Optional character string for the plot title.}
+\item{title}{Optional character string for the plot title.  Auto-generated
+when \code{NULL} (default).}
 }
 \value{
-A \code{patchwork} composite \code{ggplot} object.
+A \code{patchwork} object with a central scatter of length vs GRAVY
+coloured by validity class, and marginal density panels on the top and
+right axes.
 }
 \description{
 \code{plot_gravy_landscape()} plots each peptide as a point in the
@@ -42,6 +46,12 @@ density panels show the 1D distributions on each axis.  Outlier peptides
 (outside the valid region) are labelled with their sequences when there are
 fewer than \code{label_outliers_n} of them.
 }
+\details{
+When \code{result} is a named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results
+(multi-input mode), produces a faceted scatter with one panel per result
+(no marginal densities).  GRAVY scores are computed automatically when a
+bare data.frame has a \code{peptide} column but no \code{gravy} column.
+}
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
     requireNamespace("patchwork", quietly = TRUE)) {
@@ -50,11 +60,10 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
   p <- plot_gravy_landscape(res)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_length_distribution]{plot_length_distribution()}},
-\code{\link[=plot_digest_profile]{plot_digest_profile()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step,
+\code{\link[=plot_digest_profile]{plot_digest_profile()}} for a single-protein digest summary.
 
 Other plot-distribution:
 \code{\link[=plot_length_distribution]{plot_length_distribution()}},

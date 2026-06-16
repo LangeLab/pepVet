@@ -7,11 +7,13 @@
 * Replaced 3 `paste()` inside cli `.abort()` with pre-computed `{.val}` variables in `utils.R`.
 * Removed `.onAttach` startup message. Package loads silently.
 * Fixed test patterns in `test-aa-properties.R` and `test-digest.R` that broke when `.val` formatter output changed.
-* Moved vignette-only comparison data out of `inst/extdata/` into `vignettes/` with the Rmd files. Pre-computed data for the tool-comparison article is now stored alongside the source article, not shipped with every installation.
+* Still need to work on cleaning up code-quality.
 
 ## Documentation
 
 * Added *pepVet in the Tool Landscape* article comparing pepVet against MS-Digest, ExPASy PeptideMass, Protein Cleaver, ProteaseGuru, and PeptideRanger. Includes baseline overlap analysis with mass correlation (0.999983), a tool capability catalog, and a pepVet-to-PeptideRanger pipeline demonstration.
+* Docstring standardization to ensure minimum necessary parameters included and examples. 
+* Re-made the docs for website after docstrings updated.
 
 # pepVet 0.1.5
 

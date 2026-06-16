@@ -1,19 +1,19 @@
-# ── pepVet Batch & proteome-scale plots ─────────────────────────────────────
-#
-# Functions in this file operate on multi-protein batch results from
-# batch_evaluate() or equivalent structures.
-# ─────────────────────────────────────────────────────────────────────────────
+## pepVet Batch and proteome-scale plots
+##
+## Functions in this file operate on multi-protein batch results from
+## batch_evaluate() or equivalent structures.
+##
 
-# ── plot_proteome_overview ────────────────────────────────────────────────────
+## plot_proteome_overview
 
-#' Proteome Digest Overview
+#' Proteome digest overview
 #'
 #' `plot_proteome_overview()` produces a three-panel portrait of a
 #' single-enzyme proteome digest from [batch_evaluate()]:
 #'
 #' - **(A) Score distribution:** histogram of composite scores, verdict-colored,
-#'   with background zone shading for the Good (>= 0.65), Moderate, and Poor
-#'   (< 0.40, Good >= 0.65) regions. A percentage badge is anchored in the Good zone.
+#'   with background zone shading for Good (>= 0.65), Moderate (0.40-0.65),
+#'   and Poor (< 0.40) regions. A percentage badge is anchored in the Good zone.
 #' - **(B) Component profile:** horizontal lollipop chart showing the median of
 #'   each component score across all proteins.  Each component uses its
 #'   designated color from the pepVet component palette.  Immediately reveals
@@ -25,13 +25,25 @@
 #'
 #' @param batch A tibble returned by [batch_evaluate()], with columns
 #'   `protein_id`, `composite_score`, `verdict`, the five component score
-#'   columns, and the four difficulty flag columns.
-#' @param title Optional character title for the combined figure.
+#'   columns, and the four difficulty flag columns. If `NULL` or empty, raises
+#'   an error.
+#' @param title Optional character title for the combined figure. When `NULL`
+#'   (default), generates an auto-title with protein count.
 #'
-#' @return A `patchwork` object.
-#' @seealso [batch_evaluate()],
-#'   [plot_batch_comparison()]
+#' @details When the input batch lacks difficulty flag columns, panel C shows
+#'   an empty placeholder message instead of stacked bars.
+#' @return A `patchwork` object with three panels: score distribution
+#'   histogram (A), component median lollipop chart (B), and difficulty-flag
+#'   prevalence bars (C).
+#' @seealso [batch_evaluate()] for the upstream evaluation step.
 #' @family plot-batch
+#' @examples
+#' small <- system.file(
+#'   "extdata", "small_proteome_50_proteins.fasta",
+#'   package = "pepVet"
+#' )
+#' batch <- batch_evaluate(small, enzyme = "trypsin")
+#' plot_proteome_overview(batch)
 #' @export
 plot_proteome_overview <- function(batch, title = NULL) {
   rlang::check_installed("ggplot2",
@@ -72,7 +84,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
   n_poor <- sum(batch$verdict == "Poor", na.rm = TRUE)
   pct_good <- round(100 * n_good / n_total)
 
-  # ── Panel A: Score distribution ───────────────────────────────────────────
+  ## Panel A: Score distribution
   pa <- ggplot2::ggplot(
     batch,
     ggplot2::aes(x = composite_score, fill = verdict)
@@ -148,8 +160,8 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ) +
     .pepvet_theme()
 
-  # ── Panel B: Component profile (lollipop) ────────────────────────────────
-  # Component color map follows visual-design §Component-score color map
+  ## Panel B: Component profile (lollipop)
+  ## Component colors follow the pepVet component-score color map
   comp_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
   comp_names <- c(
     S_length   = "Length",
@@ -252,7 +264,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ) +
     .pepvet_theme()
 
-  # ── Panel C: Difficulty flags ─────────────────────────────────────────────
+  ## Panel C: Difficulty flags
   flag_cols <- c(
     "flag_short_protein", "flag_no_valid_peptides",
     "flag_hydrophobic",   "flag_low_complexity"
@@ -352,7 +364,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       ggplot2::theme_void()
   }
 
-  # ── Compose ───────────────────────────────────────────────────────────────
+  ## Compose
   auto_title <- if (is.null(title)) {
     sprintf("Proteome Digest Overview  \u00b7  %d proteins", n_total)
   } else {
@@ -382,9 +394,9 @@ plot_proteome_overview <- function(batch, title = NULL) {
     )
 }
 
-# ── plot_batch_comparison ─────────────────────────────────────────────────────
+## plot_batch_comparison
 
-#' Multi-Enzyme Proteome Comparison
+#' Multi-enzyme proteome comparison
 #'
 #' `plot_batch_comparison()` produces a four-panel side-by-side comparison of
 #' enzyme performance across a full proteome, using output from
@@ -406,12 +418,23 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #'
 #' @param comparison A `pepvet_batch_comparison` tibble returned by
 #'   [batch_compare_enzymes()], with columns `protein_id`, `enzyme`,
-#'   `composite_score`, `verdict`, and the five component score columns.
-#' @param title Optional character title for the combined figure.
+#'   `composite_score`, `verdict`, and the five component score columns. If
+#'   `NULL` or empty, raises an error.
+#' @param title Optional character title for the combined figure. When `NULL`
+#'   (default), generates an auto-title with protein and enzyme counts.
 #'
-#' @return A `patchwork` object.
-#' @seealso [batch_compare_enzymes()], [plot_proteome_overview()]
+#' @return A `patchwork` object with four panels: verdict summary bars (A),
+#'   score distribution violins (B), component-score heatmap (C), and
+#'   per-protein win-rate bars (D).
+#' @seealso [batch_compare_enzymes()] for the upstream comparison step.
 #' @family plot-batch
+#' @examples
+#' small <- system.file(
+#'   "extdata", "small_proteome_50_proteins.fasta",
+#'   package = "pepVet"
+#' )
+#' comp <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
+#' plot_batch_comparison(comp)
 #' @export
 plot_batch_comparison <- function(comparison, title = NULL) {
   rlang::check_installed("ggplot2",
@@ -455,7 +478,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
 
   verdict_colors <- .pepvet_pal$verdict
 
-  # ── Per-enzyme verdict summary table ─────────────────────────────────────
+  ## Per-enzyme verdict summary table
   enz_stats <- .bind_rows(lapply(enz_levels, function(enz) {
     sub <- comparison[comparison$enzyme == enz, ]
     n <- nrow(sub)
@@ -478,7 +501,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   enz_order <- enz_stats$enzyme[order(-enz_stats$pct_good, na.last = TRUE)]
   best_enzyme <- enz_order[[1L]]
 
-  # ── Panel A: Verdict summary (stacked 100% horizontal bars) ──────────────
+  ## Panel A: Verdict summary (stacked 100% horizontal bars)
   enz_long <- .bind_rows(lapply(enz_levels, function(enz) {
     row <- enz_stats[enz_stats$enzyme == enz, ]
     data.frame(
@@ -543,7 +566,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ) +
     .pepvet_theme()
 
-  # ── Panel B: Score distributions (horizontal violins) ────────────────────
+  ## Panel B: Score distributions (horizontal violins)
   median_verdict_per_enz <- vapply(enz_levels, function(enz) {
     ms <- stats::median(
       comparison$composite_score[comparison$enzyme == enz],
@@ -630,7 +653,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ) +
     .pepvet_theme()
 
-  # ── Panel C: Component heatmap (enzyme \u00d7 component) ───────────────────────
+  ## Panel C: Component heatmap (enzyme \u00d7 component)
   comp_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
   comp_labels <- c(
     S_length   = "Length",
@@ -706,7 +729,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
       legend.position = "right"
     )
 
-  # ── Panel D: Per-protein win rate ─────────────────────────────────────────
+  ## Panel D: Per-protein win rate
   # For each protein, find the enzyme with the highest composite score
   cs_df <- data.frame(
     protein_id = as.character(comparison$protein_id),
@@ -766,7 +789,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ) +
     .pepvet_theme()
 
-  # ── Compose ───────────────────────────────────────────────────────────────
+  ## Compose
   auto_title <- if (is.null(title)) {
     sprintf(
       "Proteome Enzyme Comparison  \u00b7  %d proteins  \u00b7  %d enzymes",

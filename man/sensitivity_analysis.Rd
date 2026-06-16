@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{sensitivity_analysis}
 \alias{sensitivity_analysis}
-\title{Weight Sensitivity Analysis}
+\title{Weight sensitivity analysis}
 \usage{
 sensitivity_analysis(
   x,

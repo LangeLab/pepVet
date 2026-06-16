@@ -2,19 +2,23 @@
 % Please edit documentation in R/plot_batch.R
 \name{plot_proteome_overview}
 \alias{plot_proteome_overview}
-\title{Proteome Digest Overview}
+\title{Proteome digest overview}
 \usage{
 plot_proteome_overview(batch, title = NULL)
 }
 \arguments{
 \item{batch}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}, with columns
 \code{protein_id}, \code{composite_score}, \code{verdict}, the five component score
-columns, and the four difficulty flag columns.}
+columns, and the four difficulty flag columns. If \code{NULL} or empty, raises
+an error.}
 
-\item{title}{Optional character title for the combined figure.}
+\item{title}{Optional character title for the combined figure. When \code{NULL}
+(default), generates an auto-title with protein count.}
 }
 \value{
-A \code{patchwork} object.
+A \code{patchwork} object with three panels: score distribution
+histogram (A), component median lollipop chart (B), and difficulty-flag
+prevalence bars (C).
 }
 \description{
 \code{plot_proteome_overview()} produces a three-panel portrait of a
@@ -23,8 +27,8 @@ single-enzyme proteome digest from \code{\link[=batch_evaluate]{batch_evaluate()
 \details{
 \itemize{
 \item \strong{(A) Score distribution:} histogram of composite scores, verdict-colored,
-with background zone shading for the Good (>= 0.65), Moderate, and Poor
-(< 0.40, Good >= 0.65) regions. A percentage badge is anchored in the Good zone.
+with background zone shading for Good (>= 0.65), Moderate (0.40-0.65),
+and Poor (< 0.40) regions. A percentage badge is anchored in the Good zone.
 \item \strong{(B) Component profile:} horizontal lollipop chart showing the median of
 each component score across all proteins.  Each component uses its
 designated color from the pepVet component palette.  Immediately reveals
@@ -34,10 +38,20 @@ proportion of proteins carrying each difficulty flag (short protein, no
 valid peptides, hydrophobic, low-complexity).  Flags are ordered by
 prevalence (most common at top).
 }
+
+When the input batch lacks difficulty flag columns, panel C shows
+an empty placeholder message instead of stacked bars.
+}
+\examples{
+small <- system.file(
+  "extdata", "small_proteome_50_proteins.fasta",
+  package = "pepVet"
+)
+batch <- batch_evaluate(small, enzyme = "trypsin")
+plot_proteome_overview(batch)
 }
 \seealso{
-\code{\link[=batch_evaluate]{batch_evaluate()}},
-\code{\link[=plot_batch_comparison]{plot_batch_comparison()}}
+\code{\link[=batch_evaluate]{batch_evaluate()}} for the upstream evaluation step.
 
 Other plot-batch:
 \code{\link[=plot_batch_comparison]{plot_batch_comparison()}}

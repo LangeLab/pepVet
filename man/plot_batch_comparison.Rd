@@ -2,19 +2,23 @@
 % Please edit documentation in R/plot_batch.R
 \name{plot_batch_comparison}
 \alias{plot_batch_comparison}
-\title{Multi-Enzyme Proteome Comparison}
+\title{Multi-enzyme proteome comparison}
 \usage{
 plot_batch_comparison(comparison, title = NULL)
 }
 \arguments{
 \item{comparison}{A \code{pepvet_batch_comparison} tibble returned by
 \code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}}, with columns \code{protein_id}, \code{enzyme},
-\code{composite_score}, \code{verdict}, and the five component score columns.}
+\code{composite_score}, \code{verdict}, and the five component score columns. If
+\code{NULL} or empty, raises an error.}
 
-\item{title}{Optional character title for the combined figure.}
+\item{title}{Optional character title for the combined figure. When \code{NULL}
+(default), generates an auto-title with protein and enzyme counts.}
 }
 \value{
-A \code{patchwork} object.
+A \code{patchwork} object with four panels: verdict summary bars (A),
+score distribution violins (B), component-score heatmap (C), and
+per-protein win-rate bars (D).
 }
 \description{
 \code{plot_batch_comparison()} produces a four-panel side-by-side comparison of
@@ -38,8 +42,16 @@ for which each enzyme achieves the highest composite score. The starred enzyme
 matches the recommendation in panel A.
 }
 }
+\examples{
+small <- system.file(
+  "extdata", "small_proteome_50_proteins.fasta",
+  package = "pepVet"
+)
+comp <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
+plot_batch_comparison(comp)
+}
 \seealso{
-\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}}, \code{\link[=plot_proteome_overview]{plot_proteome_overview()}}
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}} for the upstream comparison step.
 
 Other plot-batch:
 \code{\link[=plot_proteome_overview]{plot_proteome_overview()}}

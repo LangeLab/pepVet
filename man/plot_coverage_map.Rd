@@ -15,7 +15,7 @@ plot_coverage_map(
 }
 \arguments{
 \item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}.  Must describe
-a single protein.}
+a single protein.  If \code{NULL} or invalid, raises an error.}
 
 \item{color_by}{Character string selecting the peptide color scheme.
 \describe{
@@ -24,8 +24,8 @@ invalid-length peptide.}
 \item{\code{"length_class"}}{Three-way coloring: valid (blue), too short
 (amber), too long (rose-red).}
 \item{\code{"hydrophobicity"}}{Continuous GRAVY gradient for every peptide:
-brand blue (very hydrophilic) → green (LC-optimal) → amber
-(borderline) → rose-red (very hydrophobic).}
+brand blue (very hydrophilic) to green (LC-optimal) to amber
+(borderline) to rose-red (very hydrophobic).}
 }}
 
 \item{length_range}{Integer vector of length 2.  Valid peptide window.
@@ -43,8 +43,9 @@ background rectangle spanning all lanes with its name labelled at the top.}
 from the protein accession and enzyme when \code{NULL} (default).}
 }
 \value{
-A \code{ggplot} object that can be printed, further customised, or saved
-with \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}}.
+A \code{ggplot} object showing a multi-lane coverage map with peptide
+tracks, gap highlights, optional cleavage-site efficiency ticks, and
+optional domain annotations.
 }
 \description{
 \code{plot_coverage_map()} draws a genome-browser-style view of how proteolytic
@@ -57,7 +58,7 @@ optional domain annotations can be overlaid to add mechanistic context.
 \details{
 Valid peptides are drawn taller than invalid peptides within each
 lane, maintaining a visual hierarchy that keeps validity legible regardless
-of \code{color_by}.  When missed-cleavage levels overlap (MC ≥ 1), peptides
+of \code{color_by}.  When missed-cleavage levels overlap (MC >= 1), peptides
 within each lane are distributed into non-overlapping tracks using a greedy
 interval-packing algorithm, mirroring genome-browser stacking.  Gap regions
 (residues not covered by any valid MC = 0 peptide) are highlighted with a
@@ -65,7 +66,7 @@ translucent red overlay.  Peptide lengths are labelled inside bars whose
 span is at least 2.5 \% of the protein length (ensuring legibility at
 typical export widths); shorter bars are left unlabelled.
 
-The \code{color_by = "hydrophobicity"} mode calls the internal Kyte–Doolittle
+The \code{color_by = "hydrophobicity"} mode calls the internal Kyte-Doolittle
 GRAVY calculator and requires no additional input columns.
 }
 \examples{
@@ -76,11 +77,10 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p <- plot_coverage_map(res, cleavage_sites = cs)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}},
-\code{\link[=plot_digest_profile]{plot_digest_profile()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step,
+\code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}} for cleavage-site annotation.
 
 Other plot-single:
 \code{\link[=plot_cleavage_map]{plot_cleavage_map()}},

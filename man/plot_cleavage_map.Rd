@@ -12,7 +12,8 @@ plot_cleavage_map(
 )
 }
 \arguments{
-\item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}.}
+\item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}.  If \code{NULL} or
+invalid, raises an error.}
 
 \item{cleavage_sites}{Optional data.frame from \code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}}
 with columns \code{position}, \code{efficiency} (character: \code{"high"}, \code{"medium"},
@@ -25,7 +26,8 @@ Defaults to \code{c(7L, 25L)}.}
 \item{title}{Optional character title.  Auto-generated when \code{NULL}.}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object showing a protein bar with cleavage-site ticks
+colored by efficiency and peptide fragment blocks between sites.
 }
 \description{
 \code{plot_cleavage_map()} draws the full protein as a horizontal bar and marks
@@ -35,9 +37,24 @@ sites are drawn as colored blocks, with invalid peptides dimmed.  When
 \code{cleavage_sites} data is not available, sites are inferred from the peptide
 boundaries and all rendered as the same default color.
 }
+\details{
+When \code{cleavage_sites} is not supplied, cleavage positions are
+inferred from the C-terminal ends of MC=0 peptides (excluding the true
+C-terminus of the protein).  Inferred sites all render in the same default
+color.  Pass the output of \code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}} for efficiency-aware
+coloring.
+}
+\examples{
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  p <- plot_cleavage_map(res)
+  print(p)
+}
+}
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}},
-\code{\link[=plot_coverage_map]{plot_coverage_map()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step,
+\code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}} for efficiency-annotated cleavage sites.
 
 Other plot-single:
 \code{\link[=plot_coverage_map]{plot_coverage_map()}},

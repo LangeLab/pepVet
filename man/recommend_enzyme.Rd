@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{recommend_enzyme}
 \alias{recommend_enzyme}
-\title{Recommend the Best Enzyme for a Single Protein}
+\title{Recommend the best enzyme for a single protein}
 \usage{
 recommend_enzyme(
   sequence,
@@ -14,15 +14,19 @@ recommend_enzyme(
 )
 }
 \arguments{
-\item{sequence}{A single-protein input passed to \code{\link[=compare_digests]{compare_digests()}}.}
+\item{sequence}{A single-protein input passed to \code{\link[=compare_digests]{compare_digests()}}. If
+\code{NULL} or empty, raises an error.}
 
-\item{enzymes}{Character vector of enzyme names to compare.}
+\item{enzymes}{Character vector of enzyme names to compare. Defaults to
+\code{c("trypsin", "lysc")}.}
 
 \item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{1L}.}
 
-\item{proteome}{Optional proteome digest tibble for uniqueness scoring.}
+\item{proteome}{Optional proteome digest tibble for uniqueness scoring.
+When \code{NULL} (default), no uniqueness scoring.}
 
-\item{weights}{Optional scoring weight vector.}
+\item{weights}{Optional scoring weight vector. When \code{NULL} (default), uses
+pepVet's default scoring weights.}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=compare_digests]{compare_digests()}} and
 ultimately to \code{\link[=evaluate_digest]{evaluate_digest()}} and \code{\link[=score_peptides]{score_peptides()}}.}
@@ -34,9 +38,9 @@ one only when top scores are tied within floating-point tolerance.
 \description{
 \code{recommend_enzyme()} calls \code{\link[=compare_digests]{compare_digests()}} and returns the name of the
 enzyme with the highest composite score. When two or more enzymes are tied,
-all tied enzyme names are returned in alphabetical order. This function is
-useful in scripted triage pipelines where you need a compact recommendation
-but still want ranking logic that stays aligned with \code{\link[=compare_digests]{compare_digests()}}.
+all tied enzyme names are returned in alphabetical order. Compact
+recommendation for scripted triage pipelines that stays aligned with
+\code{\link[=compare_digests]{compare_digests()}}.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

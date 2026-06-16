@@ -47,7 +47,7 @@ the defaults.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
-    requireNamespace("patchwork", quietly = TRUE)) {
+  requireNamespace("patchwork", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
   p <- plot_digest_profile(res)

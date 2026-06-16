@@ -1,5 +1,5 @@
-# ── pepVet Comparison plots ────────────────────────────────────────────────
-# ── plot_enzyme_comparison ────────────────────────────────────────────────────
+## pepVet Comparison plots
+## plot_enzyme_comparison
 
 #' Validate comparison tibble for plotting (internal helper)
 #'
@@ -48,27 +48,33 @@
 #'
 #' Panel A shows a horizontal grouped bar chart where each enzyme occupies one
 #' row and each component score is a separate colored bar, dodged side-by-side.
-#' Reference lines at 0.50 and 0.75 divide the axis into poor / moderate / good
+#' Reference lines at the Moderate and Good verdict thresholds divide the axis
+#' into poor / moderate / good
 #' regions. Enzymes are sorted by composite score with the best at the top.
 #'
 #' Panel B shows the composite score as a lollipop, color-coded by verdict tier
 #' (green >= 0.65, amber 0.40-0.64, red < 0.40). When `recommend = TRUE` a
-#' gold "* Recommended" badge is appended next to the top-ranked enzyme.
+#' gold "Recommended" badge is appended next to the top-ranked enzyme.
 #'
 #' @param comparison A tibble returned by [compare_digests()].  Must contain
 #'   at least the columns `enzyme` and `composite_score`, plus whichever
-#'   component-score columns are requested in `scores`.
+#'   component-score columns are requested in `scores`.  If `NULL` or not a
+#'   data frame, raises an error.
 #' @param scores Character vector of component-score column names to display
 #'   in Panel A.  Any column absent from `comparison` is silently dropped.
-#'   Defaults to all five standard component scores.
+#'   Defaults to all five standard component scores.  If `NULL`, raises an
+#'   error.
 #' @param recommend Logical.  When `TRUE` (default) a "Recommended" badge
-#'   marks the enzyme with the highest composite score in Panel B.
+#'   marks the enzyme with the highest composite score in Panel B.  If `NULL`,
+#'   raises an error.
 #' @param title Optional character string for the overall plot title.
 #'   Auto-generated from the protein accession when `NULL` (default).
 #'
-#' @return A `patchwork` object (two ggplot panels side by side) that can be
-#'   printed, further customised, or saved with [ggplot2::ggsave()].
-#'
+#' @return A `patchwork` object with two panels: component-score grouped bar
+#'   chart (A) and composite-score lollipop with verdict badge (B).
+#' @seealso [compare_digests()], [recommend_enzyme()],
+#'   [plot_digest_profile()], [plot_coverage_map()], [plot_batch_comparison()]
+#' @family plot-comparison
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
 #'   requireNamespace("patchwork", quietly = TRUE)) {
@@ -82,10 +88,6 @@
 #'   p <- plot_enzyme_comparison(comp)
 #'   print(p)
 #' }
-#'
-#' @seealso [compare_digests()], [recommend_enzyme()],
-#'   [plot_digest_profile()], [plot_coverage_map()], [plot_batch_comparison()]
-#' @family plot-comparison
 #' @export
 plot_enzyme_comparison <- function(
   comparison,
@@ -98,7 +100,7 @@ plot_enzyme_comparison <- function(
 
   .validate_comparison_for_plot(comparison)
 
-  # ── Restrict to requested scores that actually exist ──────────────────────
+  ## Restrict to requested scores that actually exist
   scores <- intersect(scores, names(comparison))
   if (length(scores) == 0L) {
     .abort(
@@ -111,7 +113,7 @@ plot_enzyme_comparison <- function(
     )
   }
 
-  # ── Display names for score components ────────────────────────────────────
+  ## Display names for score components
   score_labels <- c(
     S_coverage = "Coverage",
     S_length   = "Length",
@@ -125,16 +127,16 @@ plot_enzyme_comparison <- function(
     scores
   )
 
-  # ── Distinct JCO-inspired colors, one per component ───────────────────────
+  ## Distinct JCO-inspired colors, one per component
   component_colors <- .pepvet_pal$component
   col_map <- component_colors[scores]
   names(col_map) <- display_names
 
-  # ── Enzyme factor: sorted worst → best composite (top of chart = best) ────
+  ## Enzyme factor: sorted worst to best composite (top of chart = best)
   ordered_enzymes <- comparison$enzyme[order(comparison$composite_score)]
   comparison$enzyme <- factor(comparison$enzyme, levels = ordered_enzymes)
 
-  # ── Reshape to long for Panel A ───────────────────────────────────────────
+  ## Reshape to long for Panel A
   long <- .bind_rows(lapply(seq_along(scores), function(i) {
     data.frame(
       enzyme = comparison$enzyme,
@@ -146,7 +148,7 @@ plot_enzyme_comparison <- function(
   long$score_name <- factor(long$score_name, levels = rev(display_names))
   long$enzyme <- factor(long$enzyme, levels = levels(comparison$enzyme))
 
-  # ── Verdict tier color for composite lollipop heads ───────────────────────
+  ## Verdict tier color for composite lollipop heads
   tier_color <- function(x) {
     ifelse(x >= .get_param("verdict_good"), .pepvet_pal$good,
       ifelse(x >= .get_param("verdict_moderate"), .pepvet_pal$moderate, .pepvet_pal$poor)
@@ -155,7 +157,7 @@ plot_enzyme_comparison <- function(
   comparison$comp_color <- tier_color(comparison$composite_score)
   comparison$comp_label <- sprintf("%.2f", comparison$composite_score)
 
-  # ── Auto title ────────────────────────────────────────────────────────────
+  ## Auto title
   auto_title <- if (!is.null(title)) {
     title
   } else if ("protein_id" %in% names(comparison)) {
@@ -165,9 +167,7 @@ plot_enzyme_comparison <- function(
     "Enzyme comparison"
   }
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Panel A: component scores grouped bar chart
-  # ═══════════════════════════════════════════════════════════════════════════
+  ## Panel A: component scores grouped bar chart
   pa <- ggplot2::ggplot(
     long,
     ggplot2::aes(x = .data$value, y = .data$enzyme, fill = .data$score_name)
@@ -235,9 +235,7 @@ plot_enzyme_comparison <- function(
       panel.grid.minor   = ggplot2::element_blank()
     )
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Panel B: composite score lollipop + verdict badge
-  # ═══════════════════════════════════════════════════════════════════════════
+  ## Panel B: composite score lollipop + verdict badge
   best_enzyme <- as.character(
     comparison$enzyme[which.max(comparison$composite_score)]
   )
@@ -315,9 +313,7 @@ plot_enzyme_comparison <- function(
       panel.grid.minor = ggplot2::element_blank()
     )
 
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Assemble with patchwork
-  # ═══════════════════════════════════════════════════════════════════════════
+  ## Assemble with patchwork
   (pa | pb) +
     patchwork::plot_layout(widths = c(2.8, 1)) +
     patchwork::plot_annotation(

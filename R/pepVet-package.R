@@ -1,13 +1,9 @@
 #' pepVet: Evaluate Proteolytic Digests for Proteomics Workflows
 #'
-#' `pepVet` provides tools for proteolytic digest simulation,
-#' peptide-set scoring, enzyme comparison, workflow preset
-#' selection, and console reporting for bottom-up proteomics.
-#'
-#' Version 0.1.5 adds weight sensitivity analysis, zero-cleavage hard-fail, and improved coverage panel.
-#' cli message standardisation, do.call(rbind) safety, cleaver import
-#' cleanup, duplicate verdict function removal, plot theme centralisation,
-#' dead code removal, roxygen doc completion, and .Rbuildignore cleanup.
+#' Simulates proteolytic digestion, scores peptides for LC-MS/MS suitability,
+#' compares candidate enzymes, and reports digest quality at the protein level.
+#' Includes validated cleavage rules for 40 enzymes, workflow presets, peptide
+#' mass and pI utilities, batch evaluation, and styled console reporting.
 #'
 #' @keywords internal
 "_PACKAGE"

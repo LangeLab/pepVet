@@ -361,18 +361,20 @@ NULL
   normalized_weights
 }
 
-#' Return a Named Scoring Preset
+#' Return a named scoring preset
 #'
 #' `pepvet_preset()` returns a named list containing a GRAVY range, peptide
 #' length range, and scoring weights for a supported proteomics workflow.
 #' Presets are intended as editable starting points rather than hard rules.
 #' Each preset is grounded in workflow-specific proteomics literature.
 #'
+#' @details
 #' ## Preset descriptions
 #'
 #' **`"standard"`** : Routine DDA. Default scoring configuration with default
 #' AHP-derived weights. Length range `[7, 25]` captures ~85% of identified
-#' tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range `[-1.0, 0.6]`
+#' tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range
+#' `[-1.0, 0.6]`
 #' covers the Kyte-Doolittle window for standard C18 LC-MS.
 #'
 #' **`"dia"`** : Data-independent acquisition (DIA / SWATH). Wider length range
@@ -408,8 +410,9 @@ NULL
 #' scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
 #' to append peptide-level pI values for fractionation-aware analysis.
 #'
-#' @param type Preset name. Supported values are `"standard"`, `"dia"`,
-#'   `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and `"fractionated"`.
+#' @param type Preset name. Defaults to `"standard"`. Supported values are
+#'   `"standard"`, `"dia"`, `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and
+#'   `"fractionated"`. If `NULL`, raises an error.
 #'
 #' @return A named list with `gravy_range`, `length_range`, `weights`, and
 #'   `include_pI`.
@@ -920,7 +923,7 @@ pepvet_preset <- function(type = "standard") {
   net_charge
 }
 
-#' Calculate Peptide Mass or m/z
+#' Calculate peptide mass or m/z
 #'
 #' `calculate_peptide_mass()` computes the neutral monoisotopic mass of one or
 #' more unmodified peptide sequences using residue masses stored in
@@ -929,17 +932,17 @@ pepvet_preset <- function(type = "standard") {
 #'
 #' @param sequence Peptide sequence supplied as a character vector. Amino-acid
 #'   codes must be one-letter uppercase or lowercase symbols from the 20
-#'   standard residues.
+#'   standard residues. If `NULL`, raises an error.
 #' @param charge Optional non-negative integer scalar or integer vector with
-#'   length matching `sequence`. `0L` returns neutral masses. Positive values
-#'   return m/z.
-#'
-#' @return A numeric vector of neutral masses or m/z values. Names are
-#'   preserved from `sequence` when present.
+#'   length matching `sequence`. Defaults to `0L`. `0L` returns neutral masses.
+#'   Positive values return m/z. If `NULL`, raises an error.
 #'
 #' @details This function computes masses for unmodified peptide sequences only.
 #'   It does not account for chemical labels such as TMT or iTRAQ, isotopic
 #'   labels such as SILAC, or post-translational modifications.
+#'
+#' @return A numeric vector of neutral masses or m/z values. Names are
+#'   preserved from `sequence` when present.
 #'
 #' @examples
 #' calculate_peptide_mass("PEPTIDE")
@@ -976,7 +979,7 @@ calculate_peptide_mass <- function(sequence, charge = 0L) {
   result
 }
 
-#' Calculate Peptide Isoelectric Point
+#' Calculate peptide isoelectric point
 #'
 #' `calculate_pI()` estimates peptide isoelectric points with a bisection
 #' search over the Henderson-Hasselbalch net-charge equation. The calculation
@@ -986,7 +989,7 @@ calculate_peptide_mass <- function(sequence, charge = 0L) {
 #'
 #' @param sequence Peptide sequence supplied as a character vector. Amino-acid
 #'   codes must be one-letter uppercase or lowercase symbols from the 20
-#'   standard residues.
+#'   standard residues. If `NULL`, raises an error.
 #'
 #' @return A numeric vector of estimated peptide pI values. Names are preserved
 #'   from `sequence` when present.

@@ -29,7 +29,7 @@
 
 ## What pepVet does
 
-Enzyme choice is the first and most consequential decision in a bottom-up proteomics experiment. Cut too aggressively and you drown in tiny fragments below the detection threshold. Cut too conservatively and overlong peptides fail to fly, fragment, or resolve on the column. Most tools stop after listing which peptides an enzyme *could* produce. pepVet goes further: it scores each peptide for LC-MS/MS suitability, ranks enzymes by digest quality, and triages proteins by expected difficulty -- all before any sample touches the instrument.
+Enzyme choice is the first and most consequential decision in a bottom-up proteomics experiment. Cut too aggressively and you drown in tiny fragments below the detection threshold. Cut too conservatively and overlong peptides fail to fly, fragment, or resolve on the column. Most tools stop after listing which peptides an enzyme _could_ produce. pepVet goes further: it scores each peptide for LC-MS/MS suitability, ranks enzymes by digest quality, and triages proteins by expected difficulty, all before any sample touches the instrument.
 
 ## Quick start
 
@@ -54,13 +54,13 @@ recommend_enzyme(bsa, enzymes = c("trypsin", "lysc"))
 
 pepVet provides 12 ggplot2-based plot functions for digest diagnostics, enzyme comparison, physicochemical distributions, and proteome-scale overviews. Every function returns a ggplot or patchwork object that can be customized further.
 
-**Single-protein diagnostic** -- `plot_digest_profile()` called on BSA (`P02769.fasta`) digested with trypsin at one missed cleavage gives a four-panel figure showing length distribution, GRAVY hydrophobicity, sequence coverage, and component scores:
+**Single-protein diagnostic:** `plot_digest_profile()` called on BSA (`P02769.fasta`) digested with trypsin at one missed cleavage gives a four-panel figure showing length distribution, GRAVY hydrophobicity, sequence coverage, and component scores:
 
 <p align="center">
   <img src="man/figures/digest_profile_bsa_trypsin.png" alt="BSA trypsin digest profile" width="80%">
 </p>
 
-**Proteome-scale enzyme comparison** -- `plot_batch_comparison()` called on the 50-protein fixture (`small_proteome_50_proteins.fasta`) evaluated against 10 enzymes (trypsin, Lys-C, chymotrypsin, Asp-N, Glu-C, Arg-C, thermolysin, pepsin, Staphylococcal peptidase I, proteinase K) gives verdict summaries, score distributions, component heatmaps, and per-protein win rates:
+**Proteome-scale enzyme comparison:** `plot_batch_comparison()` called on the 50-protein fixture (`small_proteome_50_proteins.fasta`) evaluated against 10 enzymes (trypsin, Lys-C, chymotrypsin, Asp-N, Glu-C, Arg-C, thermolysin, pepsin, Staphylococcal peptidase I, proteinase K) gives verdict summaries, score distributions, component heatmaps, and per-protein win rates:
 
 <p align="center">
   <img src="man/figures/batch_comparison_10_enzymes_50_proteins.png" alt="10-enzyme batch comparison on 50 proteins" width="90%">
@@ -135,7 +135,7 @@ do.call(evaluate_digest, c(list(sequence = bsa, enzyme = "trypsin"), preset))
 | `targeted`      | SRM, PRM, MRM        | [8,20] aa, GRAVY [-0.8,0.4], S_unique 30%       | Lange 2008, Picotti 2012 |
 | `membrane`      | Hydrophobic proteins | GRAVY [-1.0,2.0], S_hydro 5%                    | Vit & Petrak 2017        |
 | `ffpe_degraded` | Degraded samples     | [6,30] aa, high S_count weight                  | Coscia 2020, Buczak 2023 |
-| `fractionated`  | SCX / high-pH RP     | Same as standard, include_pI = TRUE             | --                       |
+| `fractionated`  | SCX / high-pH RP     | Same as standard, include_pI = TRUE             | -                        |
 
 ## Installation
 

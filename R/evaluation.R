@@ -1,4 +1,4 @@
-#' Evaluate a Proteolytic Digest
+#' Evaluate a proteolytic digest
 #'
 #' `evaluate_digest()` combines [digest_protein()] and [score_peptides()] into
 #' a single call and returns a named list containing the peptide table, the
@@ -8,7 +8,8 @@
 #'
 #' @param sequence Protein input. Accepts the same forms as [digest_protein()]:
 #'   a character sequence, named character vector, `Biostrings::AAString`,
-#'   `Biostrings::AAStringSet`, or a FASTA file path.
+#'   `Biostrings::AAStringSet`, or a FASTA file path. If `NULL` or empty,
+#'   raises an error.
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages passed to
@@ -17,8 +18,10 @@
 #'   When `TRUE`, the returned peptide table gains a `cleavage_efficiency`
 #'   column. This does not affect the score components.
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
-#'   for peptide uniqueness scoring.
+#'   for peptide uniqueness scoring. When `NULL` (default), no uniqueness
+#'   scoring is performed.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
+#'   When `NULL` (default), uses pepVet's default scoring weights.
 #'   When scoring a non-tryptic digest directly, [evaluate_digest()] forwards
 #'   the selected `enzyme` so enzyme-aware S_count denominators stay aligned
 #'   with the digest.
@@ -27,25 +30,25 @@
 #'   [pepvet_preset()] directly compatible with [evaluate_digest()] through
 #'   `do.call()` or argument splicing.
 #'
-#' @return A named list with three elements:
-#'   \describe{
-#'     \item{`scores`}{A tibble from [score_peptides()] with one row per
-#'       protein, plus the informational columns `n_high_efficiency_sites` and
-#'       `n_low_efficiency_sites`.}
-#'     \item{`peptides`}{A tibble from [digest_protein()] with one row per
-#'       peptide.}
-#'     \item{`params`}{A list recording the resolved `enzyme` name,
-#'       `missed_cleavages` count, `protein_ids` found in the input, and the
-#'       resolved `preset_used` label from [score_peptides()].}
-#'   }
-#'
 #' @details `evaluate_digest()` preserves pepVet's scoring metadata so the
 #' returned object can be interpreted honestly outside the immediate scoring
 #' call. In particular, `params$preset_used` records whether the resolved
 #' scoring configuration matches one of pepVet's named presets or should be
 #' treated as `"custom"`. The cleavage-efficiency counts summarize annotated
-#' trypsin-family cleavage sites only; unsupported enzymes currently receive
-#' `NA` in these informational fields.
+#' trypsin-family cleavage sites only; unsupported enzymes receive `NA` in
+#' these informational fields.
+#'
+#' @return A named list with three elements:
+#'   \describe{
+#'     \item{\code{scores}}{A tibble from [score_peptides()] with one row per
+#'       protein, plus the informational columns \code{n_high_efficiency_sites}
+#'       and \code{n_low_efficiency_sites}.}
+#'     \item{\code{peptides}}{A tibble from [digest_protein()] with one row per
+#'       peptide.}
+#'     \item{\code{params}}{A list recording the resolved \code{enzyme} name,
+#'       \code{missed_cleavages} count, \code{protein_ids} found in the input,
+#'       and the resolved \code{preset_used} label from [score_peptides()].}
+#'   }
 #'
 #' @seealso [digest_protein()], [score_peptides()], [compare_digests()],
 #'   [batch_evaluate()]
@@ -117,21 +120,24 @@ evaluate_digest <- function(sequence,
 }
 # nolint end
 
-#' Compare Multiple Enzymes on a Single Protein
+#' Compare multiple enzymes on a single protein
 #'
 #' `compare_digests()` runs [evaluate_digest()] for each enzyme in `enzymes`
-#' and returns a tibble of scores sorted by `composite_score` descending. It is
-#' the main ranking function for pre-experimental enzyme selection.
+#' and returns a tibble of scores sorted by `composite_score` descending. Main
+#' ranking function for pre-experimental enzyme selection.
 #'
 #' @param sequence A single-protein input. Accepts the same forms as
-#'   [digest_protein()] but must resolve to exactly one protein.
-#' @param enzymes Character vector of enzyme names to compare. Each name must
-#'   be one of pepVet's supported cleaver-compatible enzyme names.
+#'   [digest_protein()] but must resolve to exactly one protein. If `NULL` or
+#'   empty, raises an error.
+#' @param enzymes Character vector of enzyme names to compare. Defaults to
+#'   `c("trypsin", "lysc")`. Each name must be one of pepVet's supported
+#'   cleaver-compatible enzyme names.
 #' @param missed_cleavages Maximum missed cleavages passed to
 #'   [digest_protein()] for every enzyme. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
-#'   for all enzyme evaluations.
+#'   for all enzyme evaluations. When `NULL` (default), no uniqueness scoring.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
+#'   When `NULL` (default), uses pepVet's default scoring weights.
 #' @param ... Additional arguments passed to [evaluate_digest()]. This includes
 #'   scoring arguments such as `gravy_range`, `length_range`, and
 #'   `include_pI`, plus `include_cleavage_efficiency` when peptide-level
@@ -187,19 +193,23 @@ compare_digests <- function(sequence,
 }
 # nolint end
 
-#' Recommend the Best Enzyme for a Single Protein
+#' Recommend the best enzyme for a single protein
 #'
 #' `recommend_enzyme()` calls [compare_digests()] and returns the name of the
 #' enzyme with the highest composite score. When two or more enzymes are tied,
-#' all tied enzyme names are returned in alphabetical order. This function is
-#' useful in scripted triage pipelines where you need a compact recommendation
-#' but still want ranking logic that stays aligned with [compare_digests()].
+#' all tied enzyme names are returned in alphabetical order. Compact
+#' recommendation for scripted triage pipelines that stays aligned with
+#' [compare_digests()].
 #'
-#' @param sequence A single-protein input passed to [compare_digests()].
-#' @param enzymes Character vector of enzyme names to compare.
+#' @param sequence A single-protein input passed to [compare_digests()]. If
+#'   `NULL` or empty, raises an error.
+#' @param enzymes Character vector of enzyme names to compare. Defaults to
+#'   `c("trypsin", "lysc")`.
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble for uniqueness scoring.
-#' @param weights Optional scoring weight vector.
+#'   When `NULL` (default), no uniqueness scoring.
+#' @param weights Optional scoring weight vector. When `NULL` (default), uses
+#'   pepVet's default scoring weights.
 #' @param ... Additional scoring arguments passed to [compare_digests()] and
 #'   ultimately to [evaluate_digest()] and [score_peptides()].
 #'
@@ -236,7 +246,7 @@ recommend_enzyme <- function(sequence,
 }
 # nolint end
 
-#' Batch-Evaluate Multiple Proteins
+#' Batch-evaluate multiple proteins
 #'
 #' `batch_evaluate()` calls [evaluate_digest()] independently for each protein
 #' in `sequences` and returns a flat tibble with one row per protein. Columns
@@ -246,25 +256,25 @@ recommend_enzyme <- function(sequence,
 #' aggregate statistics or to [triage_proteins()] for action recommendations.
 #'
 #' @param sequences Multi-protein input. Accepts the same forms as
-#'   [digest_protein()]. Must resolve to at least one protein.
+#'   [digest_protein()]. Must resolve to at least one protein. If `NULL` or
+#'   empty, raises an error.
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param include_cleavage_efficiency Logical flag passed to
-#'   [evaluate_digest()] and ultimately [digest_protein()]. When `TRUE`, each
-#'   per-protein peptide table includes a `cleavage_efficiency` column (does
-#'   not affect the flat batch tibble columns).
+#'   [evaluate_digest()] and ultimately [digest_protein()]. Defaults to `FALSE`.
+#'   When `TRUE`, each per-protein peptide table includes a `cleavage_efficiency`
+#'   column (does not affect the flat batch tibble columns).
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
-#'   for every protein evaluation. When supplied, an `S_unique` column appears
-#'   in the returned tibble.
+#'   for every protein evaluation. When `NULL` (default), no uniqueness
+#'   scoring is performed and the `S_unique` column is omitted.
 #' @param weights Optional scoring weight vector passed to [score_peptides()].
+#'   When `NULL` (default), uses pepVet's default scoring weights.
 #' @param cores Number of parallel workers for protein-level chunking.
 #'   `1L` (default) runs sequentially with no extra dependencies. Values
 #'   greater than `1L` split the input into equal chunks and process each
 #'   chunk in a forked worker via `parallel::mclapply` (Unix only; on Windows
-#'   `cores` is silently capped to `1L`). From benchmarks on a 16-core machine,
-#'   efficiency peaks around `4` to `8` cores for typical proteome sizes; beyond
-#'   8 cores memory bandwidth becomes the bottleneck.
+#'   `cores` is silently capped to `1L`).
 #' @param ... Additional scoring arguments passed to [score_peptides()], such
 #'   as `gravy_range` and `length_range`.
 #'
@@ -352,7 +362,7 @@ batch_evaluate <- function(sequences,
 }
 # nolint end
 
-# ---- Private batch helpers ----
+## Private batch helpers
 
 # Core pipeline for a pre-parsed AAStringSet, called by batch_evaluate() both
 # in serial mode and from within each mclapply worker. Accepts extra scoring
@@ -460,10 +470,10 @@ batch_evaluate <- function(sequences,
   protein_length <- as.integer(tapply(all_peptides$end, pid_factor, max))
   n_peptides <- as.integer(tabulate(pid_factor))
 
-  # valid peptide mask (length 7–25)
+  ## valid peptide mask (length 7-25)
   valid_mask <-
     all_peptides$length >= .get_param("length_lo") &
-    all_peptides$length <= .get_param("length_hi")
+      all_peptides$length <= .get_param("length_hi")
   n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask], nbins = length(protein_ids)))
 
   # flags derivable from counts
@@ -515,35 +525,38 @@ batch_evaluate <- function(sequences,
   )
 }
 
-#' Summarize a Batch Digest Evaluation
+#' Summarize a batch digest evaluation
 #'
 #' `summarize_batch()` extracts aggregate statistics from a [batch_evaluate()]
-#' result tibble. It returns a named list covering verdict distribution, score
+#' result tibble. Returns a named list with verdict distribution, score
 #' distribution, per-component averages, the lowest-scoring proteins, and a
 #' heuristic set of enzyme-switch candidates.
 #'
-#' @param batch_result A tibble returned by [batch_evaluate()].
-#'
-#' @return A named list with five elements:
-#'   \describe{
-#'     \item{`verdict_counts`}{A tibble with columns `verdict`, `n`, and `pct`
-#'       covering the three verdict categories.}
-#'     \item{`score_distribution`}{A named numeric vector with `mean`,
-#'       `median`, `sd`, `q25`, `q75`, `min`, and `max` of composite scores.}
-#'     \item{`component_summary`}{A named numeric vector of per-component mean
-#'       scores. The lowest values identify the weakest scoring dimension
-#'       across the proteome.}
-#'     \item{`problem_proteins`}{A tibble of proteins in the bottom 10% by
-#'       composite score, ordered ascending, with all score and flag columns.}
-#'     \item{`enzyme_switch_candidates`}{A tibble of Moderate or Poor proteins
-#'       where `flag_hydrophobic` or `flag_short_protein` is `TRUE`, indicating
-#'       that enzyme or preset choice is the likely limiting factor.}
-#'   }
+#' @param batch_result A tibble returned by [batch_evaluate()]. If `NULL` or
+#'   empty, raises an error.
 #'
 #' @details `enzyme_switch_candidates` is a heuristic flag list derived from
 #'   sequence-level difficulty flags, not from running alternative enzymes.
 #'   Use [compare_digests()] to confirm whether a specific alternative enzyme
 #'   improves the verdict for a flagged protein.
+#'
+#' @return A named list with five elements:
+#'   \describe{
+#'     \item{\code{verdict_counts}}{A tibble with columns \code{verdict},
+#'       \code{n}, and \code{pct} covering the three verdict categories.}
+#'     \item{\code{score_distribution}}{A named numeric vector with \code{mean},
+#'       \code{median}, \code{sd}, \code{q25}, \code{q75}, \code{min}, and
+#'       \code{max} of composite scores.}
+#'     \item{\code{component_summary}}{A named numeric vector of per-component
+#'       mean scores. The lowest values identify the weakest scoring dimension
+#'       across the proteome.}
+#'     \item{\code{problem_proteins}}{A tibble of proteins in the bottom 10% by
+#'       composite score, ordered ascending, with all score and flag columns.}
+#'     \item{\code{enzyme_switch_candidates}}{A tibble of Moderate or Poor
+#'       proteins where \code{flag_hydrophobic} or \code{flag_short_protein} is
+#'       \code{TRUE}, indicating that enzyme or preset choice is the likely
+#'       limiting factor.}
+#'   }
 #'
 #' @seealso [batch_evaluate()], [triage_proteins()]
 #'
@@ -620,7 +633,7 @@ summarize_batch <- function(batch_result) {
 }
 # nolint end
 
-#' Compare Multiple Enzymes Across a Full Proteome
+#' Compare multiple enzymes across a full proteome
 #'
 #' `batch_compare_enzymes()` scores every protein in `sequences` against each
 #' enzyme in `enzymes` and returns a tidy tibble with one row per
@@ -631,7 +644,8 @@ summarize_batch <- function(batch_result) {
 #' are compared, and the speedup applies equally to single-enzyme calls.
 #'
 #' @param sequences Multi-protein input. Accepts the same forms as
-#'   [digest_protein()]. Must resolve to at least one protein.
+#'   [digest_protein()]. Must resolve to at least one protein. If `NULL` or
+#'   empty, raises an error.
 #' @param enzymes Character vector of enzyme names to compare. Each name must
 #'   be one of pepVet's supported enzyme names. Defaults to a panel of five
 #'   commonly compared enzymes: trypsin, lysc, chymotrypsin-high,
@@ -639,15 +653,14 @@ summarize_batch <- function(batch_result) {
 #' @param cores Number of parallel workers passed to [batch_evaluate()] for
 #'   each enzyme. Proteins are split into `cores` equal chunks and processed
 #'   in parallel via `parallel::mclapply` (Unix only; silently serial on
-#'   Windows). Enzymes are always processed sequentially. Benchmarks show
-#'   near-linear scaling up to 4 cores (~82% efficiency) and a practical
-#'   ceiling around 8 cores before memory bandwidth dominates.
+#'   Windows). Enzymes are always processed sequentially.
 #' @param missed_cleavages Maximum missed cleavages passed to
 #'   [batch_evaluate()] for every enzyme. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble passed to [batch_evaluate()]
-#'   for every enzyme. When supplied, an `S_unique` column appears in the
-#'   returned tibble.
+#'   for every enzyme. When `NULL` (default), no uniqueness scoring and the
+#'   `S_unique` column is omitted.
 #' @param weights Optional scoring weight vector passed to [batch_evaluate()].
+#'   When `NULL` (default), uses pepVet's default scoring weights.
 #' @param ... Additional scoring arguments passed to [batch_evaluate()], such
 #'   as `gravy_range` and `length_range`.
 #'
@@ -799,27 +812,28 @@ print.pepvet_batch_comparison <- function(x, ...) {
   invisible(x)
 }
 
-#' Triage Proteins from a Batch Evaluation
+#' Triage proteins from a batch evaluation
 #'
 #' `triage_proteins()` appends an `action` column to the flat tibble returned
 #' by [batch_evaluate()] with deterministic recommendations based on each
 #' protein's verdict and difficulty flags.
 #'
-#' @param batch_result A tibble returned by [batch_evaluate()].
+#' @param batch_result A tibble returned by [batch_evaluate()]. If `NULL` or
+#'   empty, raises an error.
 #'
 #' @return A tibble with one row per protein containing all score and flag
 #'   columns from the flat batch summary, plus an `action` column. Possible
 #'   values:
 #'   \describe{
-#'     \item{`"proceed"`}{Good verdict. No intervention indicated.}
-#'     \item{`"consider_alternative"`}{Moderate verdict with at least one
+#'     \item{\code{"proceed"}}{Good verdict. No intervention indicated.}
+#'     \item{\code{"consider_alternative"}}{Moderate verdict with at least one
 #'       component score below 0.5. A preset change or missed-cleavage
 #'       adjustment may improve results.}
-#'     \item{`"try_other_enzyme"`}{Moderate or Poor verdict with
-#'       `flag_hydrophobic` or `flag_short_protein`, or any Poor verdict
-#'       without an intrinsic complexity flag. An alternative enzyme is the
-#'       most likely improvement path.}
-#'     \item{`"skip"`}{No valid peptides or low-complexity sequence. No
+#'     \item{\code{"try_other_enzyme"}}{Moderate or Poor verdict with
+#'       \code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor
+#'       verdict without an intrinsic complexity flag. An alternative enzyme
+#'       is the most likely improvement path.}
+#'     \item{\code{"skip"}}{No valid peptides or low-complexity sequence. No
 #'       standard enzyme choice is expected to substantially improve the
 #'       score.}
 #'   }
@@ -876,9 +890,9 @@ triage_proteins <- function(batch_result) {
 # nolint end
 
 
-# ---- Weight sensitivity analysis ----
+## Weight sensitivity analysis
 
-#' Weight Sensitivity Analysis
+#' Weight sensitivity analysis
 #'
 #' `sensitivity_analysis()` perturbs the default scoring weights using a
 #' Dirichlet distribution and reports how often the verdict (or enzyme ranking)
@@ -917,9 +931,9 @@ triage_proteins <- function(batch_result) {
 #'
 #' @export
 sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
-                                  chunk_size = 10000L,
-                                  importance = FALSE,
-                                  corner_cases = FALSE) {
+                                 chunk_size = 10000L,
+                                 importance = FALSE,
+                                 corner_cases = FALSE) {
   if (is.data.frame(x)) {
     if ("enzyme" %in% names(x) && length(unique(x$protein_id)) == 1L) {
       .sensitivity_enzymes(x, nu, n_iter, importance, corner_cases)
@@ -940,7 +954,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 # ---- Single-protein sensitivity ----
 
 .sensitivity_single <- function(scores, params, nu, n_iter,
-                                 importance, corner_cases) {
+                                importance, corner_cases) {
   score_row <- as.list(scores[1L, , drop = FALSE])
   has_unique <- "S_unique" %in% names(score_row)
   w0 <- if (has_unique) {
@@ -1036,10 +1050,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 }
 
 
-# ---- Multi-enzyme sensitivity ----
+## Multi-enzyme sensitivity
 
 .sensitivity_enzymes <- function(enzyme_tbl, nu, n_iter,
-                                  importance, corner_cases) {
+                                 importance, corner_cases) {
   enzymes <- unique(enzyme_tbl$enzyme)
   res_list <- lapply(enzymes, function(enz) {
     sub <- enzyme_tbl[enzyme_tbl$enzyme == enz, , drop = FALSE]
@@ -1055,8 +1069,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   top1 <- apply(rank_matrix, 1, function(row) enzymes[which.max(row)])
   top1_stab <- prop.table(table(top1))
 
-  default_composites <- vapply(res_list, function(r) r$summary$composite_mean,
-    numeric(1))
+  default_composites <- vapply(
+    res_list, function(r) r$summary$composite_mean,
+    numeric(1)
+  )
   default_rank <- order(default_composites, decreasing = TRUE)
   kendalls <- apply(rank_matrix, 1, function(row) {
     iter_rank <- order(row, decreasing = TRUE)
@@ -1073,10 +1089,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 }
 
 
-# ---- Batch sensitivity ----
+## Batch sensitivity
 
 .sensitivity_batch <- function(batch_tbl, nu, n_iter, chunk_size,
-                                importance) {
+                               importance) {
   has_unique <- "S_unique" %in% names(batch_tbl)
   w0 <- if (has_unique) {
     .default_scoring_weights$proteome_aware
@@ -1151,10 +1167,12 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   out <- list(
     per_protein = per_protein,
     summary = list(
-      total_instability   = total_inst,
-      mean_ci_width       = mean(ci_widths, na.rm = TRUE),
-      ci_width_quantiles  = stats::quantile(ci_widths,
-        c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE)
+      total_instability = total_inst,
+      mean_ci_width = mean(ci_widths, na.rm = TRUE),
+      ci_width_quantiles = stats::quantile(ci_widths,
+        c(0, 0.25, 0.5, 0.75, 1),
+        na.rm = TRUE
+      )
     )
   )
 

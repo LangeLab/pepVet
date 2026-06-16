@@ -99,29 +99,31 @@
   )
 }
 
-#' Annotate Cleavage-Site Efficiency
+#' Annotate cleavage-site efficiency
 #'
 #' `annotate_cleavage_sites()` classifies sequence-local cleavage-site
-#' efficiency for trypsin-family digests. It is intended as a companion to
-#' [digest_protein()] when you want to inspect cleavage hotspots before or
-#' alongside peptide generation.
+#' efficiency for trypsin-family digests. Companion to [digest_protein()] for
+#' inspecting cleavage hotspots before or alongside peptide generation.
 #'
 #' @param sequence Protein input supplied as a single sequence, a named
 #'   character vector of length 1, a `Biostrings::AAString`, or a FASTA file
-#'   path resolving to exactly one protein.
-#' @param enzyme Cleavage rule name. Cleavage-efficiency annotations are
-#'   currently implemented for the trypsin family: `trypsin`, `trypsin-high`,
-#'   `trypsin-low`, and `trypsin-simple`.
-#'
-#' @return A tibble with one row per candidate cleavage site and the columns
-#'   `position`, `residue`, `flanking_context`, `efficiency`, and
-#'   `rule_applied`.
+#'   path resolving to exactly one protein. If `NULL` or empty, raises an
+#'   error.
+#' @param enzyme Cleavage rule name. Defaults to `"trypsin"`.
+#'   Cleavage-efficiency annotations are implemented for the trypsin family
+#'   only: `trypsin`, `trypsin-high`, `trypsin-low`, and `trypsin-simple`.
+#'   Unsupported enzymes raise an error.
 #'
 #' @details The current annotations are sequence-local and based on P1-P1'
 #'   context only. They do not model higher-order structural accessibility,
 #'   extended subsite preferences beyond P1', or PTMs that block cleavage.
-#'   Unsupported enzymes currently raise an error rather than returning a
-#'   partially annotated table.
+#'   Unsupported enzymes raise an error rather than returning a partially
+#'   annotated table.
+#'
+#' @return A tibble with one row per candidate cleavage site and the columns
+#'   `position`, `residue`, `flanking_context`, `efficiency`, and
+#'   `rule_applied`. Returns an empty tibble when the sequence contains no
+#'   trypsin cleavage sites.
 #'
 #' @examples
 #' annotate_cleavage_sites("AKRTPK", enzyme = "trypsin")
@@ -151,36 +153,29 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
   .annotate_trypsin_cleavage_sites(as.character(normalized_input[[1L]]))
 }
 
-#' Simulate a Proteolytic Digest
+#' Simulate a proteolytic digest
 #'
 #' `digest_protein()` normalizes protein-like input, validates the amino-acid
 #' alphabet, applies a cleaver-compatible enzyme rule, and returns peptide
-#' coordinates in a tidy tibble. It is the entry point for all higher-level
-#' pepVet workflows, including scoring, enzyme comparison, and batch
-#' evaluation.
+#' coordinates in a tidy tibble. Entry point for all higher-level pepVet
+#' workflows: scoring, enzyme comparison, and batch evaluation.
 #'
 #' @param sequence Protein input supplied as a single sequence, a named
 #'   character vector of sequences, a `Biostrings::AAString`, a
 #'   `Biostrings::AAStringSet`, or a path to a FASTA file. File extension is
 #'   not used to detect FASTA input; any existing file that
-#'   `Biostrings::readAAStringSet()` can parse as FASTA is accepted.
-#' @param enzyme Cleavage rule name. pepVet validates this against its
-#'   hard-coded registry of cleaver-compatible enzyme names, including
-#'   `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n endopeptidase`,
-#'   `chymotrypsin-high`, and `thermolysin`.
+#'   `Biostrings::readAAStringSet()` can parse as FASTA is accepted. If
+#'   `NULL` or empty, raises an error.
+#' @param enzyme Cleavage rule name. Defaults to `"trypsin"`. pepVet validates
+#'   this against its hard-coded registry of cleaver-compatible enzyme names,
+#'   including `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n
+#'   endopeptidase`, `chymotrypsin-high`, and `thermolysin`.
 #' @param missed_cleavages Maximum number of missed cleavages to include.
+#'   Defaults to `1L`.
 #' @param include_cleavage_efficiency Logical flag indicating whether to append
-#'   a `cleavage_efficiency` column to the peptide output. Trypsin-family
-#'   digests receive sequence-local high/medium/low annotations; unsupported
-#'   enzymes currently return `NA` in this optional column.
-#' @importFrom cleaver cleavageRanges
-#'
-#' @return A tibble with one row per peptide and the columns `protein_id`,
-#'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`. Each row
-#'   represents one observed cleavage product for one protein under the
-#'   selected enzyme rule and missed-cleavage allowance. When
-#'   `include_cleavage_efficiency = TRUE`, the output also includes a
-#'   `cleavage_efficiency` column.
+#'   a `cleavage_efficiency` column to the peptide output. Defaults to `FALSE`.
+#'   Trypsin-family digests receive sequence-local high/medium/low annotations;
+#'   unsupported enzymes return `NA` in this optional column.
 #'
 #' @details FASTA record names are preserved as `protein_id` values when they
 #'   are present, including irregular headers that do not use UniProt pipe
@@ -196,10 +191,19 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #'   fall within a peptide. These annotations reflect local P1-P1' sequence
 #'   context only. They do not model extended subsite preferences, structural
 #'   protection, or PTMs that alter cleavage behavior.
+#'
+#' @return A tibble with one row per peptide and the columns `protein_id`,
+#'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`. Each row
+#'   represents one observed cleavage product for one protein under the
+#'   selected enzyme rule and missed-cleavage allowance. When
+#'   `include_cleavage_efficiency = TRUE`, the output also includes a
+#'   `cleavage_efficiency` column. The `cleavage_efficiency` values are all
+#'   `NA` for enzymes outside the trypsin family.
 #' @examples
 #' digest_protein("MKWVTFISLLFLFSSAYSR")
 #' digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"))
 #' digest_protein("AKRTPK", include_cleavage_efficiency = TRUE)
+#' @importFrom cleaver cleavageRanges
 #' @export
 # nolint start: object_usage_linter.
 digest_protein <- function(sequence,

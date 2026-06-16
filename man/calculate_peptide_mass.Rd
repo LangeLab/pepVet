@@ -2,18 +2,18 @@
 % Please edit documentation in R/utils.R
 \name{calculate_peptide_mass}
 \alias{calculate_peptide_mass}
-\title{Calculate Peptide Mass or m/z}
+\title{Calculate peptide mass or m/z}
 \usage{
 calculate_peptide_mass(sequence, charge = 0L)
 }
 \arguments{
 \item{sequence}{Peptide sequence supplied as a character vector. Amino-acid
 codes must be one-letter uppercase or lowercase symbols from the 20
-standard residues.}
+standard residues. If \code{NULL}, raises an error.}
 
 \item{charge}{Optional non-negative integer scalar or integer vector with
-length matching \code{sequence}. \code{0L} returns neutral masses. Positive values
-return m/z.}
+length matching \code{sequence}. Defaults to \code{0L}. \code{0L} returns neutral masses.
+Positive values return m/z. If \code{NULL}, raises an error.}
 }
 \value{
 A numeric vector of neutral masses or m/z values. Names are

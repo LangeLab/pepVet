@@ -150,11 +150,11 @@ The five standard components:
 
 | Score | Numerator / logic | Optimal direction |
 |---|---|---|
-| `S_length` | Valid peptides / total peptides | Higher → more peptides in the LC-MS window |
-| `S_coverage` | Non-overlapping valid residues / protein length | Higher → less dark proteome |
-| `S_count` | Soft-normalised valid peptide count | Higher → more IDs per protein |
-| `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 → balanced retention |
-| `S_charge` | Valid peptides with ≥ 1 non-terminal K/R/H / total valid | Higher → more multi-charge potential and richer fragment series |
+| `S_length` | Valid peptides / total peptides | Higher -> more peptides in the LC-MS window |
+| `S_coverage` | Non-overlapping valid residues / protein length | Higher -> less dark proteome |
+| `S_count` | Soft-normalised valid peptide count | Higher -> more IDs per protein |
+| `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 -> balanced retention |
+| `S_charge` | Valid peptides with ≥ 1 non-terminal K/R/H / total valid | Higher -> more multi-charge potential and richer fragment series |
 
 pepVet also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
 

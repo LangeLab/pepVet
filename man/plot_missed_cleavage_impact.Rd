@@ -13,16 +13,19 @@ plot_missed_cleavage_impact(
 \arguments{
 \item{results}{A named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results.  Names should
 be the MC level (e.g., \code{list("MC=0" = r0, "MC=1" = r1, "MC=2" = r2)}).
-\strong{Or} an unnamed list of length 2–4, in which case names are auto-assigned
-as \code{"MC=0"}, \code{"MC=1"}, etc.}
+\strong{Or} an unnamed list of length 2-4, in which case names are auto-assigned
+as \code{"MC=0"}, \code{"MC=1"}, etc.  If \code{NULL}, raises an error.}
 
 \item{components}{Character vector of component score columns to show.
-Defaults to \code{c("S_length","S_coverage","S_count","S_hydro","S_charge")}.}
+Defaults to \code{c("S_length","S_coverage","S_count","S_hydro","S_charge")}.
+If \code{NULL}, raises an error.}
 
 \item{title}{Optional character title.  Auto-generated when \code{NULL}.}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object showing connected line plots of component and
+composite scores across missed-cleavage levels, with the best-MC
+annotation.
 }
 \description{
 \code{plot_missed_cleavage_impact()} visualizes how allowing more missed
@@ -32,7 +35,18 @@ named list.  Each component score is drawn as a connected line; the
 composite score is drawn as a bold line.  An annotation marks the MC count
 that maximizes the composite.
 }
+\examples{
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  mc0 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 0)
+  mc1 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1)
+  p <- plot_missed_cleavage_impact(list("MC=0" = mc0, "MC=1" = mc1))
+  print(p)
+}
+}
 \seealso{
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step.
+
 Other plot-distribution:
 \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
 \code{\link[=plot_length_distribution]{plot_length_distribution()}},

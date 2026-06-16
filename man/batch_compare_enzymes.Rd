@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{batch_compare_enzymes}
 \alias{batch_compare_enzymes}
-\title{Compare Multiple Enzymes Across a Full Proteome}
+\title{Compare multiple enzymes across a full proteome}
 \usage{
 batch_compare_enzymes(
   sequences,
@@ -17,7 +17,8 @@ batch_compare_enzymes(
 }
 \arguments{
 \item{sequences}{Multi-protein input. Accepts the same forms as
-\code{\link[=digest_protein]{digest_protein()}}. Must resolve to at least one protein.}
+\code{\link[=digest_protein]{digest_protein()}}. Must resolve to at least one protein. If \code{NULL} or
+empty, raises an error.}
 
 \item{enzymes}{Character vector of enzyme names to compare. Each name must
 be one of pepVet's supported enzyme names. Defaults to a panel of five
@@ -27,18 +28,17 @@ asp-n endopeptidase, and arg-c proteinase.}
 \item{cores}{Number of parallel workers passed to \code{\link[=batch_evaluate]{batch_evaluate()}} for
 each enzyme. Proteins are split into \code{cores} equal chunks and processed
 in parallel via \code{parallel::mclapply} (Unix only; silently serial on
-Windows). Enzymes are always processed sequentially. Benchmarks show
-near-linear scaling up to 4 cores (~82\% efficiency) and a practical
-ceiling around 8 cores before memory bandwidth dominates.}
+Windows). Enzymes are always processed sequentially.}
 
 \item{missed_cleavages}{Maximum missed cleavages passed to
 \code{\link[=batch_evaluate]{batch_evaluate()}} for every enzyme. Defaults to \code{1L}.}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=batch_evaluate]{batch_evaluate()}}
-for every enzyme. When supplied, an \code{S_unique} column appears in the
-returned tibble.}
+for every enzyme. When \code{NULL} (default), no uniqueness scoring and the
+\code{S_unique} column is omitted.}
 
-\item{weights}{Optional scoring weight vector passed to \code{\link[=batch_evaluate]{batch_evaluate()}}.}
+\item{weights}{Optional scoring weight vector passed to \code{\link[=batch_evaluate]{batch_evaluate()}}.
+When \code{NULL} (default), uses pepVet's default scoring weights.}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=batch_evaluate]{batch_evaluate()}}, such
 as \code{gravy_range} and \code{length_range}.}

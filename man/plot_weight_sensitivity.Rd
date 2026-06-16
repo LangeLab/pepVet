@@ -7,13 +7,16 @@
 plot_weight_sensitivity(x, title = NULL)
 }
 \arguments{
-\item{x}{A list returned by \code{\link[=sensitivity_analysis]{sensitivity_analysis()}}.}
+\item{x}{A list returned by \code{\link[=sensitivity_analysis]{sensitivity_analysis()}}.  If \code{NULL} or
+unrecognised, raises an error.}
 
 \item{title}{Optional character string for the plot title.  When \code{NULL}
 (default) a title is auto-generated.}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object: density plot of composite scores with verdict
+shading (single-protein mode) or faceted histogram of verdict instability
+(batch mode).
 }
 \description{
 \code{plot_weight_sensitivity()} visualises the result of
@@ -21,6 +24,13 @@ A \code{ggplot} object.
 of composite scores with verdict shading, threshold lines, and a rug mark
 at the default composite.  For batch input it draws a faceted histogram of
 per-protein verdict instability with per-enzyme mean and median annotations.
+}
+\details{
+Single-protein input produces a density overlay of iteration
+composite scores with verdict shading and a rug at the default-weight
+composite.  Batch input (a result with a \code{per_protein} component) produces
+a faceted histogram of per-protein verdict instability, split by enzyme
+when available.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE)) {
@@ -30,10 +40,10 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p <- plot_weight_sensitivity(sens)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=sensitivity_analysis]{sensitivity_analysis()}}
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}} for the upstream weight-sensitivity
+simulation.
 
 Other plot-single:
 \code{\link[=plot_cleavage_map]{plot_cleavage_map()}},

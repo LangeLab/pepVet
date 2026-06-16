@@ -7,9 +7,11 @@
 pepvet_check(sequence, enzyme = "trypsin", ...)
 }
 \arguments{
-\item{sequence}{Protein input. Accepts the same forms as \code{\link[=evaluate_digest]{evaluate_digest()}}.}
+\item{sequence}{Protein input. Accepts the same forms as \code{\link[=evaluate_digest]{evaluate_digest()}}.
+If \code{NULL}, raises an error.}
 
-\item{enzyme}{Enzyme name. Defaults to \code{"trypsin"}.}
+\item{enzyme}{Enzyme name. Defaults to \code{"trypsin"}.  If \code{NULL}, raises an
+error.}
 
 \item{...}{Additional arguments passed to \code{\link[=evaluate_digest]{evaluate_digest()}}, such as
 \code{missed_cleavages}, \code{include_cleavage_efficiency}, \code{weights},

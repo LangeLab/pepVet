@@ -1,5 +1,5 @@
-# ── pepVet Distribution & landscape plots ──────────────────────────────────
-# ── plot_length_distribution ──────────────────────────────────────────────────
+## pepVet Distribution & landscape plots
+## plot_length_distribution
 
 #' Standalone Peptide Length Distribution
 #'
@@ -10,17 +10,24 @@
 #'
 #' @param result A named list returned by [evaluate_digest()], **or** a
 #'   data.frame / tibble with at least a `length` column (e.g. the
-#'   `$peptides` slot of such a result).
+#'   `$peptides` slot of such a result).  If `NULL` or an unrecognised type,
+#'   raises an error.
 #' @param length_range Integer vector of length 2 giving the valid length
 #'   window `c(lo, hi)`.  Defaults to `c(7L, 25L)`.  Ignored (and read from
 #'   `result$params`) when a full `evaluate_digest()` result is supplied.
 #' @param show_density Logical.  When `TRUE` (default) a scaled kernel-density
-#'   curve is overlaid on the histogram.
+#'   curve is overlaid on the histogram.  If `NULL`, treated as `FALSE`.
 #' @param title Optional character string for the plot title.  Auto-generated
 #'   when `NULL` (default).
 #'
-#' @return A `ggplot` object.
-#'
+#' @details When `result` is a named list of [evaluate_digest()] results
+#'   (multi-input mode), produces a faceted panel of length distributions
+#'   with one facet per result, using per-result valid-length ranges.
+#' @return A `ggplot` object showing a histogram of peptide lengths coloured
+#'   by validity class with valid-range shading and optional density overlay.
+#' @seealso [evaluate_digest()] for the upstream digestion step,
+#'   [plot_digest_profile()] for a single-protein digest summary.
+#' @family plot-distribution
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -28,10 +35,6 @@
 #'   p <- plot_length_distribution(res)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [plot_digest_profile()],
-#'   [plot_gravy_landscape()]
-#' @family plot-distribution
 #' @export
 plot_length_distribution <- function(
   result,
@@ -41,7 +44,7 @@ plot_length_distribution <- function(
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_length_distribution()")
 
-  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_length_distribution_multi(result,
       length_range = length_range,
@@ -50,7 +53,7 @@ plot_length_distribution <- function(
     ))
   }
 
-  # ── Accept evaluate_digest() list or a bare peptide data.frame ───────────
+  ## Accept evaluate_digest() list or a bare peptide data.frame
   if (
     is.list(result) &&
       !is.data.frame(result) &&
@@ -80,7 +83,7 @@ plot_length_distribution <- function(
   length_lo <- as.integer(length_range[[1L]])
   length_hi <- as.integer(length_range[[2L]])
 
-  # ── Classify peptides ─────────────────────────────────────────────────────
+  ## Classify peptides
   peps$length_class <- .classify_length(peps$length, length_range)
 
   n_total <- nrow(peps)
@@ -94,8 +97,8 @@ plot_length_distribution <- function(
   x_max <- max(peps$length, na.rm = TRUE) + 1L
   x_min <- max(0L, min(peps$length, na.rm = TRUE) - 1L)
 
-  # ── Category annotation positions: each label sits at the centre of its
-  #    x-range, just below the top of the panel ─────────────────────────────
+  ## Category annotation positions: each label sits at the centre of its
+  ##   #    x-range, just below the top of the panel
   cat_labels <- data.frame(
     x = c(
       (x_min + length_lo - 1) / 2,
@@ -116,7 +119,7 @@ plot_length_distribution <- function(
     drop = FALSE
   ]
 
-  # ── Auto title ────────────────────────────────────────────────────────────
+  ## Auto title
   auto_title <- if (!is.null(title)) {
     title
   } else if (
@@ -134,7 +137,7 @@ plot_length_distribution <- function(
     "Peptide length distribution"
   }
 
-  # ── Build plot ────────────────────────────────────────────────────────────
+  ## Build plot
   p <- ggplot2::ggplot(peps, ggplot2::aes(
     x = .data$length,
     fill = .data$length_class
@@ -340,7 +343,7 @@ plot_length_distribution <- function(
   }
 
 
-# ── plot_gravy_landscape ──────────────────────────────────────────────────────
+## plot_gravy_landscape
 
 #' GRAVY Landscape: 2D Scatter of Peptide Length vs. Hydrophobicity
 #'
@@ -354,7 +357,8 @@ plot_length_distribution <- function(
 #' @param result A named list returned by [evaluate_digest()], **or** a
 #'   data.frame / tibble with at least `length` and `gravy` columns.  When a
 #'   bare data.frame lacks a `gravy` column but has a `peptide` column, GRAVY
-#'   scores are computed automatically.
+#'   scores are computed automatically.  If `NULL` or an unrecognised type,
+#'   raises an error.
 #' @param length_range Integer vector of length 2.  Valid length window.
 #'   Defaults to `c(7L, 25L)`.  Read from `result$params` when a full
 #'   [evaluate_digest()] result is supplied.
@@ -362,11 +366,20 @@ plot_length_distribution <- function(
 #'   Defaults to `c(-1.0, 0.6)`.  Read from `result$params` when available.
 #' @param label_outliers_n Integer.  Maximum number of outlier points to label
 #'   with their peptide sequences.  Labels are suppressed when the count
-#'   exceeds this threshold.  Defaults to `15L`.
-#' @param title Optional character string for the plot title.
+#'   exceeds this threshold.  Defaults to `15L`.  If `NULL`, raises an error.
+#' @param title Optional character string for the plot title.  Auto-generated
+#'   when `NULL` (default).
 #'
-#' @return A `patchwork` composite `ggplot` object.
-#'
+#' @details When `result` is a named list of [evaluate_digest()] results
+#'   (multi-input mode), produces a faceted scatter with one panel per result
+#'   (no marginal densities).  GRAVY scores are computed automatically when a
+#'   bare data.frame has a `peptide` column but no `gravy` column.
+#' @return A `patchwork` object with a central scatter of length vs GRAVY
+#'   coloured by validity class, and marginal density panels on the top and
+#'   right axes.
+#' @seealso [evaluate_digest()] for the upstream digestion step,
+#'   [plot_digest_profile()] for a single-protein digest summary.
+#' @family plot-distribution
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
 #'     requireNamespace("patchwork", quietly = TRUE)) {
@@ -375,10 +388,6 @@ plot_length_distribution <- function(
 #'   p <- plot_gravy_landscape(res)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [plot_length_distribution()],
-#'   [plot_digest_profile()]
-#' @family plot-distribution
 #' @export
 plot_gravy_landscape <- function(
   result,
@@ -390,7 +399,7 @@ plot_gravy_landscape <- function(
   rlang::check_installed("ggplot2", reason = "to use plot_gravy_landscape()")
   rlang::check_installed("patchwork", reason = "to assemble panels in plot_gravy_landscape()")
 
-  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_gravy_landscape_multi(result,
       length_range = length_range,
@@ -398,7 +407,7 @@ plot_gravy_landscape <- function(
     ))
   }
 
-  # ── Parse input ───────────────────────────────────────────────────────────
+  ## Parse input
   if (
     is.list(result) &&
       !is.data.frame(result) &&
@@ -442,7 +451,7 @@ plot_gravy_landscape <- function(
   gravy_lo <- gravy_range[[1L]]
   gravy_hi <- gravy_range[[2L]]
 
-  # ── Classify peptides ─────────────────────────────────────────────────────
+  ## Classify peptides
   peps$valid_length <- peps$length >= length_lo & peps$length <= length_hi
   peps$valid_gravy <- peps$gravy >= gravy_lo & peps$gravy <= gravy_hi
   peps$class <- factor(
@@ -470,12 +479,12 @@ plot_gravy_landscape <- function(
   n_valid <- sum(peps$class == "Valid")
   pct_valid <- round(100 * n_valid / n_total, 1)
 
-  # ── Outlier labels ────────────────────────────────────────────────────────
+  ## Outlier labels
   outliers <- peps[peps$class != "Valid", , drop = FALSE]
   do_label <- "peptide" %in% names(peps) &&
     nrow(outliers) > 0L && nrow(outliers) <= as.integer(label_outliers_n)
 
-  # ── Axis limits with padding ──────────────────────────────────────────────
+  ## Axis limits with padding
   x_pad <- 1.5
   y_pad <- 0.15
   x_lims <- c(max(0, min(peps$length, na.rm = TRUE) - x_pad), max(peps$length, na.rm = TRUE) + x_pad)
@@ -484,7 +493,7 @@ plot_gravy_landscape <- function(
     max(peps$gravy, na.rm = TRUE) + y_pad
   )
 
-  # ── Auto title ────────────────────────────────────────────────────────────
+  ## Auto title
   auto_title <- if (!is.null(title)) {
     title
   } else if (
@@ -502,7 +511,7 @@ plot_gravy_landscape <- function(
     "GRAVY landscape"
   }
 
-  # ── Central scatter ───────────────────────────────────────────────────────
+  ## Central scatter
   p_scatter <- ggplot2::ggplot(
     peps, ggplot2::aes(
       x = .data$length, y = .data$gravy,
@@ -584,7 +593,7 @@ plot_gravy_landscape <- function(
     .pepvet_theme() +
     ggplot2::theme(legend.position = "bottom")
 
-  # ── Top marginal: length density by class ────────────────────────────────
+  ## Top marginal: length density by class
   p_top <- ggplot2::ggplot(
     peps, ggplot2::aes(x = .data$length, fill = .data$class)
   ) +
@@ -610,7 +619,7 @@ plot_gravy_landscape <- function(
       plot.margin       = ggplot2::margin(0, 0, 2, 0)
     )
 
-  # ── Right marginal: GRAVY density by class (coord_flip) ───────────────────
+  ## Right marginal: GRAVY density by class (coord_flip)
   p_right <- ggplot2::ggplot(
     peps, ggplot2::aes(x = .data$gravy, fill = .data$class)
   ) +
@@ -636,7 +645,7 @@ plot_gravy_landscape <- function(
       plot.margin       = ggplot2::margin(0, 0, 0, 2)
     )
 
-  # ── Assemble: top-marginal / (scatter + right-marginal) ───────────────────
+  ## Assemble: top-marginal / (scatter + right-marginal)
   (p_top | patchwork::plot_spacer()) /
     (p_scatter | p_right) +
     patchwork::plot_layout(heights = c(1, 4), widths = c(4, 1)) +
@@ -755,12 +764,12 @@ plot_gravy_landscape <- function(
 }
 
 
-# ── plot_pI_distribution ──────────────────────────────────────────────────────
+## plot_pI_distribution
 
 #' pI Distribution: Histogram of Peptide Isoelectric Points
 #'
 #' `plot_pI_distribution()` draws a histogram of peptide isoelectric points
-#' coloured by SCX fraction bin (e.g., pH 3–4, 4–5, …) to preview
+#' coloured by SCX fraction bin (e.g., pH 3-4, 4-5, ...) to preview
 #' fractionation outcomes.  Vertical boundary lines and per-fraction count
 #' annotations are optionally overlaid.
 #'
@@ -771,15 +780,28 @@ plot_gravy_landscape <- function(
 #'     (contains a `pI` list column).
 #'   * A plain data.frame / tibble with a numeric `pI` column.
 #'   * A bare numeric vector of pI values.
+#'   If `NULL`, raises an error.
 #' @param fraction_breaks Numeric vector of pH boundary values defining the
 #'   fraction bins.  Defaults to `c(3, 4, 5, 6, 7, 8, 9, 10)`, which produces
-#'   eight bins: `<3`, `3–4`, …, `9–10`, `>10`.
+#'   eight bins: `<3`, `3-4`, ..., `9-10`, `>10`.  If `NULL`, raises an error.
 #' @param show_fraction_lines Logical.  When `TRUE` (default) vertical dashed
-#'   lines are drawn at each interior fraction boundary.
-#' @param title Optional character string for the plot title.
+#'   lines are drawn at each interior fraction boundary.  If `NULL`, treated
+#'   as `FALSE`.
+#' @param title Optional character string for the plot title.  Auto-generated
+#'   when `NULL` (default).
 #'
-#' @return A `ggplot` object.
-#'
+#' @details The function accepts four input types with the following
+#'   precedence: (1) named list of [evaluate_digest()] results (multi-input
+#'   mode, produces overlaid density curves per result), (2) single
+#'   [evaluate_digest()] result, (3) data.frame with a `pI` column, (4) raw
+#'   numeric vector of pI values.  When a full [evaluate_digest()] result is
+#'   supplied, pI values are computed from valid-peptide sequences via
+#'   [calculate_pI()].
+#' @return A `ggplot` object showing a histogram of isoelectric points
+#'   coloured by SCX fraction bin with optional fraction boundary lines.
+#' @seealso [evaluate_digest()] and [score_peptides()] for upstream
+#'   peptide scoring.
+#' @family plot-distribution
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -787,10 +809,6 @@ plot_gravy_landscape <- function(
 #'   p <- plot_pI_distribution(res)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [score_peptides()], [plot_length_distribution()],
-#'   [plot_gravy_landscape()]
-#' @family plot-distribution
 #' @export
 plot_pI_distribution <- function(
   result,
@@ -800,7 +818,7 @@ plot_pI_distribution <- function(
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
 
-  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_pI_distribution_multi(result,
       fraction_breaks = fraction_breaks,
@@ -809,7 +827,7 @@ plot_pI_distribution <- function(
     ))
   }
 
-  # ── Extract pI values ─────────────────────────────────────────────────────
+  ## Extract pI values
   pI_vals <- if (is.numeric(result)) {
     result[!is.na(result)]
   } else if (
@@ -855,12 +873,12 @@ plot_pI_distribution <- function(
     .abort("No pI values to plot.", class = "pepvet_error_invalid_digest_result")
   }
 
-  # ── Fraction bins ─────────────────────────────────────────────────────────
+  ## Fraction bins
   breaks <- sort(unique(as.numeric(fraction_breaks)))
   lo_break <- breaks[[1L]]
   hi_break <- breaks[[length(breaks)]]
 
-  # Build label vector: "<lo", "lo–b2", "b2–b3", …, ">hi"
+  ## Build label vector: "<lo", "lo-b2", "b2-b3", ..., ">hi"
   bin_labels <- character(length(breaks) + 1L)
   bin_labels[[1L]] <- sprintf("< %.0f", lo_break)
   for (i in seq_len(length(breaks) - 1L)) {
@@ -876,7 +894,7 @@ plot_pI_distribution <- function(
 
   df <- data.frame(pI = pI_vals, bin = pI_bin)
 
-  # ── Fraction count annotation data ────────────────────────────────────────
+  ## Fraction count annotation data
   bin_counts <- as.integer(table(pI_bin))
   n_bins <- length(bin_labels)
 
@@ -895,13 +913,13 @@ plot_pI_distribution <- function(
     label = ifelse(bin_counts == 0L, "", as.character(bin_counts))
   )
 
-  # ── Colours: viridis-based sequential across bins ─────────────────────────
+  ## Colours: viridis-based sequential across bins
   n_colours <- n_bins
   # Use a hand-picked sequential palette that works with the pepVet brand
-  # Acidic (low pI) → cool blues; basic (high pI) → warm orange-reds
+  # Acidic (low pI) to cool blues; basic (high pI) to warm orange-reds
   viridis_cols <- grDevices::hcl.colors(n_colours, palette = "viridis", alpha = 0.85)
 
-  # ── Auto title ────────────────────────────────────────────────────────────
+  ## Auto title
   auto_title <- if (!is.null(title)) {
     title
   } else if (
@@ -919,7 +937,7 @@ plot_pI_distribution <- function(
   x_lo <- min(c(pI_vals, lo_break)) - 0.5
   x_hi <- max(c(pI_vals, hi_break)) + 0.5
 
-  # ── Build plot ────────────────────────────────────────────────────────────
+  ## Build plot
   p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$pI, fill = .data$bin)) +
     ggplot2::geom_histogram(
       binwidth = 0.25,
@@ -1072,7 +1090,7 @@ plot_pI_distribution <- function(
 }
 
 
-# ── plot_missed_cleavage_impact ───────────────────────────────────────────────
+## plot_missed_cleavage_impact
 
 #' Missed Cleavage Impact Plot
 #'
@@ -1085,14 +1103,26 @@ plot_pI_distribution <- function(
 #'
 #' @param results A named list of [evaluate_digest()] results.  Names should
 #'   be the MC level (e.g., `list("MC=0" = r0, "MC=1" = r1, "MC=2" = r2)`).
-#'   **Or** an unnamed list of length 2–4, in which case names are auto-assigned
-#'   as `"MC=0"`, `"MC=1"`, etc.
+#'   **Or** an unnamed list of length 2-4, in which case names are auto-assigned
+#'   as `"MC=0"`, `"MC=1"`, etc.  If `NULL`, raises an error.
 #' @param components Character vector of component score columns to show.
 #'   Defaults to `c("S_length","S_coverage","S_count","S_hydro","S_charge")`.
+#'   If `NULL`, raises an error.
 #' @param title Optional character title.  Auto-generated when `NULL`.
 #'
-#' @return A `ggplot` object.
+#' @return A `ggplot` object showing connected line plots of component and
+#'   composite scores across missed-cleavage levels, with the best-MC
+#'   annotation.
+#' @seealso [evaluate_digest()] for the upstream digestion step.
 #' @family plot-distribution
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   mc0 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 0)
+#'   mc1 <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1)
+#'   p <- plot_missed_cleavage_impact(list("MC=0" = mc0, "MC=1" = mc1))
+#'   print(p)
+#' }
 #' @export
 plot_missed_cleavage_impact <- function(
   results,
@@ -1131,7 +1161,7 @@ plot_missed_cleavage_impact <- function(
     }
   }
 
-  # ── Extract scores ───────────────────────────────────────────────────────
+  ## Extract scores
   valid_comp <- components[components %in% names(results[[1L]]$scores)]
   all_comp <- c(valid_comp, "composite_score")
 
@@ -1149,7 +1179,7 @@ plot_missed_cleavage_impact <- function(
   df$mc_label <- factor(df$mc_label, levels = names(results))
   df$x_idx <- as.integer(df$mc_label)
 
-  # ── Reshape to long ──────────────────────────────────────────────────────
+  ## Reshape to long
   component_labels <- c(
     S_length   = "Length",
     S_coverage = "Coverage",
@@ -1179,13 +1209,13 @@ plot_missed_cleavage_impact <- function(
   long_df <- .bind_rows(long_rows)
   rownames(long_df) <- NULL
 
-  # ── Best MC for composite ────────────────────────────────────────────────
+  ## Best MC for composite
   comp_vals <- df$composite_score
   best_idx <- which.max(comp_vals)
   best_mc_label <- as.character(df$mc_label[[best_idx]])
   best_score <- comp_vals[[best_idx]]
 
-  # ── Colors: component lines pale, composite bold brand_dark ─────────────
+  ## Colors: component lines pale, composite bold brand_dark
   n_comp <- length(valid_comp)
   comp_colors <- stats::setNames(
     grDevices::hcl.colors(n_comp, palette = "Dark 2"),
@@ -1193,21 +1223,21 @@ plot_missed_cleavage_impact <- function(
   )
   comp_colors["Composite"] <- .pepvet_pal$brand_dark
 
-  # ── Line widths ──────────────────────────────────────────────────────────
+  ## Line widths
   line_widths <- stats::setNames(
     rep(0.8, n_comp + 1L),
     c(component_labels[valid_comp], "Composite")
   )
   line_widths["Composite"] <- 2.2
 
-  # ── Line types ──────────────────────────────────────────────────────────
+  ## Line types
   line_types <- stats::setNames(
     rep("solid", n_comp + 1L),
     c(component_labels[valid_comp], "Composite")
   )
   line_types["Composite"] <- "solid"
 
-  # ── Auto title ───────────────────────────────────────────────────────────
+  ## Auto title
   protein_id <- results[[1L]]$params$protein_ids[[1L]]
   enzyme_name <- results[[1L]]$params$enzyme
   display_id <- .tidy_protein_id(protein_id)
@@ -1288,7 +1318,7 @@ plot_missed_cleavage_impact <- function(
 }
 
 
-# ── plot_mz_distribution ──────────────────────────────────────────────────────
+## plot_mz_distribution
 
 #' Precursor m/z Distribution
 #'
@@ -1312,10 +1342,11 @@ plot_missed_cleavage_impact <- function(
 #'     computed from sequences.
 #'   * A data.frame / tibble with `mz` and `charge_state` columns (pre-
 #'     computed m/z values; `charge_states` argument is ignored).
+#'   If `NULL` or an unrecognised type, raises an error.
 #' @param scan_range Numeric vector of length 2 giving the instrument's MS1
 #'   scan window boundaries in m/z.  Defaults to `c(350, 1500)` (typical
 #'   DDA on Orbitrap / Q-TOF instruments).  Use `c(400, 1000)` for targeted
-#'   methods.
+#'   methods.  If `NULL` or malformed, raises an error.
 #' @param charge_states Integer vector of charge states to compute.  Defaults
 #'   to `2:3`.  Ignored when `result` already contains an `mz` column.
 #' @param length_range Integer vector of length 2.  Valid peptide length
@@ -1323,10 +1354,22 @@ plot_missed_cleavage_impact <- function(
 #'   from `result$params` when a full [evaluate_digest()] result is supplied.
 #' @param show_rug Logical.  When `TRUE` (default) a rug of individual
 #'   peptide m/z values is added below the density fills at `alpha = 0.30`.
-#' @param title Optional character string for the plot title.
+#'   If `NULL`, treated as `FALSE`.
+#' @param title Optional character string for the plot title.  Auto-generated
+#'   when `NULL` (default).
 #'
-#' @return A `ggplot` object.
-#'
+#' @details The function accepts four input types with the following
+#'   precedence: (1) named list of [evaluate_digest()] results (multi-input
+#'   mode, produces a faceted panel per result), (2) single
+#'   [evaluate_digest()] result, (3) data.frame with a `peptide` column
+#'   (m/z computed from sequences), (4) data.frame with pre-computed `mz`
+#'   and `charge_state` columns.
+#' @return A `ggplot` object showing overlapping density fills of precursor
+#'   m/z values at each charge state, with shaded instrument scan window and
+#'   per-charge-state window-coverage annotations.
+#' @seealso [evaluate_digest()] for the upstream digestion step,
+#'   [calculate_peptide_mass()] for the underlying m/z calculation.
+#' @family plot-distribution
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -1334,11 +1377,6 @@ plot_missed_cleavage_impact <- function(
 #'   p <- plot_mz_distribution(res)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [calculate_peptide_mass()],
-#'   [plot_length_distribution()], [plot_gravy_landscape()],
-#'   [plot_pI_distribution()]
-#' @family plot-distribution
 #' @export
 plot_mz_distribution <- function(
   result,
@@ -1352,7 +1390,7 @@ plot_mz_distribution <- function(
     reason = "to use plot_mz_distribution()"
   )
 
-  # ── Validate scan_range ───────────────────────────────────────────────────
+  ## Validate scan_range
   if (
     !is.numeric(scan_range) ||
       length(scan_range) != 2L ||
@@ -1367,7 +1405,7 @@ plot_mz_distribution <- function(
   scan_lo <- as.numeric(scan_range[[1L]])
   scan_hi <- as.numeric(scan_range[[2L]])
 
-  # ── Multi-input mode: named list of evaluate_digest() results ────────────
+  ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_mz_distribution_multi(
       result,
@@ -1379,7 +1417,7 @@ plot_mz_distribution <- function(
     ))
   }
 
-  # ── Extract peptide data ──────────────────────────────────────────────────
+  ## Extract peptide data
   if (
     is.list(result) &&
       !is.data.frame(result) &&
@@ -1407,7 +1445,7 @@ plot_mz_distribution <- function(
     )
   }
 
-  # ── If data already has mz + charge_state, use directly ──────────────────
+  ## If data already has mz + charge_state, use directly
   if (all(c("mz", "charge_state") %in% names(peps))) {
     mz_long <- peps[, c("mz", "charge_state"), drop = FALSE]
     mz_long$charge_state <- as.character(mz_long$charge_state)
@@ -1458,7 +1496,7 @@ plot_mz_distribution <- function(
     levels = unique(mz_long$charge_state)
   )
 
-  # ── Assign brand colors to charge states ─────────────────────────────────
+  ## Assign brand colors to charge states
   # z=+2 = primary brand color; z=+3 = brand_light; z=+4+ = moderate, etc.
   z_color_palette <- c(
     .pepvet_pal$brand,
@@ -1472,7 +1510,7 @@ plot_mz_distribution <- function(
     z_levels
   )
 
-  # ── Per-charge-state % inside scan window ─────────────────────────────────
+  ## Per-charge-state % inside scan window
   window_stats <- .bind_rows(lapply(z_levels, function(z) {
     sub <- mz_long$mz[mz_long$charge_state == z]
     n_in <- sum(sub >= scan_lo & sub <= scan_hi, na.rm = TRUE)
@@ -1484,13 +1522,13 @@ plot_mz_distribution <- function(
     )
   }))
 
-  # ── x-axis range: pad to nearest 100 m/z beyond data, min at 0 ───────────
+  ## x-axis range: pad to nearest 100 m/z beyond data, min at 0
   mz_min <- max(0, floor(min(mz_long$mz, na.rm = TRUE) / 100) * 100 - 50)
   mz_max <- ceiling(max(mz_long$mz, na.rm = TRUE) / 100) * 100 + 50
   x_lo <- min(mz_min, scan_lo - 50)
   x_hi <- max(mz_max, scan_hi + 50)
 
-  # ── Annotation label: stacked text per charge state ───────────────────────
+  ## Annotation label: stacked text per charge state
   ann_text <- paste(
     vapply(seq_len(nrow(window_stats)), function(i) {
       sprintf(
@@ -1504,7 +1542,7 @@ plot_mz_distribution <- function(
     collapse = "\n"
   )
 
-  # ── Auto title ────────────────────────────────────────────────────────────
+  ## Auto title
   auto_title <- if (!is.null(title)) {
     title
   } else if (!is.null(auto_label)) {
@@ -1520,12 +1558,12 @@ plot_mz_distribution <- function(
     paste(gsub("z = \\+", "+", z_levels), collapse = " & ")
   )
 
-  # ── Build plot ────────────────────────────────────────────────────────────
+  ## Build plot
   p <- ggplot2::ggplot(
     mz_long,
     ggplot2::aes(x = mz, color = charge_state, fill = charge_state)
   ) +
-    # ── Background: outside-window zone shading (neutral) ─────────────────
+    ## Background: outside-window zone shading (neutral)
     ggplot2::annotate(
       "rect",
       xmin = x_lo, xmax = scan_lo,
@@ -1538,14 +1576,14 @@ plot_mz_distribution <- function(
       ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$zone_moderate, alpha = 0.45
     ) +
-    # ── Valid window shading (green) ──────────────────────────────────────
+    ## Valid window shading (green)
     ggplot2::annotate(
       "rect",
       xmin = scan_lo, xmax = scan_hi,
       ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.50
     ) +
-    # ── Window boundary lines ─────────────────────────────────────────────
+    ## Window boundary lines
     ggplot2::geom_vline(
       xintercept = scan_lo,
       color      = .pepvet_pal$good,
@@ -1558,13 +1596,13 @@ plot_mz_distribution <- function(
       linewidth  = 0.65,
       linetype   = "dashed"
     ) +
-    # ── Density fills (overlapping, semi-transparent) ─────────────────────
+    ## Density fills (overlapping, semi-transparent)
     ggplot2::geom_density(
       alpha = 0.40,
       linewidth = 0.90,
       adjust = 0.9
     ) +
-    # ── % inside window annotation block ──────────────────────────────────
+    ## % inside window annotation block
     ggplot2::annotate(
       "text",
       x = scan_lo + (scan_hi - scan_lo) * 0.97,
@@ -1577,7 +1615,7 @@ plot_mz_distribution <- function(
       color = .pepvet_pal$brand_dark,
       lineheight = 1.45
     ) +
-    # ── Zone boundary labels ──────────────────────────────────────────────
+    ## Zone boundary labels
     ggplot2::annotate(
       "text",
       x = scan_lo + (scan_hi - scan_lo) * 0.015,
@@ -1596,7 +1634,7 @@ plot_mz_distribution <- function(
       fontface = "italic",
       color = .pepvet_pal$poor
     ) +
-    # ── Rug marks ─────────────────────────────────────────────────────────
+    ## Rug marks
     {
       if (isTRUE(show_rug)) {
         ggplot2::geom_rug(
@@ -1606,7 +1644,7 @@ plot_mz_distribution <- function(
         )
       }
     } +
-    # ── Scales ────────────────────────────────────────────────────────────
+    ## Scales
     ggplot2::scale_color_manual(
       values = z_colors,
       name   = "Charge state",

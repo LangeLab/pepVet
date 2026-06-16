@@ -13,7 +13,8 @@ plot_digest_profile(
 }
 \arguments{
 \item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}.  Must describe
-a single protein (one unique \code{protein_id} in \code{result$peptides}).}
+a single protein (one unique \code{protein_id} in \code{result$peptides}).  If
+\code{NULL} or invalid, raises an error.}
 
 \item{length_range}{Integer vector of length 2.  Defines the valid peptide
 length window, passed to the length and coverage panels.  Defaults to
@@ -27,13 +28,12 @@ GRAVY range shaded in panel B.  Defaults to \code{c(-1.0, 0.6)}.}
 and missed-cleavage count.}
 }
 \value{
-A \code{patchwork} object combining all four ggplot panels.  The object
-can be printed directly, saved with \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}}, or composed
-further with other patchwork operators.
+A \code{patchwork} object with four panels: length distribution (A),
+GRAVY distribution (B), coverage map (C), and component scores (D).
 }
 \description{
 \code{plot_digest_profile()} assembles a four-panel figure for a single
-protein–enzyme pair from an \code{\link[=evaluate_digest]{evaluate_digest()}} result.  The panels are:
+protein-enzyme pair from an \code{\link[=evaluate_digest]{evaluate_digest()}} result.  The panels are:
 }
 \details{
 \itemize{
@@ -47,12 +47,12 @@ missed-cleavage level) with valid-length peptides stacked via a greedy
 interval-packing algorithm.  Uncovered regions are highlighted in red.
 Peptide length labels appear inside segments of 8 aa or longer.
 \item \strong{(D) Component scores:} horizontal bar chart for each scoring
-component, colored by tier (green \eqn{\geq} 0.65, amber 0.40–0.64, red
+component, colored by tier (green \eqn{\geq} 0.65, amber 0.40-0.64, red
 < 0.40).  The composite score is marked with a dashed vertical line.
 }
 
 GRAVY scores are computed internally from the peptide sequences in
-\code{result$peptides} using the Kyte–Doolittle scale.  No external columns are
+\code{result$peptides} using the Kyte-Doolittle scale.  No external columns are
 required beyond the standard \code{\link[=evaluate_digest]{evaluate_digest()}} output.
 
 Panel C labels peptide lengths inside segments of 8 aa or longer.  For
@@ -69,11 +69,10 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
   p <- plot_digest_profile(res)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_coverage_map]{plot_coverage_map()}},
-\code{\link[=plot_enzyme_comparison]{plot_enzyme_comparison()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step,
+\code{\link[=plot_enzyme_comparison]{plot_enzyme_comparison()}} for enzyme comparison across digests.
 
 Other plot-single:
 \code{\link[=plot_cleavage_map]{plot_cleavage_map()}},

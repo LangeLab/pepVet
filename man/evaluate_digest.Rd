@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{evaluate_digest}
 \alias{evaluate_digest}
-\title{Evaluate a Proteolytic Digest}
+\title{Evaluate a proteolytic digest}
 \usage{
 evaluate_digest(
   sequence,
@@ -17,7 +17,8 @@ evaluate_digest(
 \arguments{
 \item{sequence}{Protein input. Accepts the same forms as \code{\link[=digest_protein]{digest_protein()}}:
 a character sequence, named character vector, \code{Biostrings::AAString},
-\code{Biostrings::AAStringSet}, or a FASTA file path.}
+\code{Biostrings::AAStringSet}, or a FASTA file path. If \code{NULL} or empty,
+raises an error.}
 
 \item{enzyme}{Enzyme name passed to \code{\link[=digest_protein]{digest_protein()}}. Defaults to
 \code{"trypsin"}.}
@@ -30,9 +31,11 @@ When \code{TRUE}, the returned peptide table gains a \code{cleavage_efficiency}
 column. This does not affect the score components.}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
-for peptide uniqueness scoring.}
+for peptide uniqueness scoring. When \code{NULL} (default), no uniqueness
+scoring is performed.}
 
 \item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.
+When \code{NULL} (default), uses pepVet's default scoring weights.
 When scoring a non-tryptic digest directly, \code{\link[=evaluate_digest]{evaluate_digest()}} forwards
 the selected \code{enzyme} so enzyme-aware S_count denominators stay aligned
 with the digest.}
@@ -46,13 +49,13 @@ as \code{gravy_range} and \code{length_range}. This makes workflow presets from
 A named list with three elements:
 \describe{
 \item{\code{scores}}{A tibble from \code{\link[=score_peptides]{score_peptides()}} with one row per
-protein, plus the informational columns \code{n_high_efficiency_sites} and
-\code{n_low_efficiency_sites}.}
+protein, plus the informational columns \code{n_high_efficiency_sites}
+and \code{n_low_efficiency_sites}.}
 \item{\code{peptides}}{A tibble from \code{\link[=digest_protein]{digest_protein()}} with one row per
 peptide.}
 \item{\code{params}}{A list recording the resolved \code{enzyme} name,
-\code{missed_cleavages} count, \code{protein_ids} found in the input, and the
-resolved \code{preset_used} label from \code{\link[=score_peptides]{score_peptides()}}.}
+\code{missed_cleavages} count, \code{protein_ids} found in the input,
+and the resolved \code{preset_used} label from \code{\link[=score_peptides]{score_peptides()}}.}
 }
 }
 \description{
@@ -68,8 +71,8 @@ returned object can be interpreted honestly outside the immediate scoring
 call. In particular, \code{params$preset_used} records whether the resolved
 scoring configuration matches one of pepVet's named presets or should be
 treated as \code{"custom"}. The cleavage-efficiency counts summarize annotated
-trypsin-family cleavage sites only; unsupported enzymes currently receive
-\code{NA} in these informational fields.
+trypsin-family cleavage sites only; unsupported enzymes receive \code{NA} in
+these informational fields.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

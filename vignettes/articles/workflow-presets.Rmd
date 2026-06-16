@@ -47,7 +47,7 @@ pepvet_preset("standard")
 | `targeted` | SRM, PRM, MRM | `[8,20]` aa, GRAVY `[-0.8,0.4]`, S_unique 30% | Lange et al. 2008, Picotti & Aebersold 2012 |
 | `membrane` | Hydrophobic proteins | GRAVY `[-1.0,2.0]`, S_hydro 5% | Vit & Petrak 2017 |
 | `ffpe_degraded` | Degraded material | `[6,30]` aa, high S_count weight | Coscia et al. 2020, Buczak et al. 2023 |
-| `fractionated` | Offline fractionation | Standard + pI annotation | -- |
+| `fractionated` | Offline fractionation | Standard + pI annotation | - |
 
 ## Standard workflow
 

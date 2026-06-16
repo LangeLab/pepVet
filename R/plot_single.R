@@ -1,7 +1,7 @@
 #' Four-Panel Digest Diagnostic Plot
 #'
 #' `plot_digest_profile()` assembles a four-panel figure for a single
-#' protein–enzyme pair from an [evaluate_digest()] result.  The panels are:
+#' protein-enzyme pair from an [evaluate_digest()] result.  The panels are:
 #'
 #' * **(A) Length distribution:** histogram of peptide lengths with the valid
 #'   window shaded.  Bars are colored by length class: valid (blue), too short
@@ -13,11 +13,12 @@
 #'   interval-packing algorithm.  Uncovered regions are highlighted in red.
 #'   Peptide length labels appear inside segments of 8 aa or longer.
 #' * **(D) Component scores:** horizontal bar chart for each scoring
-#'   component, colored by tier (green \eqn{\geq} 0.65, amber 0.40–0.64, red
+#'   component, colored by tier (green \eqn{\geq} 0.65, amber 0.40-0.64, red
 #'   < 0.40).  The composite score is marked with a dashed vertical line.
 #'
 #' @param result A named list returned by [evaluate_digest()].  Must describe
-#'   a single protein (one unique `protein_id` in `result$peptides`).
+#'   a single protein (one unique `protein_id` in `result$peptides`).  If
+#'   `NULL` or invalid, raises an error.
 #' @param length_range Integer vector of length 2.  Defines the valid peptide
 #'   length window, passed to the length and coverage panels.  Defaults to
 #'   `c(7L, 25L)`.
@@ -27,12 +28,8 @@
 #'   (default) a title is auto-generated from the protein accession, enzyme,
 #'   and missed-cleavage count.
 #'
-#' @return A `patchwork` object combining all four ggplot panels.  The object
-#'   can be printed directly, saved with [ggplot2::ggsave()], or composed
-#'   further with other patchwork operators.
-#'
 #' @details GRAVY scores are computed internally from the peptide sequences in
-#'   `result$peptides` using the Kyte–Doolittle scale.  No external columns are
+#'   `result$peptides` using the Kyte-Doolittle scale.  No external columns are
 #'   required beyond the standard [evaluate_digest()] output.
 #'
 #'   Panel C labels peptide lengths inside segments of 8 aa or longer.  For
@@ -40,7 +37,11 @@
 #'   When multiple missed-cleavage levels are present, each level occupies its
 #'   own horizontal lane with peptides stacked using the same greedy
 #'   interval-packing algorithm as [plot_coverage_map()].
-#'
+#' @return A `patchwork` object with four panels: length distribution (A),
+#'   GRAVY distribution (B), coverage map (C), and component scores (D).
+#' @seealso [evaluate_digest()] for the upstream digestion step,
+#'   [plot_enzyme_comparison()] for enzyme comparison across digests.
+#' @family plot-single
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
 #'   requireNamespace("patchwork", quietly = TRUE)) {
@@ -49,10 +50,6 @@
 #'   p <- plot_digest_profile(res)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [plot_coverage_map()],
-#'   [plot_enzyme_comparison()]
-#' @family plot-single
 #' @export
 
 plot_digest_profile <- function(result,
@@ -86,7 +83,7 @@ plot_digest_profile <- function(result,
 
   protein_length <- max(peps$end, na.rm = TRUE)
 
-  # ── Build panels ──────────────────────────────────────────────────────────
+  ## Build panels
   pa <- .panel_length(peps, length_range)
   pb <- .panel_gravy(peps, gravy_range)
   mc_val <- params$missed_cleavages %||% 1L
@@ -94,7 +91,7 @@ plot_digest_profile <- function(result,
     missed_cleavages = mc_val)
   pd <- .panel_scores(scores)
 
-  # ── Assemble with patchwork ───────────────────────────────────────────────
+  ## Assemble with patchwork
   # Layout: top row = A | B (two equal columns)
   #         middle  = C     (full width)
   #         bottom  = D     (full width)
@@ -144,7 +141,7 @@ plot_digest_profile <- function(result,
 #' optional domain annotations can be overlaid to add mechanistic context.
 #'
 #' @param result A named list returned by [evaluate_digest()].  Must describe
-#'   a single protein.
+#'   a single protein.  If `NULL` or invalid, raises an error.
 #' @param color_by Character string selecting the peptide color scheme.
 #'   \describe{
 #'     \item{`"validity"` (default)}{Blue = valid-length peptide; gray =
@@ -152,8 +149,8 @@ plot_digest_profile <- function(result,
 #'     \item{`"length_class"`}{Three-way coloring: valid (blue), too short
 #'       (amber), too long (rose-red).}
 #'     \item{`"hydrophobicity"`}{Continuous GRAVY gradient for every peptide:
-#'       brand blue (very hydrophilic) → green (LC-optimal) → amber
-#'       (borderline) → rose-red (very hydrophobic).}
+#'       brand blue (very hydrophilic) to green (LC-optimal) to amber
+#'       (borderline) to rose-red (very hydrophobic).}
 #'   }
 #' @param length_range Integer vector of length 2.  Valid peptide window.
 #'   Defaults to `c(7L, 25L)`.
@@ -166,12 +163,9 @@ plot_digest_profile <- function(result,
 #' @param title Optional character string for the plot title.  Auto-generated
 #'   from the protein accession and enzyme when `NULL` (default).
 #'
-#' @return A `ggplot` object that can be printed, further customised, or saved
-#'   with [ggplot2::ggsave()].
-#'
 #' @details Valid peptides are drawn taller than invalid peptides within each
 #'   lane, maintaining a visual hierarchy that keeps validity legible regardless
-#'   of `color_by`.  When missed-cleavage levels overlap (MC ≥ 1), peptides
+#'   of `color_by`.  When missed-cleavage levels overlap (MC >= 1), peptides
 #'   within each lane are distributed into non-overlapping tracks using a greedy
 #'   interval-packing algorithm, mirroring genome-browser stacking.  Gap regions
 #'   (residues not covered by any valid MC = 0 peptide) are highlighted with a
@@ -179,9 +173,14 @@ plot_digest_profile <- function(result,
 #'   span is at least 2.5 % of the protein length (ensuring legibility at
 #'   typical export widths); shorter bars are left unlabelled.
 #'
-#'   The `color_by = "hydrophobicity"` mode calls the internal Kyte–Doolittle
+#'   The `color_by = "hydrophobicity"` mode calls the internal Kyte-Doolittle
 #'   GRAVY calculator and requires no additional input columns.
-#'
+#' @return A `ggplot` object showing a multi-lane coverage map with peptide
+#'   tracks, gap highlights, optional cleavage-site efficiency ticks, and
+#'   optional domain annotations.
+#' @seealso [evaluate_digest()] for the upstream digestion step,
+#'   [annotate_cleavage_sites()] for cleavage-site annotation.
+#' @family plot-single
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -190,10 +189,6 @@ plot_digest_profile <- function(result,
 #'   p <- plot_coverage_map(res, cleavage_sites = cs)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [annotate_cleavage_sites()],
-#'   [plot_digest_profile()]
-#' @family plot-single
 #' @export
 plot_coverage_map <- function(result,
                               color_by = c(
@@ -215,7 +210,7 @@ plot_coverage_map <- function(result,
 
   length_range <- .validate_length_range(length_range)
 
-  # ── Input validation for optional args ─────────────────────────────────────
+  ## Input validation for optional args
   if (!is.null(cleavage_sites)) {
     if (
       !is.data.frame(cleavage_sites) ||
@@ -245,7 +240,7 @@ plot_coverage_map <- function(result,
     }
   }
 
-  # ── Extract data ────────────────────────────────────────────────────────────
+  ## Extract data
   peps <- result$peptides
   params <- result$params
   protein_id <- params$protein_ids[[1L]]
@@ -253,26 +248,26 @@ plot_coverage_map <- function(result,
   display_id <- .tidy_protein_id(protein_id)
   protein_length <- max(peps$end, na.rm = TRUE)
 
-  # ── GRAVY (computed once, used for coloring or silently ignored) ────────────
+  ## GRAVY (computed once, used for coloring or silently ignored)
   peps$gravy <- .calculate_gravy_vec(peps$peptide)
 
-  # ── Determine MC levels present and build lane coordinates ─────────────────
+  ## Determine MC levels present and build lane coordinates
   has_mc <- "missed_cleavages" %in% names(peps)
   mc_levels <- if (has_mc) sort(unique(peps$missed_cleavages[!is.na(peps$missed_cleavages)])) else 0L
   tick_h <- if (!is.null(cleavage_sites)) 0.11 else 0.0
   lanes <- .lane_y_coords(mc_levels, tick_height = tick_h)
 
-  # ── Coverage stats on MC = 0 peptides (for subtitle) ───────────────────────
+  ## Coverage stats on MC = 0 peptides (for subtitle)
   cs0 <- .compute_coverage_stats(peps, protein_length, length_range,
     mc_filter = if (has_mc) 0L else NULL
   )
   pct_cov <- cs0$pct_cov
   gap_df <- cs0$gap_df
 
-  # ── Build fill aesthetic and scale ─────────────────────────────────────────
-  #   For "validity"/"length_class": factor column `fill_cat` → scale_fill_manual
+  ## Build fill aesthetic and scale
+  #   For "validity"/"length_class": factor column `fill_cat` to scale_fill_manual
   #   For "hydrophobicity":          numeric column `fill_val` (GRAVY)
-  #                                  → scale_fill_gradientn
+  #                                  to scale_fill_gradientn
   if (color_by == "hydrophobicity") {
     peps$fill_val <- peps$gravy
   } else {
@@ -294,10 +289,10 @@ plot_coverage_map <- function(result,
   # x-axis step
   x_step <- max(50L, as.integer(round(protein_length / 10.0 / 50.0) * 50L))
 
-  # ── Initialize base plot ───────────────────────────────────────────────────
+  ## Initialize base plot
   p <- ggplot2::ggplot()
 
-  # ── Domain backgrounds (behind everything else) ────────────────────────────
+  ## Domain backgrounds (behind everything else)
   # Pre-defined palette of 8 soft distinguishable fills for domains
   domain_fills <- c(
     "#D9EAF7", "#FFF0C2", "#D4EDD4", "#F7D9D9",
@@ -323,7 +318,7 @@ plot_coverage_map <- function(result,
     }
   }
 
-  # ── Draw each lane ─────────────────────────────────────────────────────────
+  ## Draw each lane
   # IMPORTANT: all y-positions used inside aes() must be stored as data-frame
   # columns accessed via .data$, not as loop-scoped variables.  ggplot2 layers
   # are lazy: aes() expressions are evaluated at render time, after the loop
@@ -355,7 +350,7 @@ plot_coverage_map <- function(result,
       drop = FALSE
     ]
 
-    # ── Greedy packing: stack overlapping peptides into sub-rows ─────────────
+    ## Greedy packing: stack overlapping peptides into sub-rows
     # Each peptide gets a `track` integer (1 = bottom, 2 = above, ...).
     # For MC=0 tryptic digests there are no overlaps so n_tracks == 1.
     # For MC>=1 merged peptides share residues; packing yields 2-4 tracks.
@@ -386,14 +381,14 @@ plot_coverage_map <- function(result,
       lane_valid$.y_mid <- (lane_valid$.y_lo + lane_valid$.y_hi) / 2.0
     }
 
-    # Protein backbone (thin bar at lane centre) – annotate() is eager, safe
+    ## Protein backbone (thin bar at lane centre) - annotate() is eager, safe
     p <- p + ggplot2::annotate("rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = y_mid - 0.07 * lane_h, ymax = y_mid + 0.07 * lane_h,
       fill = .pepvet_pal$backbone_fill, color = .pepvet_pal$backbone_brd, linewidth = 0.35
     )
 
-    # ── Gap overlays (annotate() is eager, safe with loop vars) ──────────────
+    ## Gap overlays (annotate() is eager, safe with loop vars)
     if (nrow(gap_df) > 0L) {
       p <- p + ggplot2::annotate("rect",
         xmin = gap_df$xmin, xmax = gap_df$xmax,
@@ -402,7 +397,7 @@ plot_coverage_map <- function(result,
       )
     }
 
-    # ── Invalid peptides (thinner bars, behind valid) ─────────────────────────
+    ## Invalid peptides (thinner bars, behind valid)
     if (nrow(lane_invalid) > 0L) {
       if (color_by == "hydrophobicity") {
         p <- p + ggplot2::geom_rect(
@@ -427,7 +422,7 @@ plot_coverage_map <- function(result,
       }
     }
 
-    # ── Valid peptides (taller bars, on top) ──────────────────────────────────
+    ## Valid peptides (taller bars, on top)
     if (nrow(lane_valid) > 0L) {
       if (color_by == "hydrophobicity") {
         p <- p + ggplot2::geom_rect(
@@ -483,7 +478,7 @@ plot_coverage_map <- function(result,
     )
   }
 
-  # ── Lane separator lines (between lanes only) ─────────────────────────────
+  ## Lane separator lines (between lanes only)
   if (nrow(lanes) > 1L) {
     for (k in seq_len(nrow(lanes) - 1L)) {
       sep_y <- (lanes$y_hi[[k]] + lanes$y_lo[[k + 1L]]) / 2.0
@@ -495,7 +490,7 @@ plot_coverage_map <- function(result,
     }
   }
 
-  # ── Cleavage-site ticks ────────────────────────────────────────────────────
+  ## Cleavage-site ticks
   # efficiency is used as a proper color aesthetic (not I()) so ggplot2 adds it
   # to the legend panel alongside the fill legend.
   has_cs <- !is.null(cleavage_sites) && tick_h > 0
@@ -526,9 +521,9 @@ plot_coverage_map <- function(result,
       )
   }
 
-  # ── Fill scale ─────────────────────────────────────────────────────────────
+  ## Fill scale
   if (color_by == "hydrophobicity") {
-    # Gradient: brand blue → green → amber → poor red
+    # Gradient: brand blue to green to amber to poor red
     # 4 evenly-spaced color stops spanning the data GRAVY range
     rescaled <- seq(0, 1, length.out = 4)
     p <- p + ggplot2::scale_fill_gradientn(
@@ -565,7 +560,7 @@ plot_coverage_map <- function(result,
     )
   }
 
-  # ── Cleavage efficiency color scale (only when ticks are shown) ────────────
+  ## Cleavage efficiency color scale (only when ticks are shown)
   if (has_cs) {
     p <- p + ggplot2::scale_color_manual(
       values = c(
@@ -582,7 +577,7 @@ plot_coverage_map <- function(result,
     p <- p + ggplot2::guides(color = "none")
   }
 
-  # ── Scales, axes, theme ────────────────────────────────────────────────────
+  ## Scales, axes, theme
   n_sites_str <- if (!is.null(cleavage_sites)) {
     eff_tbl <- table(cleavage_sites$efficiency)
     parts <- paste0(as.integer(eff_tbl), " ", tolower(names(eff_tbl)))
@@ -639,7 +634,7 @@ plot_coverage_map <- function(result,
 #' 6-color scale (0, 1, 2-3, 4-7, 8-15, 16+) is sufficient for your data.
 #'
 #' @param result A named list returned by [evaluate_digest()]. Must describe a
-#'   single protein.
+#'   single protein.  If `NULL` or invalid, raises an error.
 #' @param length_range Optional integer vector of length 2 defining which
 #'   peptide lengths count toward overlap. Defaults to `c(7L, 25L)`. Peptides
 #'   are counted from the MC level specified by `missed_cleavages`. Use
@@ -650,11 +645,10 @@ plot_coverage_map <- function(result,
 #'   Pass `0L` for strict non-overlapping fragments, or `NULL` to count
 #'   all MC levels (automatically set when `length_range = NULL`).
 #' @param residues_per_line Positive integer. Number of residues to show before
-#'   wrapping to the next display row. Defaults to `50L`.
+#'   wrapping to the next display row. Defaults to `50L`.  If `NULL` or
+#'   non-integer, raises an error.
 #' @param title Optional character string for the plot title. Auto-generated
 #'   from the protein accession and enzyme when `NULL` (default).
-#'
-#' @return A `ggplot` object showing one tile per residue.
 #'
 #' @details The plotted letters are reconstructed from the MC=0 peptide set in
 #' `result$peptides`, so the plot can be generated directly from an
@@ -663,7 +657,11 @@ plot_coverage_map <- function(result,
 #' (configurable via `missed_cleavages`). Pass `missed_cleavages = 0L` for
 #' strict non-overlapping fragments, or `length_range = NULL` to count all
 #' digested peptides at all missed-cleavage levels.
-#'
+#' @return A `ggplot` object showing one tile per residue colored by peptide
+#'   overlap depth (white for uncovered, escalating blue fills for 1, 2-3,
+#'   4-7, 8-15, or 16+ covering peptides).
+#' @seealso [evaluate_digest()] for the upstream digestion step.
+#' @family plot-single
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -671,9 +669,6 @@ plot_coverage_map <- function(result,
 #'   p <- plot_peptide_overlap_map(res)
 #'   print(p)
 #' }
-#'
-#' @seealso [evaluate_digest()], [plot_coverage_map()], [plot_cleavage_map()]
-#' @family plot-single
 #' @export
 plot_peptide_overlap_map <- function(result,
                                      length_range = c(7L, 25L),
@@ -835,7 +830,7 @@ plot_peptide_overlap_map <- function(result,
 }
 
 
-# ── plot_cleavage_map ─────────────────────────────────────────────────────────
+## plot_cleavage_map
 
 #' Cleavage Site Map
 #'
@@ -846,7 +841,8 @@ plot_peptide_overlap_map <- function(result,
 #' `cleavage_sites` data is not available, sites are inferred from the peptide
 #' boundaries and all rendered as the same default color.
 #'
-#' @param result A named list returned by [evaluate_digest()].
+#' @param result A named list returned by [evaluate_digest()].  If `NULL` or
+#'   invalid, raises an error.
 #' @param cleavage_sites Optional data.frame from [annotate_cleavage_sites()]
 #'   with columns `position`, `efficiency` (character: `"high"`, `"medium"`,
 #'   `"low"`), and optionally `rule`.  When `NULL` (default) sites are inferred
@@ -855,10 +851,23 @@ plot_peptide_overlap_map <- function(result,
 #'   Defaults to `c(7L, 25L)`.
 #' @param title Optional character title.  Auto-generated when `NULL`.
 #'
-#' @return A `ggplot` object.
-#' @seealso [evaluate_digest()], [annotate_cleavage_sites()],
-#'   [plot_coverage_map()]
+#' @details When `cleavage_sites` is not supplied, cleavage positions are
+#'   inferred from the C-terminal ends of MC=0 peptides (excluding the true
+#'   C-terminus of the protein).  Inferred sites all render in the same default
+#'   color.  Pass the output of [annotate_cleavage_sites()] for efficiency-aware
+#'   coloring.
+#' @return A `ggplot` object showing a protein bar with cleavage-site ticks
+#'   colored by efficiency and peptide fragment blocks between sites.
+#' @seealso [evaluate_digest()] for the upstream digestion step,
+#'   [annotate_cleavage_sites()] for efficiency-annotated cleavage sites.
 #' @family plot-single
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   p <- plot_cleavage_map(res)
+#'   print(p)
+#' }
 #' @export
 plot_cleavage_map <- function(result,
                               cleavage_sites = NULL,
@@ -1059,12 +1068,22 @@ plot_cleavage_map <- function(result,
 #' at the default composite.  For batch input it draws a faceted histogram of
 #' per-protein verdict instability with per-enzyme mean and median annotations.
 #'
-#' @param x A list returned by [sensitivity_analysis()].
+#' @param x A list returned by [sensitivity_analysis()].  If `NULL` or
+#'   unrecognised, raises an error.
 #' @param title Optional character string for the plot title.  When `NULL`
 #'   (default) a title is auto-generated.
 #'
-#' @return A `ggplot` object.
-#'
+#' @details Single-protein input produces a density overlay of iteration
+#'   composite scores with verdict shading and a rug at the default-weight
+#'   composite.  Batch input (a result with a `per_protein` component) produces
+#'   a faceted histogram of per-protein verdict instability, split by enzyme
+#'   when available.
+#' @return A `ggplot` object: density plot of composite scores with verdict
+#'   shading (single-protein mode) or faceted histogram of verdict instability
+#'   (batch mode).
+#' @seealso [sensitivity_analysis()] for the upstream weight-sensitivity
+#'   simulation.
+#' @family plot-single
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -1073,9 +1092,6 @@ plot_cleavage_map <- function(result,
 #'   p <- plot_weight_sensitivity(sens)
 #'   print(p)
 #' }
-#'
-#' @seealso [sensitivity_analysis()]
-#' @family plot-single
 #' @export
 plot_weight_sensitivity <- function(x, title = NULL) {
   rlang::check_installed("ggplot2",

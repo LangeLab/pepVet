@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{compare_digests}
 \alias{compare_digests}
-\title{Compare Multiple Enzymes on a Single Protein}
+\title{Compare multiple enzymes on a single protein}
 \usage{
 compare_digests(
   sequence,
@@ -15,18 +15,21 @@ compare_digests(
 }
 \arguments{
 \item{sequence}{A single-protein input. Accepts the same forms as
-\code{\link[=digest_protein]{digest_protein()}} but must resolve to exactly one protein.}
+\code{\link[=digest_protein]{digest_protein()}} but must resolve to exactly one protein. If \code{NULL} or
+empty, raises an error.}
 
-\item{enzymes}{Character vector of enzyme names to compare. Each name must
-be one of pepVet's supported cleaver-compatible enzyme names.}
+\item{enzymes}{Character vector of enzyme names to compare. Defaults to
+\code{c("trypsin", "lysc")}. Each name must be one of pepVet's supported
+cleaver-compatible enzyme names.}
 
 \item{missed_cleavages}{Maximum missed cleavages passed to
 \code{\link[=digest_protein]{digest_protein()}} for every enzyme. Defaults to \code{1L}.}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
-for all enzyme evaluations.}
+for all enzyme evaluations. When \code{NULL} (default), no uniqueness scoring.}
 
-\item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
+\item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.
+When \code{NULL} (default), uses pepVet's default scoring weights.}
 
 \item{...}{Additional arguments passed to \code{\link[=evaluate_digest]{evaluate_digest()}}. This includes
 scoring arguments such as \code{gravy_range}, \code{length_range}, and
@@ -40,8 +43,8 @@ the score columns returned by \code{\link[=evaluate_digest]{evaluate_digest()}},
 }
 \description{
 \code{compare_digests()} runs \code{\link[=evaluate_digest]{evaluate_digest()}} for each enzyme in \code{enzymes}
-and returns a tibble of scores sorted by \code{composite_score} descending. It is
-the main ranking function for pre-experimental enzyme selection.
+and returns a tibble of scores sorted by \code{composite_score} descending. Main
+ranking function for pre-experimental enzyme selection.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

@@ -2,13 +2,14 @@
 % Please edit documentation in R/utils.R
 \name{pepvet_preset}
 \alias{pepvet_preset}
-\title{Return a Named Scoring Preset}
+\title{Return a named scoring preset}
 \usage{
 pepvet_preset(type = "standard")
 }
 \arguments{
-\item{type}{Preset name. Supported values are \code{"standard"}, \code{"dia"},
-\code{"targeted"}, \code{"membrane"}, \code{"ffpe_degraded"}, and \code{"fractionated"}.}
+\item{type}{Preset name. Defaults to \code{"standard"}. Supported values are
+\code{"standard"}, \code{"dia"}, \code{"targeted"}, \code{"membrane"}, \code{"ffpe_degraded"}, and
+\code{"fractionated"}. If \code{NULL}, raises an error.}
 }
 \value{
 A named list with \code{gravy_range}, \code{length_range}, \code{weights}, and
@@ -27,7 +28,8 @@ Each preset is grounded in workflow-specific proteomics literature.
 
 \strong{\code{"standard"}} : Routine DDA. Default scoring configuration with default
 AHP-derived weights. Length range \verb{[7, 25]} captures ~85\% of identified
-tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range \verb{[-1.0, 0.6]}
+tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range
+\verb{[-1.0, 0.6]}
 covers the Kyte-Doolittle window for standard C18 LC-MS.
 
 \strong{\code{"dia"}} : Data-independent acquisition (DIA / SWATH). Wider length range

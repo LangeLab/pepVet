@@ -1,4 +1,4 @@
-# -- pepVet Visualization Suite ----------------------------------------------
+## pepVet Visualization Suite
 #
 # All public functions in this file guard their ggplot2 dependency at runtime
 # via rlang::check_installed().  This means ggplot2 (and patchwork for
@@ -7,7 +7,7 @@
 #
 # Internal helpers (.pepvet_pal, .pepvet_theme, etc.) may be called freely by
 # any plotting function in this file.
-# ---------------------------------------------------------------------------
+##
 
 #' @importFrom rlang .data check_installed %||%
 #' @importFrom stats setNames
@@ -15,7 +15,7 @@
 #' @importFrom tools file_ext
 NULL
 
-# -- Internal color palette --------------------------------------------------
+## Internal color palette
 
 #' pepVet internal color palette
 #'
@@ -27,19 +27,19 @@ NULL
 #' @noRd
 .pepvet_pal <- list(
   # Brand / primary
-  brand       = "#2C5F8A",
-  brand_dark  = "#1A3D5C",
+  brand = "#2C5F8A",
+  brand_dark = "#1A3D5C",
   brand_light = "#7BAED4",
 
   # Length-class categories
-  valid      = "#2C5F8A",
-  too_short  = "#E8A838",
-  too_long   = "#C94040",
+  valid = "#2C5F8A",
+  too_short = "#E8A838",
+  too_long = "#C94040",
 
   # Scoring tiers
-  good       = "#27AE60",
-  moderate   = "#E8A838",
-  poor       = "#C94040",
+  good = "#27AE60",
+  moderate = "#E8A838",
+  poor = "#C94040",
 
   # Verdict colors (named, matches the tier values above)
   verdict = c(
@@ -59,15 +59,15 @@ NULL
   ),
 
   # Coverage / cleavage map structural elements
-  protein_bg  = "#D8DDE6",
+  protein_bg = "#D8DDE6",
   protein_brd = "#AAAAAA",
   backbone_fill = "#D0D6E0",
-  backbone_brd  = "#A8AEBA",
-  invalid_pep   = "#C5CDD8",
-  covered       = "#2C5F8A",
-  gap           = "#C94040",
-  cleavage_bg   = "#E8EDF3",
-  na_gray       = "#B8C2CC",
+  backbone_brd = "#A8AEBA",
+  invalid_pep = "#C5CDD8",
+  covered = "#2C5F8A",
+  gap = "#C94040",
+  cleavage_bg = "#E8EDF3",
+  na_gray = "#B8C2CC",
   overlap = c(
     "Not detected"      = "#FFFFFF",
     "Detected once"     = "#DCEAF5",
@@ -76,23 +76,23 @@ NULL
   ),
 
   # Background shading for valid ranges
-  shade      = "#EDF6F0",
-  neutral    = "#F4F6F9",
-  separator  = "#DDDDDD",
+  shade = "#EDF6F0",
+  neutral = "#F4F6F9",
+  separator = "#DDDDDD",
 
   # Theme element colors
-  text_subtitle   = "#666666",
+  text_subtitle = "#666666",
   text_axis_title = "#444444",
-  text_axis_tick  = "#555555",
-  axis_tick       = "#CCCCCC",
-  grid_major      = "#EBEBEB",
-  strip_bg        = "#F0F4F8",
-  text_secondary  = "#999999",
-  text_dark       = "#333333",
+  text_axis_tick = "#555555",
+  axis_tick = "#CCCCCC",
+  grid_major = "#EBEBEB",
+  strip_bg = "#F0F4F8",
+  text_secondary = "#999999",
+  text_dark = "#333333",
 
   # Zone shading (verdict background bands)
   zone_moderate = "#FFF3E0",
-  zone_poor     = "#FFEBEE",
+  zone_poor = "#FFEBEE",
 
   # Badge colors
   badge_gold_text = "#7A5A00",
@@ -106,10 +106,10 @@ NULL
 # Store in an environment (not locked like namespace bindings)
 .pepvet_config_env <- new.env(parent = emptyenv())
 .pepvet_config_env$pal_default <- .pepvet_pal
-.pepvet_config_env$params_default <- NULL  # set after .pepvet_params loads
+.pepvet_config_env$params_default <- NULL # set after .pepvet_params loads
 .pepvet_config_env$theme_overrides <- list()
 
-# -- Internal ggplot2 theme --------------------------------------------------
+## Internal ggplot2 theme
 
 #' pepVet base ggplot2 theme
 #'
@@ -183,7 +183,7 @@ NULL
 }
 
 
-# -- Shared classification helpers -------------------------------------------
+## Shared classification helpers
 
 #' Classify peptide lengths into validity categories
 #' @return A factor with levels "Valid", "Too short", "Too long".
@@ -193,7 +193,8 @@ NULL
   hi <- length_range[[2L]]
   factor(
     ifelse(lengths < lo, "Too short",
-      ifelse(lengths > hi, "Too long", "Valid")),
+      ifelse(lengths > hi, "Too long", "Valid")
+    ),
     levels = c("Valid", "Too short", "Too long")
   )
 }
@@ -232,7 +233,7 @@ NULL
   invisible(data)
 }
 
-# -- Internal: tidy protein display ID ---------------------------------------
+## Internal: tidy protein display ID
 
 #' Shorten a FASTA header to an accession + gene label
 #'
@@ -272,7 +273,7 @@ NULL
 }
 
 
-# -- Internal: input validation ----------------------------------------------
+## Internal: input validation
 
 #' Validate an evaluate_digest result for plotting
 #'
@@ -327,7 +328,7 @@ NULL
 }
 
 
-# -- Panel builders (internal) -----------------------------------------------
+## Panel builders (internal)
 
 #' Panel A - Peptide length distribution
 #' @return A ggplot object.
@@ -407,7 +408,7 @@ NULL
 
   # Suitable bin count for the data range (Freedman-Diaconis rule, clamped)
   gravy_iqr <- diff(stats::quantile(peps$gravy, c(0.25, 0.75), na.rm = TRUE, names = FALSE))
-  fd_bw <- 2 * gravy_iqr / length(peps$gravy)^(1/3)
+  fd_bw <- 2 * gravy_iqr / length(peps$gravy)^(1 / 3)
   n_bins <- if (is.finite(fd_bw) && fd_bw > 0) {
     max(15L, min(40L, as.integer(diff(range(peps$gravy, na.rm = TRUE)) / fd_bw)))
   } else {
@@ -613,8 +614,7 @@ NULL
     normalized_length_range <- .validate_length_range(length_range)
     overlap_peps <- overlap_peps[
       overlap_peps$length >= normalized_length_range[[1L]] &
-        overlap_peps$length <= normalized_length_range[[2L]],
-      ,
+        overlap_peps$length <= normalized_length_range[[2L]], ,
       drop = FALSE
     ]
   }
@@ -655,7 +655,7 @@ NULL
   )
 }
 
-# -- Greedy interval packing for non-overlapping peptide display (shared helper)
+## Greedy interval packing for non-overlapping peptide display (shared helper)
 
 #' Assigns each peptide to the lowest-numbered "track" (sub-row) where it does
 #' not overlap any previously placed peptide.  Peptides are processed in order
@@ -910,11 +910,11 @@ NULL
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      axis.text.y        = ggplot2::element_blank(),
-      axis.ticks.y       = ggplot2::element_blank(),
+      axis.text.y = ggplot2::element_blank(),
+      axis.ticks.y = ggplot2::element_blank(),
       panel.grid.major.y = ggplot2::element_blank(),
       panel.grid.minor.y = ggplot2::element_blank(),
-      plot.caption       = ggplot2::element_text(
+      plot.caption = ggplot2::element_text(
         hjust  = 0,
         face   = "italic",
         size   = 7.5,
@@ -1046,9 +1046,7 @@ NULL
 }
 
 
-# ===========================================================================
-# Public API
-# ===========================================================================
+## Public API
 
 #' Configure pepVet plot appearance
 #'
@@ -1067,8 +1065,6 @@ NULL
 #'
 #' @return Invisibly returns a list with current `palette`, `params`, and `theme`.
 #' @family plot-utils
-#' @export
-#'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   # View current config
@@ -1083,6 +1079,7 @@ NULL
 #'   # Reset to defaults
 #'   pepvet_plot_config_reset()
 #' }
+#' @export
 pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
   env <- .pepvet_config_env
 
@@ -1154,6 +1151,11 @@ pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
 #'
 #' @return Invisibly returns a list with current `palette`, `params`, and `theme`.
 #' @family plot-utils
+#' @examples
+#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#'   pepvet_plot_config(palette = list(brand = "#004488"))
+#'   pepvet_plot_config_reset()
+#' }
 #' @export
 pepvet_plot_config_reset <- function() {
   env <- .pepvet_config_env
@@ -1191,33 +1193,32 @@ pepvet_plot_config_reset <- function() {
 #'
 #' @return The saved file path invisibly.
 #' @family plot-utils
-#' @export
-#'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
-#'     requireNamespace("patchwork", quietly = TRUE)) {
+#'   requireNamespace("patchwork", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
 #'   p <- plot_digest_profile(res)
 #'   tmp <- tempfile(fileext = ".png")
 #'   pepvet_save_figure(p, tmp)
 #' }
+#' @export
 pepvet_save_figure <- function(plot,
                                filename = "pepvet_plot.png",
-                               width    = NULL,
-                               height   = NULL,
-                               dpi      = 300,
-                               bg       = "white",
-                               device   = NULL,
+                               width = NULL,
+                               height = NULL,
+                               dpi = 300,
+                               bg = "white",
+                               device = NULL,
                                ...) {
   # Auto-size: patchwork gets larger default canvas
   if (is.null(width) || is.null(height)) {
     is_patchwork <- inherits(plot, "patchwork")
     if (is_patchwork) {
-      if (is.null(width))  width  <- 14
+      if (is.null(width)) width <- 14
       if (is.null(height)) height <- 10
     } else {
-      if (is.null(width))  width  <- 10
+      if (is.null(width)) width <- 10
       if (is.null(height)) height <- 7
     }
   }
@@ -1226,7 +1227,7 @@ pepvet_save_figure <- function(plot,
   if (is.null(device)) {
     ext <- tolower(tools::file_ext(filename))
     if (identical(ext, "png") &&
-        requireNamespace("ragg", quietly = TRUE)) {
+      requireNamespace("ragg", quietly = TRUE)) {
       device <- ragg::agg_png
     }
   }
@@ -1254,14 +1255,13 @@ pepvet_save_figure <- function(plot,
 #'
 #' @return A ggplot2 theme object.
 #' @family plot-utils
-#' @export
-#'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
 #'   plot_length_distribution(res) + pepvet_theme_manuscript()
 #' }
+#' @export
 pepvet_theme_manuscript <- function() {
   .pepvet_theme(base_size = 9) +
     ggplot2::theme(
@@ -1280,14 +1280,13 @@ pepvet_theme_manuscript <- function() {
 #'
 #' @return A ggplot2 theme object.
 #' @family plot-utils
-#' @export
-#'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
 #'   plot_length_distribution(res) + pepvet_theme_presentation()
 #' }
+#' @export
 pepvet_theme_presentation <- function() {
   .pepvet_theme(base_size = 14) +
     ggplot2::theme(

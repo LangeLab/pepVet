@@ -105,7 +105,7 @@
   }
 }
 
-#' Print a Styled Console Report for a Proteolytic Digest
+#' Print a styled console report for a proteolytic digest
 #'
 #' `digest_report()` formats the output of [evaluate_digest()] or
 #' [compare_digests()] as a human-readable styled console summary. The
@@ -120,6 +120,7 @@
 #'     \item{Tibble from [compare_digests()]}{Prints a multi-enzyme ranking
 #'       table with the best enzyme highlighted.}
 #'   }
+#'   If `NULL` or an unrecognised type, raises an error.
 #' @param title Optional character string printed as a section header above
 #'   the report. When `NULL` (default), the protein ID is used as the header.
 #'
@@ -199,7 +200,9 @@ digest_report <- function(x, title = NULL) {
 #' useful than manually wiring [evaluate_digest()] and [digest_report()].
 #'
 #' @param sequence Protein input. Accepts the same forms as [evaluate_digest()].
-#' @param enzyme Enzyme name. Defaults to `"trypsin"`.
+#'   If `NULL`, raises an error.
+#' @param enzyme Enzyme name. Defaults to `"trypsin"`.  If `NULL`, raises an
+#'   error.
 #' @param ... Additional arguments passed to [evaluate_digest()], such as
 #'   `missed_cleavages`, `include_cleavage_efficiency`, `weights`,
 #'   `gravy_range`, and `length_range`.

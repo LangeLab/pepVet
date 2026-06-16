@@ -20,25 +20,38 @@ automatically from the valid-peptide sequences.
 (contains a \code{pI} list column).
 \item A plain data.frame / tibble with a numeric \code{pI} column.
 \item A bare numeric vector of pI values.
+If \code{NULL}, raises an error.
 }}
 
 \item{fraction_breaks}{Numeric vector of pH boundary values defining the
 fraction bins.  Defaults to \code{c(3, 4, 5, 6, 7, 8, 9, 10)}, which produces
-eight bins: \verb{<3}, \verb{3–4}, …, \verb{9–10}, \verb{>10}.}
+eight bins: \verb{<3}, \code{3-4}, ..., \code{9-10}, \verb{>10}.  If \code{NULL}, raises an error.}
 
 \item{show_fraction_lines}{Logical.  When \code{TRUE} (default) vertical dashed
-lines are drawn at each interior fraction boundary.}
+lines are drawn at each interior fraction boundary.  If \code{NULL}, treated
+as \code{FALSE}.}
 
-\item{title}{Optional character string for the plot title.}
+\item{title}{Optional character string for the plot title.  Auto-generated
+when \code{NULL} (default).}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object showing a histogram of isoelectric points
+coloured by SCX fraction bin with optional fraction boundary lines.
 }
 \description{
 \code{plot_pI_distribution()} draws a histogram of peptide isoelectric points
-coloured by SCX fraction bin (e.g., pH 3–4, 4–5, …) to preview
+coloured by SCX fraction bin (e.g., pH 3-4, 4-5, ...) to preview
 fractionation outcomes.  Vertical boundary lines and per-fraction count
 annotations are optionally overlaid.
+}
+\details{
+The function accepts four input types with the following
+precedence: (1) named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results (multi-input
+mode, produces overlaid density curves per result), (2) single
+\code{\link[=evaluate_digest]{evaluate_digest()}} result, (3) data.frame with a \code{pI} column, (4) raw
+numeric vector of pI values.  When a full \code{\link[=evaluate_digest]{evaluate_digest()}} result is
+supplied, pI values are computed from valid-peptide sequences via
+\code{\link[=calculate_pI]{calculate_pI()}}.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE)) {
@@ -47,11 +60,10 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p <- plot_pI_distribution(res)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=score_peptides]{score_peptides()}}, \code{\link[=plot_length_distribution]{plot_length_distribution()}},
-\code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} and \code{\link[=score_peptides]{score_peptides()}} for upstream
+peptide scoring.
 
 Other plot-distribution:
 \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},

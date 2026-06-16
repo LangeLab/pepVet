@@ -2,7 +2,7 @@
 % Please edit documentation in R/report.R
 \name{digest_report}
 \alias{digest_report}
-\title{Print a Styled Console Report for a Proteolytic Digest}
+\title{Print a styled console report for a proteolytic digest}
 \usage{
 digest_report(x, title = NULL)
 }
@@ -13,7 +13,8 @@ digest_report(x, title = NULL)
 component-bar summary for the evaluated enzyme.}
 \item{Tibble from \code{\link[=compare_digests]{compare_digests()}}}{Prints a multi-enzyme ranking
 table with the best enzyme highlighted.}
-}}
+}
+If \code{NULL} or an unrecognised type, raises an error.}
 
 \item{title}{Optional character string printed as a section header above
 the report. When \code{NULL} (default), the protein ID is used as the header.}

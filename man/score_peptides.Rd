@@ -2,7 +2,7 @@
 % Please edit documentation in R/scoring.R
 \name{score_peptides}
 \alias{score_peptides}
-\title{Score Digested Peptides for Proteomics Suitability}
+\title{Score digested peptides for proteomics suitability}
 \usage{
 score_peptides(
   digest_result,
@@ -17,11 +17,12 @@ score_peptides(
 \arguments{
 \item{digest_result}{A digest tibble produced by \code{\link[=digest_protein]{digest_protein()}} or an
 equivalent table containing the columns \code{protein_id}, \code{peptide}, \code{start},
-\code{end}, \code{length}, and \code{missed_cleavages}.}
+\code{end}, \code{length}, and \code{missed_cleavages}. If \code{NULL} or missing required
+columns, raises an error.}
 
 \item{proteome}{Optional digest tibble representing the comparison proteome
-used for peptide uniqueness scoring. When omitted, \code{S_unique} is excluded
-and protein-only default weights are used.}
+used for peptide uniqueness scoring. When \code{NULL} (default), \code{S_unique} is
+excluded and protein-only default weights are used.}
 
 \item{weights}{Optional numeric weight vector. In protein-only mode the
 default weights are \code{c(S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)}.
@@ -34,19 +35,21 @@ main biological signal, peptide count supports statistical confidence,
 and GRAVY/charge capture independent LC-MS dimensions.}
 
 \item{gravy_range}{Numeric vector of length 2 defining the inclusive GRAVY
-range used by \code{S_hydro}. Defaults to \code{c(-1.0, 0.6)}.}
+range used by \code{S_hydro}. Defaults to \code{c(-1.0, 0.6)}. If \code{NULL}, raises an
+error.}
 
 \item{length_range}{Integer vector of length 2 defining the inclusive valid
 peptide length range used by \code{S_length}, \code{S_coverage}, \code{S_count},
-\code{S_hydro}, \code{S_charge}, and \code{S_unique}. Defaults to \code{c(7L, 25L)}.}
+\code{S_hydro}, \code{S_charge}, and \code{S_unique}. Defaults to \code{c(7L, 25L)}. If
+\code{NULL}, raises an error.}
 
 \item{enzyme}{Cleavage rule name used to choose the fallback expected peptide
 length when the digest contains fewer than three peptides. Defaults to
-\code{"trypsin"}.}
+\code{"trypsin"}. If \code{NULL}, raises an error.}
 
 \item{include_pI}{Logical flag indicating whether to append a \code{pI} list
 column containing peptide-level pI values for valid peptides. Defaults to
-\code{FALSE}.}
+\code{FALSE}. If \code{NULL}, raises an error.}
 }
 \value{
 A tibble with one row per \code{protein_id} and the component score

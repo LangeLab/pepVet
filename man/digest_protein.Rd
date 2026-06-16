@@ -2,7 +2,7 @@
 % Please edit documentation in R/digest.R
 \name{digest_protein}
 \alias{digest_protein}
-\title{Simulate a Proteolytic Digest}
+\title{Simulate a proteolytic digest}
 \usage{
 digest_protein(
   sequence,
@@ -16,19 +16,20 @@ digest_protein(
 character vector of sequences, a \code{Biostrings::AAString}, a
 \code{Biostrings::AAStringSet}, or a path to a FASTA file. File extension is
 not used to detect FASTA input; any existing file that
-\code{Biostrings::readAAStringSet()} can parse as FASTA is accepted.}
+\code{Biostrings::readAAStringSet()} can parse as FASTA is accepted. If
+\code{NULL} or empty, raises an error.}
 
-\item{enzyme}{Cleavage rule name. pepVet validates this against its
-hard-coded registry of cleaver-compatible enzyme names, including
-\code{trypsin}, \code{lysc}, \verb{glutamyl endopeptidase}, \verb{asp-n endopeptidase},
-\code{chymotrypsin-high}, and \code{thermolysin}.}
+\item{enzyme}{Cleavage rule name. Defaults to \code{"trypsin"}. pepVet validates
+this against its hard-coded registry of cleaver-compatible enzyme names,
+including \code{trypsin}, \code{lysc}, \verb{glutamyl endopeptidase}, \verb{asp-n endopeptidase}, \code{chymotrypsin-high}, and \code{thermolysin}.}
 
-\item{missed_cleavages}{Maximum number of missed cleavages to include.}
+\item{missed_cleavages}{Maximum number of missed cleavages to include.
+Defaults to \code{1L}.}
 
 \item{include_cleavage_efficiency}{Logical flag indicating whether to append
-a \code{cleavage_efficiency} column to the peptide output. Trypsin-family
-digests receive sequence-local high/medium/low annotations; unsupported
-enzymes currently return \code{NA} in this optional column.}
+a \code{cleavage_efficiency} column to the peptide output. Defaults to \code{FALSE}.
+Trypsin-family digests receive sequence-local high/medium/low annotations;
+unsupported enzymes return \code{NA} in this optional column.}
 }
 \value{
 A tibble with one row per peptide and the columns \code{protein_id},
@@ -36,14 +37,14 @@ A tibble with one row per peptide and the columns \code{protein_id},
 represents one observed cleavage product for one protein under the
 selected enzyme rule and missed-cleavage allowance. When
 \code{include_cleavage_efficiency = TRUE}, the output also includes a
-\code{cleavage_efficiency} column.
+\code{cleavage_efficiency} column. The \code{cleavage_efficiency} values are all
+\code{NA} for enzymes outside the trypsin family.
 }
 \description{
 \code{digest_protein()} normalizes protein-like input, validates the amino-acid
 alphabet, applies a cleaver-compatible enzyme rule, and returns peptide
-coordinates in a tidy tibble. It is the entry point for all higher-level
-pepVet workflows, including scoring, enzyme comparison, and batch
-evaluation.
+coordinates in a tidy tibble. Entry point for all higher-level pepVet
+workflows: scoring, enzyme comparison, and batch evaluation.
 }
 \details{
 FASTA record names are preserved as \code{protein_id} values when they

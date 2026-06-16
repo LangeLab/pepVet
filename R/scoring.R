@@ -299,7 +299,7 @@
   component_scores
 }
 
-#' Score Digested Peptides for Proteomics Suitability
+#' Score digested peptides for proteomics suitability
 #'
 #' `score_peptides()` summarizes a pepVet digest tibble into per-protein scoring
 #' components and a weighted composite suitability score. The scoring model is
@@ -308,10 +308,11 @@
 #'
 #' @param digest_result A digest tibble produced by [digest_protein()] or an
 #'   equivalent table containing the columns `protein_id`, `peptide`, `start`,
-#'   `end`, `length`, and `missed_cleavages`.
+#'   `end`, `length`, and `missed_cleavages`. If `NULL` or missing required
+#'   columns, raises an error.
 #' @param proteome Optional digest tibble representing the comparison proteome
-#'   used for peptide uniqueness scoring. When omitted, `S_unique` is excluded
-#'   and protein-only default weights are used.
+#'   used for peptide uniqueness scoring. When `NULL` (default), `S_unique` is
+#'   excluded and protein-only default weights are used.
 #' @param weights Optional numeric weight vector. In protein-only mode the
 #'   default weights are `c(S_length = 0.200, S_coverage = 0.348,
 #'   S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)`.
@@ -324,28 +325,18 @@
 #'   main biological signal, peptide count supports statistical confidence,
 #'   and GRAVY/charge capture independent LC-MS dimensions.
 #' @param gravy_range Numeric vector of length 2 defining the inclusive GRAVY
-#'   range used by `S_hydro`. Defaults to `c(-1.0, 0.6)`.
+#'   range used by `S_hydro`. Defaults to `c(-1.0, 0.6)`. If `NULL`, raises an
+#'   error.
 #' @param length_range Integer vector of length 2 defining the inclusive valid
 #'   peptide length range used by `S_length`, `S_coverage`, `S_count`,
-#'   `S_hydro`, `S_charge`, and `S_unique`. Defaults to `c(7L, 25L)`.
+#'   `S_hydro`, `S_charge`, and `S_unique`. Defaults to `c(7L, 25L)`. If
+#'   `NULL`, raises an error.
 #' @param enzyme Cleavage rule name used to choose the fallback expected peptide
 #'   length when the digest contains fewer than three peptides. Defaults to
-#'   `"trypsin"`.
+#'   `"trypsin"`. If `NULL`, raises an error.
 #' @param include_pI Logical flag indicating whether to append a `pI` list
 #'   column containing peptide-level pI values for valid peptides. Defaults to
-#'   `FALSE`.
-#'
-#' @return A tibble with one row per `protein_id` and the component score
-#'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`,
-#'   `S_charge`,
-#'   optional `S_unique`, plus `composite_score`, `verdict`, and
-#'   `median_peptide_length`, and `preset_used`. The
-#'   `median_peptide_length` column records the digest-level denominator used in
-#'   the enzyme-aware `S_count` calculation. The `preset_used` column records
-#'   the named preset whose resolved scoring configuration exactly matches the
-#'   current call, or `"custom"` otherwise. When `include_pI = TRUE`, the
-#'   output also includes a `pI` list column with one named numeric vector per
-#'   protein, storing valid-peptide pI values keyed by peptide sequence.
+#'   `FALSE`. If `NULL`, raises an error.
 #'
 #' @details Valid peptides are defined as peptides with lengths between 7 and
 #'   25 residues inclusive by default, but this window can be changed with
@@ -369,6 +360,18 @@
 #' probabilities. Cross-workflow comparisons are only meaningful when the
 #' resolved scoring configuration matches, which is why `preset_used` is
 #' recorded in the output.
+#'
+#' @return A tibble with one row per `protein_id` and the component score
+#'   columns `S_length`, `S_coverage`, `S_count`, `S_hydro`,
+#'   `S_charge`,
+#'   optional `S_unique`, plus `composite_score`, `verdict`, and
+#'   `median_peptide_length`, and `preset_used`. The
+#'   `median_peptide_length` column records the digest-level denominator used in
+#'   the enzyme-aware `S_count` calculation. The `preset_used` column records
+#'   the named preset whose resolved scoring configuration exactly matches the
+#'   current call, or `"custom"` otherwise. When `include_pI = TRUE`, the
+#'   output also includes a `pI` list column with one named numeric vector per
+#'   protein, storing valid-peptide pI values keyed by peptide sequence.
 #'
 #' @examples
 #' digest_result <- digest_protein("MKWVTFISLLFLFSSAYSR")

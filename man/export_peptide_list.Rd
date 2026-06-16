@@ -2,7 +2,7 @@
 % Please edit documentation in R/export.R
 \name{export_peptide_list}
 \alias{export_peptide_list}
-\title{Export a Peptide List for Downstream Tools}
+\title{Export a peptide list for downstream tools}
 \usage{
 export_peptide_list(
   peptides,
@@ -15,20 +15,23 @@ export_peptide_list(
 \arguments{
 \item{peptides}{A peptide tibble produced by \code{\link[=digest_protein]{digest_protein()}} or
 accessible via \code{\link[=evaluate_digest]{evaluate_digest()}}\verb{$peptides}. Must contain at minimum
-the columns \code{protein_id}, \code{peptide}, and \code{length}.}
+the columns \code{protein_id}, \code{peptide}, and \code{length}. If \code{NULL} or \code{NA},
+raises an error.}
 
-\item{format}{Export format. One of \code{"skyline"}, \code{"generic"}, or \code{"fasta"}.
+\item{format}{Export format. Defaults to \code{"skyline"}.
 \describe{
 \item{\code{"skyline"}}{A tibble (or CSV when \code{file} is specified) with
-columns \code{Protein}, \verb{Peptide Sequence}, \verb{Precursor Charge}, and
-\verb{Precursor Mz}. One row per peptide per charge state. M/z values are
-computed via \code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}}.}
-\item{\code{"generic"}}{A tibble (or CSV when \code{file} is specified) with all
-pepVet peptide columns plus a computed \code{gravy} column and a \code{valid}
-logical column marking peptides that pass \code{length_range}.}
-\item{\code{"fasta"}}{A character vector (or file when \code{file} is specified)
-of FASTA-formatted records for valid peptides only. Each record has a
-header of the form \verb{>protein_id|peptide_start-end}.}
+columns \code{Protein}, \code{Peptide Sequence},
+\code{Precursor Charge}, and \code{Precursor Mz}. One row per peptide
+per charge state. M/z values are computed via
+\code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}}.}
+\item{\code{"generic"}}{A tibble (or CSV when \code{file} is specified) with
+all pepVet peptide columns plus a computed \code{gravy} column and a
+\code{valid} logical column marking peptides that pass \code{length_range}.}
+\item{\code{"fasta"}}{A character vector (or file when \code{file} is
+specified) of FASTA-formatted records for valid peptides only. Each
+record has a header of the form \verb{>protein_id|peptide_start-end}.
+Requires \code{start} and \code{end} columns in \code{peptides}.}
 }}
 
 \item{charges}{Integer vector of precursor charge states for the
@@ -43,8 +46,11 @@ When specified, writes to that path and returns \code{file} invisibly.
 \code{"fasta"} is written with \code{\link[base:writeLines]{base::writeLines()}}.}
 }
 \value{
-When \code{file = NULL}: a tibble for \code{"skyline"} and \code{"generic"}, or a
-character vector for \code{"fasta"}. When \code{file} is specified: \code{file},
+When \code{file = NULL}: for \code{"skyline"}, a tibble with columns
+\code{Protein}, \code{Peptide Sequence}, \code{Precursor Charge}, and
+\code{Precursor Mz}; for \code{"generic"}, a tibble with all original columns
+plus \code{gravy}, \code{pI}, and \code{valid}; for \code{"fasta"}, a
+character vector of FASTA records. When \code{file} is specified: \code{file},
 invisibly.
 }
 \description{
@@ -58,6 +64,9 @@ Precursor m/z for Skyline export is computed as
 \eqn{(M + z \times 1.007276) / z} where \eqn{M} is the neutral
 monoisotopic peptide mass and \eqn{z} is the charge state. Skyline
 accepts this format via File > Import > Transition List.
+
+When no peptides pass the \code{length_range} filter, skyline format returns
+an empty tibble and fasta format returns an empty character vector.
 }
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

@@ -14,26 +14,33 @@ plot_length_distribution(
 \arguments{
 \item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}, \strong{or} a
 data.frame / tibble with at least a \code{length} column (e.g. the
-\verb{$peptides} slot of such a result).}
+\verb{$peptides} slot of such a result).  If \code{NULL} or an unrecognised type,
+raises an error.}
 
 \item{length_range}{Integer vector of length 2 giving the valid length
 window \code{c(lo, hi)}.  Defaults to \code{c(7L, 25L)}.  Ignored (and read from
 \code{result$params}) when a full \code{evaluate_digest()} result is supplied.}
 
 \item{show_density}{Logical.  When \code{TRUE} (default) a scaled kernel-density
-curve is overlaid on the histogram.}
+curve is overlaid on the histogram.  If \code{NULL}, treated as \code{FALSE}.}
 
 \item{title}{Optional character string for the plot title.  Auto-generated
 when \code{NULL} (default).}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object showing a histogram of peptide lengths coloured
+by validity class with valid-range shading and optional density overlay.
 }
 \description{
 \code{plot_length_distribution()} draws a histogram of peptide lengths
 colour-coded by validity class (Valid / Too short / Too long), with the
 valid range shaded in the package's green, per-category percentage
 annotations, and an optional density-curve overlay.
+}
+\details{
+When \code{result} is a named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results
+(multi-input mode), produces a faceted panel of length distributions
+with one facet per result, using per-result valid-length ranges.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE)) {
@@ -42,11 +49,10 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p <- plot_length_distribution(res)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_digest_profile]{plot_digest_profile()}},
-\code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step,
+\code{\link[=plot_digest_profile]{plot_digest_profile()}} for a single-protein digest summary.
 
 Other plot-distribution:
 \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},

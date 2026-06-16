@@ -2,33 +2,36 @@
 % Please edit documentation in R/evaluation.R
 \name{summarize_batch}
 \alias{summarize_batch}
-\title{Summarize a Batch Digest Evaluation}
+\title{Summarize a batch digest evaluation}
 \usage{
 summarize_batch(batch_result)
 }
 \arguments{
-\item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}.}
+\item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}. If \code{NULL} or
+empty, raises an error.}
 }
 \value{
 A named list with five elements:
 \describe{
-\item{\code{verdict_counts}}{A tibble with columns \code{verdict}, \code{n}, and \code{pct}
-covering the three verdict categories.}
+\item{\code{verdict_counts}}{A tibble with columns \code{verdict},
+\code{n}, and \code{pct} covering the three verdict categories.}
 \item{\code{score_distribution}}{A named numeric vector with \code{mean},
-\code{median}, \code{sd}, \code{q25}, \code{q75}, \code{min}, and \code{max} of composite scores.}
-\item{\code{component_summary}}{A named numeric vector of per-component mean
-scores. The lowest values identify the weakest scoring dimension
+\code{median}, \code{sd}, \code{q25}, \code{q75}, \code{min}, and
+\code{max} of composite scores.}
+\item{\code{component_summary}}{A named numeric vector of per-component
+mean scores. The lowest values identify the weakest scoring dimension
 across the proteome.}
 \item{\code{problem_proteins}}{A tibble of proteins in the bottom 10\% by
 composite score, ordered ascending, with all score and flag columns.}
-\item{\code{enzyme_switch_candidates}}{A tibble of Moderate or Poor proteins
-where \code{flag_hydrophobic} or \code{flag_short_protein} is \code{TRUE}, indicating
-that enzyme or preset choice is the likely limiting factor.}
+\item{\code{enzyme_switch_candidates}}{A tibble of Moderate or Poor
+proteins where \code{flag_hydrophobic} or \code{flag_short_protein} is
+\code{TRUE}, indicating that enzyme or preset choice is the likely
+limiting factor.}
 }
 }
 \description{
 \code{summarize_batch()} extracts aggregate statistics from a \code{\link[=batch_evaluate]{batch_evaluate()}}
-result tibble. It returns a named list covering verdict distribution, score
+result tibble. Returns a named list with verdict distribution, score
 distribution, per-component averages, the lowest-scoring proteins, and a
 heuristic set of enzyme-switch candidates.
 }

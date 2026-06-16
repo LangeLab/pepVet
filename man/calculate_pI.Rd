@@ -2,14 +2,14 @@
 % Please edit documentation in R/utils.R
 \name{calculate_pI}
 \alias{calculate_pI}
-\title{Calculate Peptide Isoelectric Point}
+\title{Calculate peptide isoelectric point}
 \usage{
 calculate_pI(sequence)
 }
 \arguments{
 \item{sequence}{Peptide sequence supplied as a character vector. Amino-acid
 codes must be one-letter uppercase or lowercase symbols from the 20
-standard residues.}
+standard residues. If \code{NULL}, raises an error.}
 }
 \value{
 A numeric vector of estimated peptide pI values. Names are preserved

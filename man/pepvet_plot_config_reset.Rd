@@ -12,6 +12,12 @@ Invisibly returns a list with current \code{palette}, \code{params}, and \code{t
 \description{
 Restores all colors, parameters, and theme overrides to the package defaults.
 }
+\examples{
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  pepvet_plot_config(palette = list(brand = "#004488"))
+  pepvet_plot_config_reset()
+}
+}
 \seealso{
 Other plot-utils:
 \code{\link[=pepvet_plot_config]{pepvet_plot_config()}},

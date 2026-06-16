@@ -14,21 +14,24 @@ plot_enzyme_comparison(
 \arguments{
 \item{comparison}{A tibble returned by \code{\link[=compare_digests]{compare_digests()}}.  Must contain
 at least the columns \code{enzyme} and \code{composite_score}, plus whichever
-component-score columns are requested in \code{scores}.}
+component-score columns are requested in \code{scores}.  If \code{NULL} or not a
+data frame, raises an error.}
 
 \item{scores}{Character vector of component-score column names to display
 in Panel A.  Any column absent from \code{comparison} is silently dropped.
-Defaults to all five standard component scores.}
+Defaults to all five standard component scores.  If \code{NULL}, raises an
+error.}
 
 \item{recommend}{Logical.  When \code{TRUE} (default) a "Recommended" badge
-marks the enzyme with the highest composite score in Panel B.}
+marks the enzyme with the highest composite score in Panel B.  If \code{NULL},
+raises an error.}
 
 \item{title}{Optional character string for the overall plot title.
 Auto-generated from the protein accession when \code{NULL} (default).}
 }
 \value{
-A \code{patchwork} object (two ggplot panels side by side) that can be
-printed, further customised, or saved with \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}}.
+A \code{patchwork} object with two panels: component-score grouped bar
+chart (A) and composite-score lollipop with verdict badge (B).
 }
 \description{
 \code{plot_enzyme_comparison()} visualises the output of \code{\link[=compare_digests]{compare_digests()}} as
@@ -38,12 +41,13 @@ lollipop with verdict badge (Panel B).
 \details{
 Panel A shows a horizontal grouped bar chart where each enzyme occupies one
 row and each component score is a separate colored bar, dodged side-by-side.
-Reference lines at 0.50 and 0.75 divide the axis into poor / moderate / good
+Reference lines at the Moderate and Good verdict thresholds divide the axis
+into poor / moderate / good
 regions. Enzymes are sorted by composite score with the best at the top.
 
 Panel B shows the composite score as a lollipop, color-coded by verdict tier
 (green >= 0.65, amber 0.40-0.64, red < 0.40). When \code{recommend = TRUE} a
-gold "* Recommended" badge is appended next to the top-ranked enzyme.
+gold "Recommended" badge is appended next to the top-ranked enzyme.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
@@ -58,7 +62,6 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
   p <- plot_enzyme_comparison(comp)
   print(p)
 }
-
 }
 \seealso{
 \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=recommend_enzyme]{recommend_enzyme()}},

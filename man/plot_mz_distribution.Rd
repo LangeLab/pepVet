@@ -25,12 +25,13 @@ Produces a faceted plot with one panel per result.
 computed from sequences.
 \item A data.frame / tibble with \code{mz} and \code{charge_state} columns (pre-
 computed m/z values; \code{charge_states} argument is ignored).
+If \code{NULL} or an unrecognised type, raises an error.
 }}
 
 \item{scan_range}{Numeric vector of length 2 giving the instrument's MS1
 scan window boundaries in m/z.  Defaults to \code{c(350, 1500)} (typical
 DDA on Orbitrap / Q-TOF instruments).  Use \code{c(400, 1000)} for targeted
-methods.}
+methods.  If \code{NULL} or malformed, raises an error.}
 
 \item{charge_states}{Integer vector of charge states to compute.  Defaults
 to \code{2:3}.  Ignored when \code{result} already contains an \code{mz} column.}
@@ -40,12 +41,16 @@ window used to filter input peptides.  Defaults to \code{c(7L, 25L)}.  Read
 from \code{result$params} when a full \code{\link[=evaluate_digest]{evaluate_digest()}} result is supplied.}
 
 \item{show_rug}{Logical.  When \code{TRUE} (default) a rug of individual
-peptide m/z values is added below the density fills at \code{alpha = 0.30}.}
+peptide m/z values is added below the density fills at \code{alpha = 0.30}.
+If \code{NULL}, treated as \code{FALSE}.}
 
-\item{title}{Optional character string for the plot title.}
+\item{title}{Optional character string for the plot title.  Auto-generated
+when \code{NULL} (default).}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object showing overlapping density fills of precursor
+m/z values at each charge state, with shaded instrument scan window and
+per-charge-state window-coverage annotations.
 }
 \description{
 \code{plot_mz_distribution()} draws overlapping density fills for precursor
@@ -58,6 +63,13 @@ properties; m/z characterises instrument detectability.
 An enzyme can produce ideal-length, well-behaved peptides that still fall
 outside the instrument's MS1 scan window at the predominant charge states.
 This function makes that problem immediately visible.
+
+The function accepts four input types with the following
+precedence: (1) named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results (multi-input
+mode, produces a faceted panel per result), (2) single
+\code{\link[=evaluate_digest]{evaluate_digest()}} result, (3) data.frame with a \code{peptide} column
+(m/z computed from sequences), (4) data.frame with pre-computed \code{mz}
+and \code{charge_state} columns.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE)) {
@@ -66,12 +78,10 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p <- plot_mz_distribution(res)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}},
-\code{\link[=plot_length_distribution]{plot_length_distribution()}}, \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},
-\code{\link[=plot_pI_distribution]{plot_pI_distribution()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step,
+\code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}} for the underlying m/z calculation.
 
 Other plot-distribution:
 \code{\link[=plot_gravy_landscape]{plot_gravy_landscape()}},

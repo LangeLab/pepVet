@@ -2,12 +2,13 @@
 % Please edit documentation in R/evaluation.R
 \name{triage_proteins}
 \alias{triage_proteins}
-\title{Triage Proteins from a Batch Evaluation}
+\title{Triage proteins from a batch evaluation}
 \usage{
 triage_proteins(batch_result)
 }
 \arguments{
-\item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}.}
+\item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}. If \code{NULL} or
+empty, raises an error.}
 }
 \value{
 A tibble with one row per protein containing all score and flag
@@ -19,9 +20,9 @@ values:
 component score below 0.5. A preset change or missed-cleavage
 adjustment may improve results.}
 \item{\code{"try_other_enzyme"}}{Moderate or Poor verdict with
-\code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor verdict
-without an intrinsic complexity flag. An alternative enzyme is the
-most likely improvement path.}
+\code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor
+verdict without an intrinsic complexity flag. An alternative enzyme
+is the most likely improvement path.}
 \item{\code{"skip"}}{No valid peptides or low-complexity sequence. No
 standard enzyme choice is expected to substantially improve the
 score.}

@@ -14,7 +14,7 @@ plot_peptide_overlap_map(
 }
 \arguments{
 \item{result}{A named list returned by \code{\link[=evaluate_digest]{evaluate_digest()}}. Must describe a
-single protein.}
+single protein.  If \code{NULL} or invalid, raises an error.}
 
 \item{length_range}{Optional integer vector of length 2 defining which
 peptide lengths count toward overlap. Defaults to \code{c(7L, 25L)}. Peptides
@@ -28,13 +28,16 @@ Pass \code{0L} for strict non-overlapping fragments, or \code{NULL} to count
 all MC levels (automatically set when \code{length_range = NULL}).}
 
 \item{residues_per_line}{Positive integer. Number of residues to show before
-wrapping to the next display row. Defaults to \code{50L}.}
+wrapping to the next display row. Defaults to \code{50L}.  If \code{NULL} or
+non-integer, raises an error.}
 
 \item{title}{Optional character string for the plot title. Auto-generated
 from the protein accession and enzyme when \code{NULL} (default).}
 }
 \value{
-A \code{ggplot} object showing one tile per residue.
+A \code{ggplot} object showing one tile per residue colored by peptide
+overlap depth (white for uncovered, escalating blue fills for 1, 2-3,
+4-7, 8-15, or 16+ covering peptides).
 }
 \description{
 \code{plot_peptide_overlap_map()} renders a wrapped residue-level view of a
@@ -60,10 +63,9 @@ if (requireNamespace("ggplot2", quietly = TRUE)) {
   p <- plot_peptide_overlap_map(res)
   print(p)
 }
-
 }
 \seealso{
-\code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=plot_coverage_map]{plot_coverage_map()}}, \code{\link[=plot_cleavage_map]{plot_cleavage_map()}}
+\code{\link[=evaluate_digest]{evaluate_digest()}} for the upstream digestion step.
 
 Other plot-single:
 \code{\link[=plot_cleavage_map]{plot_cleavage_map()}},

@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{batch_evaluate}
 \alias{batch_evaluate}
-\title{Batch-Evaluate Multiple Proteins}
+\title{Batch-evaluate multiple proteins}
 \usage{
 batch_evaluate(
   sequences,
@@ -17,7 +17,8 @@ batch_evaluate(
 }
 \arguments{
 \item{sequences}{Multi-protein input. Accepts the same forms as
-\code{\link[=digest_protein]{digest_protein()}}. Must resolve to at least one protein.}
+\code{\link[=digest_protein]{digest_protein()}}. Must resolve to at least one protein. If \code{NULL} or
+empty, raises an error.}
 
 \item{enzyme}{Enzyme name passed to \code{\link[=digest_protein]{digest_protein()}}. Defaults to
 \code{"trypsin"}.}
@@ -25,23 +26,22 @@ batch_evaluate(
 \item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{1L}.}
 
 \item{include_cleavage_efficiency}{Logical flag passed to
-\code{\link[=evaluate_digest]{evaluate_digest()}} and ultimately \code{\link[=digest_protein]{digest_protein()}}. When \code{TRUE}, each
-per-protein peptide table includes a \code{cleavage_efficiency} column (does
-not affect the flat batch tibble columns).}
+\code{\link[=evaluate_digest]{evaluate_digest()}} and ultimately \code{\link[=digest_protein]{digest_protein()}}. Defaults to \code{FALSE}.
+When \code{TRUE}, each per-protein peptide table includes a \code{cleavage_efficiency}
+column (does not affect the flat batch tibble columns).}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
-for every protein evaluation. When supplied, an \code{S_unique} column appears
-in the returned tibble.}
+for every protein evaluation. When \code{NULL} (default), no uniqueness
+scoring is performed and the \code{S_unique} column is omitted.}
 
-\item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.}
+\item{weights}{Optional scoring weight vector passed to \code{\link[=score_peptides]{score_peptides()}}.
+When \code{NULL} (default), uses pepVet's default scoring weights.}
 
 \item{cores}{Number of parallel workers for protein-level chunking.
 \code{1L} (default) runs sequentially with no extra dependencies. Values
 greater than \code{1L} split the input into equal chunks and process each
 chunk in a forked worker via \code{parallel::mclapply} (Unix only; on Windows
-\code{cores} is silently capped to \code{1L}). From benchmarks on a 16-core machine,
-efficiency peaks around \code{4} to \code{8} cores for typical proteome sizes; beyond
-8 cores memory bandwidth becomes the bottleneck.}
+\code{cores} is silently capped to \code{1L}).}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
 as \code{gravy_range} and \code{length_range}.}

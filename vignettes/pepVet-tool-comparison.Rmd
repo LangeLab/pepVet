@@ -35,9 +35,8 @@ same cleavage rules. The question is what each tool adds beyond the peptide
 list: scoring, filtering, ranking, structural context, and programmatic
 access.
 
-This vignette compares pepVet against five other tools on a panel of 5
-proteins and 5 enzymes. Pre-computed data is in
-`scratch/comparison-data/` and `scratch/comparison-figures/`.
+This vignette is the companion to the [getting-started guide](pepVet-introduction.html). It compares pepVet
+against five other tools on a panel of 5 proteins and 5 enzymes.
 
 ## Common ground
 
@@ -201,10 +200,9 @@ development with presets, and manuscript-grade digest quality
 documentation. Adding PeptideRanger gives peptide-level detection
 probabilities for the same digest. Adding Protein Cleaver adds 3D
 structural context when a PDB file is available. MS-Digest and ExPASy are
-best when only precise mass information is needed. pepVet fills a specific
-gap: a graded, interpretable, multi-component quality score with workflow
-presets, verdict classification, and sensitivity analysis. No other tool
-provides this combination.
+best when only precise mass information is needed. pepVet delivers a
+graded, multi-component quality score with workflow presets, verdict
+classification, and sensitivity analysis in a single R package.
 
 ## Session info
 

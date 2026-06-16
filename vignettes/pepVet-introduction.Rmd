@@ -22,7 +22,7 @@ library(pepVet)
 data("aa_properties", package = "pepVet")
 ```
 
-pepVet evaluates proteolytic digests before bench work begins. Give it a protein sequence and an enzyme. It returns peptide coordinates, score components, a composite verdict, and workflow-aware parameters that let you inspect the result instead of treating it as a black box.
+pepVet evaluates proteolytic digests before bench work begins. Give it a protein sequence and an enzyme. It returns peptide coordinates, score components, a composite verdict, and workflow-aware parameters that let you inspect the result instead of treating it as a black box. A companion vignette ([tool comparison](pepVet-tool-comparison.html)) compares pepVet against five other digestion tools.
 
 ## The core pipeline
 
@@ -144,19 +144,7 @@ digest_result <- digest_protein(bsa_path,
 score_peptides(digest_result)
 ```
 
-Only peptides inside the active `length_range` count as valid. The default window is 7 to 25 residues. Fragments outside that window still appear in the digest tibble, but they do not contribute to the component numerators.
-
-The five standard components:
-
-| Score | Numerator / logic | Optimal direction |
-|---|---|---|
-| `S_length` | Valid peptides / total peptides | Higher -> more peptides in the LC-MS window |
-| `S_coverage` | Non-overlapping valid residues / protein length | Higher -> less dark proteome |
-| `S_count` | Soft-normalised valid peptide count | Higher -> more IDs per protein |
-| `S_hydro` | GRAVY-based mean hydrophobicity of valid peptides | Near 0 -> balanced retention |
-| `S_charge` | Valid peptides with ≥ 1 non-terminal K/R/H / total valid | Higher -> more multi-charge potential and richer fragment series |
-
-pepVet also reports `median_peptide_length`, which is the digest-level denominator used in `S_count`. That value matters when you compare enzymes with very different cleavage densities.
+Only peptides inside the active `length_range` count as valid. The default window is 7 to 25 residues. Fragments outside that window still appear in the digest tibble, but they do not contribute to the component numerators. See the [scoring model](scoring-model.html) article for the formula of each component.
 
 Composite score verdict thresholds are `Good` at `>= 0.65`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
 
@@ -180,7 +168,7 @@ Every major scoring parameter has a different level of support. pepVet documents
 | GRAVY range `[-1.0, +0.6]` | Literature-informed | C18 RP-LC elution guidance and observed under-detection of highly hydrophobic peptides | Calibrate against PeptideAtlas GRAVY distributions |
 | Length range `[7, 25]` | Literature-informed | Common bottom-up LC-MS guidance with conservative tails retained | Calibrate against PeptideAtlas peptide-length distributions |
 | Default component weights | Expert prior | Chosen for interpretability and digest-planning emphasis, not fit from data | Fit against observed detection summaries |
-| Preset weights | Expert prior | Workflow-specific directional logic from literature, not empirically optimized coefficients | Validate by workflow against public benchmark datasets |
+| Preset weights | Expert prior | Workflow-specific directional logic from literature, not empirically fitted coefficients | Validate by workflow against public benchmark datasets |
 | Verdict thresholds `0.7 / 0.4` | Heuristic | Chosen as readable ranking cutoffs | Calibrate with ROC/logistic analysis |
 | Enzyme-class fallback constants | Literature-informed | Approximate peptide-length expectations from proteome-wide enzyme behavior | Validate against observed digest medians |
 | Fraction-based scoring form | Design choice | Simple, transparent normalization rather than a learned nonlinear model | Compare against alternative forms |
@@ -220,14 +208,7 @@ do.call(
 )$scores
 ```
 
-| Preset | Best fit | Main scoring shift |
-|---|---|---|
-| `standard` | Routine DDA | Package defaults |
-| `dia` | DIA and SWATH | Higher coverage weight |
-| `targeted` | SRM, PRM, MRM | Higher uniqueness weight |
-| `membrane` | Hydrophobic proteins | Wider GRAVY window |
-| `ffpe_degraded` | Degraded material | Wider peptide-length window |
-| `fractionated` | SCX or high-pH RP planning | Standard score with fractionation-oriented interpretation |
+Six presets ship with pepVet. Each bundles a length range, a GRAVY window, and scoring weights for a common experiment type. See the [workflow presets](workflow-presets.html) article for the full reference.
 
 Presets with non-zero `S_unique` weights require a proteome digest. pepVet rejects those presets when `proteome` is missing because the uniqueness term would otherwise be invented.
 
@@ -498,12 +479,20 @@ The `kyte_doolittle` column contains the Kyte-Doolittle (1982) hydrophobicity sc
 
 pepVet fills a narrow part of the workflow. It is not a spectral library builder and it is not a peptide detectability predictor. It is a decision-support layer for enzyme choice and digest quality before acquisition. [REF]
 
-| Tool | Form | API | Multi-enzyme ranking | Proteome-aware uniqueness |
-|---|---|---|---|---|
-| Protein Prospector | Web app | No | Manual | No |
-| Skyline | Desktop GUI | Limited scripting | Limited | Library-driven |
-| cleaver | R package | Yes | No | No |
-| pepVet | R package | Yes | Yes | Yes |
+The [tool-comparison vignette](pepVet-tool-comparison.html) compares pepVet against five tools on a panel of five proteins and five enzymes. It covers baseline peptide overlap, capability differences across 16 dimensions, the scoring model in practice, workflow preset effects, pipeline integration with PeptideRanger, and a binary versus graded classification comparison with Protein Cleaver.
+
+## Where to go next
+
+The remaining articles on this site go deeper into specific topics.
+
+| Article | What it covers |
+|---------|---------------|
+| [scoring model](scoring-model.html) | Formula and logic for each of the five component scores |
+| [enzyme selection](enzyme-selection.html) | Worked comparisons across multiple proteins with a decision table |
+| [workflow presets](workflow-presets.html) | The six shipped presets and how to modify them |
+| [visualisation](visualisation.html) | All 11 plot functions with examples |
+| [weight sensitivity](weight-sensitivity.html) | Dirichlet Monte Carlo analysis of weight robustness |
+| [tool comparison](pepVet-tool-comparison.html) | Detailed comparison against MS-Digest, ExPASy, Protein Cleaver, ProteaseGuru, and PeptideRanger |
 
 ## Session info
 

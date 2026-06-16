@@ -4,6 +4,14 @@ description: >
   Use pepVet's plotting functions to inspect single-protein digests,
   compare enzymes, explore physicochemical distributions, and assess
   proteome-scale performance.
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+vignette: >
+  %VignetteIndexEntry{Visualising Digest Quality}
+  %VignetteEngine{knitr::rmarkdown}
+  %VignetteEncoding{UTF-8}
 ---
 
 ## Overview

@@ -5,10 +5,13 @@ description: >
   plausible changes in the scoring weights, using Dirichlet-based Monte Carlo
   perturbation.
 output:
-  rmarkdown::html_document:
+  rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
-    toc_float: true
+vignette: >
+  %VignetteIndexEntry{Weight Sensitivity Analysis}
+  %VignetteEngine{knitr::rmarkdown}
+  %VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

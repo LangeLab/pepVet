@@ -4,10 +4,13 @@ description: >
   A practical guide to pepVet presets for standard DDA, DIA, targeted assays,
   membrane proteins, degraded material, and fractionated workflows.
 output:
-  rmarkdown::html_document:
+  rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
-    toc_float: true
+vignette: >
+  %VignetteIndexEntry{Workflow Presets in pepVet}
+  %VignetteEngine{knitr::rmarkdown}
+  %VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

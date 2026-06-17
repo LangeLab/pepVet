@@ -490,8 +490,9 @@ The remaining articles on this site go deeper into specific topics.
 | [scoring model](scoring-model.html) | Formula and logic for each of the five component scores |
 | [enzyme selection](enzyme-selection.html) | Worked comparisons across multiple proteins with a decision table |
 | [workflow presets](workflow-presets.html) | The six shipped presets and how to modify them |
-| [visualisation](visualisation.html) | All 11 plot functions with examples |
+| [visualisation](visualisation.html) | All plot functions with examples |
 | [weight sensitivity](weight-sensitivity.html) | Dirichlet Monte Carlo analysis of weight robustness |
+| [score diagnostics](score-diagnostics.html) | VIF, PCA, and ablation analysis of scoring model structure |
 | [tool comparison](pepVet-tool-comparison.html) | Detailed comparison against MS-Digest, ExPASy, Protein Cleaver, ProteaseGuru, and PeptideRanger |
 
 ## Session info

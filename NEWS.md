@@ -1,19 +1,34 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
-# pepVet 0.1.6 (unreleased)
+# pepVet 0.1.7 (unreleased)
+
+# pepVet 0.1.6
+
+## New functions
+
+* `score_diagnostics()` runs VIF, PCA, and ablation analyses on a `batch_evaluate()` result to quantify multicollinearity, dimensionality, and component importance in the scoring model.
+* `plot_score_diagnostics()` visualises the diagnostics result as a three-panel figure: VIF bar chart with severity-colored bars, PCA scree plot with cumulative variance, and ablation waterfall with error bars and verdict-flip counts.
+
+## New documentation
+
+* Added *Score Diagnostics for pepVet Scoring Models* article covering VIF, PCA, and ablation analysis with worked examples.
+* Added *pepVet in the Tool Landscape* article comparing pepVet against MS-Digest, ExPASy PeptideMass, Protein Cleaver, ProteaseGuru, and PeptideRanger.
+* Added diagnostics cross-reference to the introduction vignette.
+
+## Bug fixes
+
+* Fixed `sensitivity_analysis()` batch-mode verdict instability: now uses full 3-level classification (Good/Moderate/Poor) instead of checking only the Good boundary.
+* Fixed vignette pipe example where `recommend_enzyme()` received a comparison tibble instead of a protein sequence.
+* Fixed tool-comparison vignette: replaced fragile `../inst/extdata/` paths with `system.file()`.
+* Fixed verdict threshold table in introduction vignette: said `0.7 / 0.4`, code uses `0.65 / 0.40`.
 
 ## Housekeeping
 
-* Replaced 3 `paste()` inside cli `.abort()` with pre-computed `{.val}` variables in `utils.R`.
-* Removed `.onAttach` startup message. Package loads silently.
-* Fixed test patterns in `test-aa-properties.R` and `test-digest.R` that broke when `.val` formatter output changed.
-* Still need to work on cleaning up code-quality.
-
-## Documentation
-
-* Added *pepVet in the Tool Landscape* article comparing pepVet against MS-Digest, ExPASy PeptideMass, Protein Cleaver, ProteaseGuru, and PeptideRanger. Includes baseline overlap analysis with mass correlation (0.999983), a tool capability catalog, and a pepVet-to-PeptideRanger pipeline demonstration.
-* Docstring standardization to ensure minimum necessary parameters included and examples. 
-* Re-made the docs for website after docstrings updated.
+* Refactored `zzz.R` to eliminate `lockBinding`/`makeActiveBinding` R CMD check NOTE.
+* Fixed README installation instructions (removed `S4Vectors` from BiocManager install; pulled in automatically by Biostrings).
+* Enabled automatic CI triggers for R CMD check on push and PR across ubuntu, macOS, and Windows.
+* Added `.gitattributes`, `.Rbuildignore` updates, `.onAttach` removal, and cli cleanup.
+* Docstring standardisation and `.bind_rows()` type-safety improvements.
 
 # pepVet 0.1.5
 

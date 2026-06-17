@@ -36,6 +36,8 @@
 ^.*\.BiocCheck/
 ^\.DS_Store$
 ^\.lintr$
+^\.\.Rcheck$
+^\.\.Rcheck/
 ^tmp$
 ^tmp/
 ^paper$

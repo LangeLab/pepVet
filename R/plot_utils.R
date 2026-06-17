@@ -106,7 +106,7 @@ NULL
 # Store in an environment (not locked like namespace bindings)
 .pepvet_config_env <- new.env(parent = emptyenv())
 .pepvet_config_env$pal_default <- .pepvet_pal
-.pepvet_config_env$params_default <- NULL # set after .pepvet_params loads
+.pepvet_config_env$params_default <- NULL # populated by .onLoad()
 .pepvet_config_env$theme_overrides <- list()
 
 ## Internal ggplot2 theme

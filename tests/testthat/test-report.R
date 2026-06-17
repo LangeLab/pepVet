@@ -15,7 +15,7 @@ test_that("BSA trypsin report matches snapshot (Good/Moderate verdict)", {
   expect_snapshot(digest_report(ev))
 })
 
-test_that("Histone H3 trypsin report matches snapshot (Poor verdict)", {
+test_that("Histone H3 trypsin report matches snapshot (Moderate verdict)", {
   ev <- evaluate_digest(reference_fasta("P68431.fasta"), enzyme = "trypsin")
   expect_snapshot(digest_report(ev))
 })
@@ -27,8 +27,9 @@ test_that("BSA lysc report matches snapshot", {
 
 test_that("proteome-aware report includes S_unique bar", {
   multi <- reference_fasta("P37840_isoforms.fasta")
+  isoforms <- Biostrings::readAAStringSet(multi)
   proteome_digest <- digest_protein(multi)
-  ev <- evaluate_digest(multi[1], proteome = proteome_digest)
+  ev <- evaluate_digest(isoforms[1], proteome = proteome_digest)
   # S_unique must appear in output
   output <- capture.output(digest_report(ev))
   expect_true(any(grepl("S_unique", output)))

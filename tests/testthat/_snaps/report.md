@@ -12,7 +12,7 @@
         S_charge   ████████░░ 0.778
       --------------------------------------------------------------------------------
 
-# Histone H3 trypsin report matches snapshot (Poor verdict)
+# Histone H3 trypsin report matches snapshot (Moderate verdict)
 
     Code
       digest_report(ev)

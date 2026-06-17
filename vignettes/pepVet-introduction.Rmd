@@ -169,7 +169,7 @@ Every major scoring parameter has a different level of support. pepVet documents
 | Length range `[7, 25]` | Literature-informed | Common bottom-up LC-MS guidance with conservative tails retained | Calibrate against PeptideAtlas peptide-length distributions |
 | Default component weights | Expert prior | Chosen for interpretability and digest-planning emphasis, not fit from data | Fit against observed detection summaries |
 | Preset weights | Expert prior | Workflow-specific directional logic from literature, not empirically fitted coefficients | Validate by workflow against public benchmark datasets |
-| Verdict thresholds `0.7 / 0.4` | Heuristic | Chosen as readable ranking cutoffs | Calibrate with ROC/logistic analysis |
+| Verdict thresholds `0.65 / 0.4` | Heuristic | Chosen as readable ranking cutoffs | Calibrate with ROC/logistic analysis |
 | Enzyme-class fallback constants | Literature-informed | Approximate peptide-length expectations from proteome-wide enzyme behavior | Validate against observed digest medians |
 | Fraction-based scoring form | Design choice | Simple, transparent normalization rather than a learned nonlinear model | Compare against alternative forms |
 | pKa set and proton mass | Literature-backed / physical constant | Lehninger-style pKa set and NIST proton mass | No calibration for proton mass; pI validated against ExPASy |
@@ -436,12 +436,16 @@ digest_report(comp)
 `digest_report()` returns `invisible(x)`, so you can insert it anywhere in a pipeline to print a human-readable checkpoint without breaking the chain:
 
 ```{r pipe, eval=FALSE}
-# The printed report appears; the tibble flows on to recommend_enzyme
-winner <- compare_digests(bsa_path,
+# Compare enzymes and print a report
+comp <- compare_digests(bsa_path,
   enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")
-) |>
-  digest_report() |>
-  recommend_enzyme()
+)
+digest_report(comp)
+
+# Get the top recommendation directly from the sequence
+winner <- recommend_enzyme(bsa_path,
+  enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")
+)
 ```
 
 ## A challenging protein: Histone H3.1

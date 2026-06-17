@@ -1098,6 +1098,14 @@ plot_weight_sensitivity <- function(x, title = NULL) {
     reason = "to produce pepVet visualization plots"
   )
 
+  if (!is.list(x) || (!"per_protein" %in% names(x) &&
+      !all(c("iterations", "summary") %in% names(x)))) {
+    .abort(
+      "{.arg x} must be a {.fn sensitivity_analysis} result.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
   if ("per_protein" %in% names(x)) {
     .plot_sensitivity_batch(x, title)
   } else {

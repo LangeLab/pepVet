@@ -1,6 +1,8 @@
 .onLoad <- function(libname, pkgname) {
   ## Make bindings read from mutable config env so pepvet_plot_config()
   ## changes take effect without a package reload.
+  ## makeActiveBinding without lockBinding avoids the Bioconductor NOTE
+  ## that lockBinding triggers on namespace bindings.
   ns <- topenv()
   if (exists(".pepvet_config_env", envir = ns, inherits = FALSE)) {
     env <- get(".pepvet_config_env", envir = ns)
@@ -20,13 +22,11 @@
       !bindingIsActive(".pepvet_pal", ns)) {
       rm(list = ".pepvet_pal", envir = ns)
       makeActiveBinding(".pepvet_pal", function() env$pal, ns)
-      lockBinding(".pepvet_pal", ns)
     }
     if (exists(".pepvet_params", envir = ns, inherits = FALSE) &&
       !bindingIsActive(".pepvet_params", ns)) {
       rm(list = ".pepvet_params", envir = ns)
       makeActiveBinding(".pepvet_params", function() env$params, ns)
-      lockBinding(".pepvet_params", ns)
     }
   }
 }
@@ -34,7 +34,7 @@
 utils::globalVariables(c(
   "badge", "category", "charge_state", "comp_id", "component",
   "composite_score", "count", "display_id", "enzyme", "flag",
-  "gravy", "is_best", "label", "length_class", "mz", "n",
+  "gravy", "is_best", "label", "length", "length_class", "mz", "n",
   "n_wins", "pct", "pct_wins", "protein_label", "protein_length",
   "score", "tier", "value", "verdict", "x_idx", "x_val",
   "xmax", "xmin", "y_val"

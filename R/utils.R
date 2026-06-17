@@ -219,6 +219,7 @@ NULL
 .bind_rows <- function(df_list) {
   if (length(df_list) == 0L) return(tibble::tibble())
   if (length(df_list) == 1L) return(tibble::as_tibble(df_list[[1L]]))
+  for (i in seq_along(df_list)) rownames(df_list[[i]]) <- NULL
   tibble::as_tibble(do.call(rbind, df_list))
 }
 
@@ -799,7 +800,7 @@ pepvet_preset <- function(type = "standard") {
 .calculate_gravy_vec <- function(peptide_vector) {
   hydro_lookup <- .get_hydro_lookup()
   res_lists <- strsplit(peptide_vector, "", fixed = TRUE)
-  vapply(res_lists, function(res) mean(hydro_lookup[res]), numeric(1))
+  vapply(res_lists, function(res) mean(hydro_lookup[res], na.rm = TRUE), numeric(1))
 }
 
 .normalize_peptide_sequences <- function(sequence, arg_name = "sequence") {

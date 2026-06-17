@@ -240,7 +240,7 @@ recommend_enzyme <- function(sequence,
 
   top_score <- max(comparison$composite_score)
   tied <- comparison$enzyme[
-    abs(comparison$composite_score - top_score) < sqrt(.Machine$double.eps)
+    abs(comparison$composite_score - top_score) < 1e-5
   ]
   sort(tied)
 }
@@ -1123,8 +1123,12 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       ifelse(def >= .get_param("verdict_moderate"), "Moderate", "Poor")
     )
 
-    # Compare each iteration verdict with the default verdict
-    same <- (C_chunk >= .get_param("verdict_good")) == (def >= .get_param("verdict_good"))
+    # Compare each iteration verdict with the default verdict using full 3-level
+    # classification (not just Good vs not-Good like the previous single-threshold check).
+    iter_good <- C_chunk >= .get_param("verdict_good")
+    iter_mod  <- C_chunk >= .get_param("verdict_moderate")
+    iter_verdict <- ifelse(iter_good, "Good", ifelse(iter_mod, "Moderate", "Poor"))
+    same <- iter_verdict == def_verdict
     instability <- 1 - rowMeans(same, na.rm = TRUE)
 
     # Empirical quantiles (one pass per row for both tails)

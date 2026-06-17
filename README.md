@@ -144,7 +144,7 @@ pepVet depends on Bioconductor packages. Install them first:
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-BiocManager::install(c("Biostrings", "IRanges", "S4Vectors", "cleaver"))
+BiocManager::install(c("Biostrings", "IRanges", "cleaver"))
 
 if (!requireNamespace("remotes", quietly = TRUE))
   install.packages("remotes")

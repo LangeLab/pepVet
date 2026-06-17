@@ -23,10 +23,11 @@ library(pepVet)
 ```
 
 ```{r data, include = FALSE}
-overlap    <- read.csv("../inst/extdata/comparison-data/sectionA-overlap.csv")
-caps       <- read.csv("../inst/extdata/comparison-data/sectionB-capabilities.csv")
-pr_data    <- read.csv("../inst/extdata/comparison-data/sectionD-peptideranger.csv")
-pc_data    <- read.csv("../inst/extdata/comparison-data/sectionE-protein-cleaver.csv")
+base_dir <- system.file("extdata", "comparison-data", package = "pepVet")
+overlap    <- read.csv(file.path(base_dir, "sectionA-overlap.csv"))
+caps       <- read.csv(file.path(base_dir, "sectionB-capabilities.csv"))
+pr_data    <- read.csv(file.path(base_dir, "sectionD-peptideranger.csv"))
+pc_data    <- read.csv(file.path(base_dir, "sectionE-protein-cleaver.csv"))
 ```
 
 You are choosing an enzyme for a bottom-up proteomics experiment. Six tools

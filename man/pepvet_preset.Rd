@@ -23,8 +23,8 @@ length range, and scoring weights for a supported proteomics workflow.
 Presets are intended as editable starting points rather than hard rules.
 Each preset is grounded in workflow-specific proteomics literature.
 }
-\details{
-\subsection{Preset descriptions}{
+\section{Presets}{
+
 
 \strong{\code{"standard"}} : Routine DDA. Default scoring configuration with default
 AHP-derived weights. Length range \verb{[7, 25]} captures ~85\% of identified
@@ -65,7 +65,7 @@ peptides to compensate for reduced overall signal.
 scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
 to append peptide-level pI values for fractionation-aware analysis.
 }
-}
+
 \examples{
 pepvet_preset("standard")
 }

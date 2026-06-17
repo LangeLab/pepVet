@@ -216,7 +216,10 @@
   # Vectorized: check for any internal basic residue (K, R, H) using grepl
   # with a character class instead of strsplit + %in% per peptide.
   # Trim the last character to check only internal positions (non-C-terminal).
-  internal_seqs <- substr(valid_digest$peptide, 1L, nchar(valid_digest$peptide) - 1L)
+  # Single-residue peptides have no internal positions; treat as lacking charge.
+  peptide_lengths <- nchar(valid_digest$peptide)
+  internal_seqs <- ifelse(peptide_lengths > 1L,
+    substr(valid_digest$peptide, 1L, peptide_lengths - 1L), "")
   mean(grepl("[KRH]", internal_seqs, perl = TRUE))
 }
 

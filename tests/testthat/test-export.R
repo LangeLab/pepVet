@@ -173,3 +173,15 @@ test_that("missing required columns raises a classed error", {
     class = "pepvet_error_invalid_export_input"
   )
 })
+
+test_that("export_peptide_list rejects invalid file argument", {
+  peps <- digest_protein(.bsa_path, enzyme = "trypsin")
+  expect_error(
+    export_peptide_list(peps, file = NA),
+    class = "pepvet_error_invalid_file"
+  )
+  expect_error(
+    export_peptide_list(peps, file = 123),
+    class = "pepvet_error_invalid_file"
+  )
+})

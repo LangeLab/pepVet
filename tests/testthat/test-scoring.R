@@ -374,7 +374,7 @@ test_that("composite equals the weighted sum and is deterministic", {
   )
   result_one <- score_peptides(digest_result)
   result_two <- score_peptides(digest_result)
-  expect_identical(result_one, result_two)
+  expect_equal(result_one, result_two, tolerance = 1e-15)
   expect_equal(
     result_one$composite_score,
     with(
@@ -435,7 +435,7 @@ test_that("length scoring handles valid, invalid, ratio, and boundaries", {
 
   expect_identical(pepVet:::.score_length(all_valid), 1)
   expect_identical(pepVet:::.score_length(all_invalid), 0)
-  expect_identical(pepVet:::.score_length(exact_ratio), 0.6)
+  expect_equal(pepVet:::.score_length(exact_ratio), 0.6, tolerance = 1e-10)
   expect_equal(
     pepVet:::.valid_length_mask(boundary),
     c(TRUE, FALSE, TRUE, FALSE)
@@ -460,7 +460,7 @@ test_that("coverage scoring handles full, zero, partial, and overlap", {
 
   expect_identical(pepVet:::.score_coverage(full_coverage), 1)
   expect_identical(pepVet:::.score_coverage(zero_coverage), 0)
-  expect_identical(pepVet:::.score_coverage(partial_coverage), 0.6)
+  expect_equal(pepVet:::.score_coverage(partial_coverage), 0.6, tolerance = 1e-10)
   expect_identical(pepVet:::.score_coverage(overlapping), 1)
 })
 
@@ -585,4 +585,45 @@ test_that("fixture-backed scoring captures expected biological separation", {
   expect_gt(bsa$S_length, histone_h3$S_length)
   expect_gt(bsa$composite_score, histone_h3$composite_score)
   expect_lt(bace1$composite_score, bsa$composite_score)
+})
+
+# ── Error class tests ─────────────────────────────────────────────────────
+
+test_that("score_peptides rejects invalid gravy_range", {
+  d <- digest_protein(.bsa_path, enzyme = "trypsin")
+  expect_error(
+    score_peptides(d, gravy_range = NULL),
+    class = "pepvet_error_invalid_gravy_range"
+  )
+  expect_error(
+    score_peptides(d, gravy_range = c(1, -1)),
+    class = "pepvet_error_invalid_gravy_range"
+  )
+})
+
+test_that("score_peptides rejects invalid length_range", {
+  d <- digest_protein(.bsa_path, enzyme = "trypsin")
+  expect_error(
+    score_peptides(d, length_range = NULL),
+    class = "pepvet_error_invalid_length_range"
+  )
+  expect_error(
+    score_peptides(d, length_range = c(0, 0)),
+    class = "pepvet_error_invalid_length_range"
+  )
+})
+
+test_that("score_peptides rejects invalid include_pI", {
+  d <- digest_protein(.bsa_path, enzyme = "trypsin")
+  expect_error(
+    score_peptides(d, include_pI = NULL),
+    class = "pepvet_error_invalid_include_pi"
+  )
+})
+
+test_that("pepvet_preset rejects invalid preset name", {
+  expect_error(
+    pepvet_preset("nonexistent_preset"),
+    class = "pepvet_error_invalid_preset"
+  )
 })

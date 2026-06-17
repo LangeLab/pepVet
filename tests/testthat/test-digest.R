@@ -385,3 +385,10 @@ test_that("unnamed character inputs receive stable generated protein ids", {
 
   expect_identical(unique(result$protein_id), c("sequence_1", "sequence_2"))
 })
+
+test_that("annotate_cleavage_sites rejects non-trypsin enzymes", {
+  expect_error(
+    annotate_cleavage_sites("MKWVTFISLLFLFSSAYSR", enzyme = "lysc"),
+    class = "pepvet_error_unsupported_cleavage_annotation"
+  )
+})

@@ -127,13 +127,6 @@ export_peptide_list <- function(peptides,
       class = "pepvet_error_invalid_export_input"
     )
   }
-
-  if (nrow(peptides) == 0L) {
-    .abort(
-      "{.arg peptides} must contain at least one peptide row.",
-      class = "pepvet_error_invalid_export_input"
-    )
-  }
 }
 
 .validate_export_format <- function(format) {

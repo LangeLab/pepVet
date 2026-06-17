@@ -247,7 +247,7 @@ ev$params
 The `$params` element records the resolved enzyme name, missed cleavages, and the full protein IDs found in the input.
 It also records `preset_used`, which is the simplest guard against comparing scores that came from different workflow assumptions.
 
-When you need peptide-level cleavage-risk context, request it explicitly:
+When you need peptide-level cleavage-risk context, request it explicitly. The flag adds a `cleavage_efficiency` column to the peptide table. The protein-level efficiency counts (`n_high_efficiency_sites`, `n_low_efficiency_sites`) are always present in the scores table regardless of this flag.
 
 ```{r evaluate-cleavage-efficiency}
 ev_eff <- evaluate_digest(

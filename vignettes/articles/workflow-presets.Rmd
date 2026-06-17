@@ -48,7 +48,7 @@ pepvet_preset("standard")
 | `standard` | Routine DDA | Default AHP weights | Tabb 2008 |
 | `dia` | DIA and SWATH | `[7,30]` aa, GRAVY `[-1,0.8]`, high coverage | Ludwig et al. 2018 |
 | `targeted` | SRM, PRM, MRM | `[8,20]` aa, GRAVY `[-0.8,0.4]`, S_unique 30% | Lange et al. 2008, Picotti & Aebersold 2012 |
-| `membrane` | Hydrophobic proteins | GRAVY `[-1.0,2.0]`, S_hydro 5% | Vit & Petrak 2017 |
+| `membrane` | Hydrophobic proteins | length `[7,30]`, GRAVY `[-1.0,2.0]`, S_hydro 5% | Vit & Petrak 2017 |
 | `ffpe_degraded` | Degraded material | `[6,30]` aa, high S_count weight | Coscia et al. 2020, Buczak et al. 2023 |
 | `fractionated` | Offline fractionation | Standard + pI annotation | - |
 
@@ -97,7 +97,7 @@ Without a proteome digest, a non-zero uniqueness weight is not valid. pepVet rai
 
 ## Membrane workflow
 
-Membrane proteins are a common reason to reject default hydrophobicity assumptions. The `membrane` preset extends the GRAVY window to \[-1.0, 2.0\] because transmembrane helices contain long hydrophobic stretches with GRAVY values far exceeding soluble proteins (Vit & Petrak 2017, *J Proteomics*). The S_hydro weight drops to 5% to avoid penalising the very hydrophobicity that defines this class.
+Membrane proteins are a common reason to reject default hydrophobicity assumptions. The `membrane` preset extends the GRAVY window to \[-1.0, 2.0\] and the length window to \[7, 30\] because transmembrane helices contain long hydrophobic stretches with GRAVY values far exceeding soluble proteins (Vit & Petrak 2017, *J Proteomics*). The S_hydro weight drops to 5% to avoid penalising the very hydrophobicity that defines this class.
 
 ```{r membrane-example}
 pepvet_preset("membrane")

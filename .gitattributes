@@ -1,0 +1,22 @@
+# R binary data files
+*.rda binary
+*.Rda binary
+*.rds binary
+*.Rds binary
+*.RData binary
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.svg binary
+
+# Ensure LF line endings for source files
+*.R text eol=lf
+*.Rmd text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cfg text eol=lf
+Makefile text eol=lf

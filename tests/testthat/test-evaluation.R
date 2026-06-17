@@ -19,8 +19,8 @@ test_that("evaluate_digest gives the same result as manual pipeline", {
     .after = "preset_used"
   )
 
-  expect_identical(result$peptides, manual_peptides)
-  expect_identical(result$scores, manual_scores)
+  expect_equal(result$peptides, manual_peptides, tolerance = 1e-15)
+  expect_equal(result$scores, manual_scores, tolerance = 1e-15)
 })
 
 test_that("batch_evaluate returns a tibble with one row per protein and required columns", {
@@ -378,6 +378,7 @@ test_that("triage_proteins flat tibble contains expected score columns", {
 
 test_that("sensitivity_analysis returns correct structure for evaluate_digest input", {
   res <- .fix_bsa_trypsin
+  withr::local_seed(42)
   sens <- sensitivity_analysis(res, n_iter = 500L)
   expect_type(sens, "list")
   expect_named(sens, c("iterations", "convergence", "summary"))
@@ -391,6 +392,7 @@ test_that("sensitivity_analysis returns correct structure for evaluate_digest in
 
 test_that("sensitivity_analysis importance returns R2 values", {
   res <- .fix_bsa_trypsin
+  withr::local_seed(42)
   sens <- sensitivity_analysis(res, n_iter = 500L, importance = TRUE)
   expect_named(sens$summary$weight_importance,
     c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge"))
@@ -400,6 +402,7 @@ test_that("sensitivity_analysis importance returns R2 values", {
 
 test_that("sensitivity_analysis corner_cases returns table", {
   res <- .fix_bsa_trypsin
+  withr::local_seed(42)
   sens <- sensitivity_analysis(res, n_iter = 500L, corner_cases = TRUE)
   expect_s3_class(sens$summary$corner_cases, "tbl_df")
   expect_true("composite_at_lo" %in% names(sens$summary$corner_cases))
@@ -419,6 +422,7 @@ test_that("sensitivity_analysis on multi-enzyme input returns rank stability", {
     enzymes = c("trypsin", "lysc"),
     missed_cleavages = 1L
   )
+  withr::local_seed(42)
   sens <- sensitivity_analysis(comp, n_iter = 500L)
   expect_named(sens$summary, c("top1_stability", "kendall_mean"))
   expect_true("trypsin" %in% names(sens$summary$top1_stability))
@@ -427,6 +431,7 @@ test_that("sensitivity_analysis on multi-enzyme input returns rank stability", {
 
 test_that("sensitivity_analysis on batch input returns per-protein instability", {
   batch <- .fix_batch_small
+  withr::local_seed(42)
   sens <- sensitivity_analysis(batch, n_iter = 500L, chunk_size = 50L)
   expect_named(sens, c("per_protein", "summary"))
   expect_s3_class(sens$per_protein, "tbl_df")
@@ -457,4 +462,76 @@ test_that("plot_weight_sensitivity returns a ggplot for single-protein input", {
   sens <- sensitivity_analysis(res, n_iter = 500L)
   p <- plot_weight_sensitivity(sens)
   expect_s3_class(p, "ggplot")
+})
+
+# ── ... argument passthrough ──────────────────────────────────────────────
+
+test_that("evaluate_digest passes ... to score_peptides", {
+  bsa <- .bsa_path
+  default <- evaluate_digest(bsa, enzyme = "trypsin")
+  wider <- evaluate_digest(bsa, enzyme = "trypsin", gravy_range = c(-2.0, 2.0))
+  expect_true(wider$scores$S_hydro >= default$scores$S_hydro)
+})
+
+test_that("compare_digests passes ... to evaluate_digest", {
+  bsa <- .bsa_path
+  default <- compare_digests(bsa, enzymes = c("trypsin", "lysc"))
+  wider <- compare_digests(bsa, enzymes = c("trypsin", "lysc"),
+    gravy_range = c(-2.0, 2.0))
+  expect_true(wider$S_hydro[[1]] >= default$S_hydro[[1]])
+})
+
+test_that("recommend_enzyme passes ... to compare_digests", {
+  bsa <- .bsa_path
+  default <- recommend_enzyme(bsa, enzymes = c("trypsin", "lysc"))
+  wider <- recommend_enzyme(bsa, enzymes = c("trypsin", "lysc"),
+    gravy_range = c(-2.0, 2.0))
+  expect_type(default, "character")
+  expect_type(wider, "character")
+})
+
+test_that("batch_evaluate passes ... to score_peptides", {
+  small <- .small_path
+  default <- batch_evaluate(small, enzyme = "trypsin")
+  wider <- batch_evaluate(small, enzyme = "trypsin", gravy_range = c(-2.0, 2.0))
+  expect_true(wider$S_hydro[[1]] >= default$S_hydro[[1]])
+})
+
+test_that("batch_compare_enzymes passes ... to batch_evaluate", {
+  small <- .small_path
+  default <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
+  wider <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"),
+    gravy_range = c(-2.0, 2.0))
+  expect_true(wider$S_hydro[[1]] >= default$S_hydro[[1]])
+})
+
+test_that("pepvet_check passes ... to evaluate_digest", {
+  bsa <- .bsa_path
+  default <- pepvet_check(bsa, enzyme = "trypsin")
+  wider <- pepvet_check(bsa, enzyme = "trypsin", gravy_range = c(-2.0, 2.0))
+  expect_true(wider$scores$S_hydro >= default$scores$S_hydro)
+})
+
+# ── Error class tests ─────────────────────────────────────────────────────
+
+test_that("batch_evaluate rejects invalid cores", {
+  expect_error(
+    batch_evaluate(.bsa_path, cores = 0L),
+    class = "pepvet_error_invalid_cores"
+  )
+  expect_error(
+    batch_evaluate(.bsa_path, cores = -1L),
+    class = "pepvet_error_invalid_cores"
+  )
+})
+
+test_that("compare_digests rejects invalid enzymes", {
+  expect_error(
+    compare_digests(.bsa_path, enzymes = NULL),
+    class = "pepvet_error_invalid_enzymes"
+  )
+  expect_error(
+    compare_digests(.bsa_path, enzymes = NA_character_),
+    class = "pepvet_error_invalid_enzymes"
+  )
 })

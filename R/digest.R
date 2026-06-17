@@ -69,9 +69,11 @@
   if (length(efficiency) == 0L || all(is.na(efficiency))) {
     return(NA_character_)
   }
-
+  efficiency <- as.character(efficiency)
+  known <- efficiency[!is.na(efficiency)]
+  if (length(known) == 0L) return(NA_character_)
   severity <- c(low = 1L, medium = 2L, high = 3L)
-  efficiency[[which.min(severity[efficiency])]]
+  known[[which.min(severity[known])]]
 }
 
 .map_peptide_cleavage_efficiency <- function(start, end, site_annotations) {

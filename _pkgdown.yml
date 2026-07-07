@@ -46,6 +46,8 @@ navbar:
           href: articles/weight-sensitivity.html
         - text: Score Diagnostics
           href: articles/score-diagnostics.html
+        - text: PeptideAtlas Concordance
+          href: articles/peptideatlas-concordance.html
         - text: pepVet in the Tool Landscape
           href: articles/pepVet-tool-comparison.html
     reference:

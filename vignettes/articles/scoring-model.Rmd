@@ -213,6 +213,23 @@ pepVet scores are interpretable rankings, not calibrated probabilities. The comp
 
 Cross-preset comparisons are not valid just because the numeric scale looks the same. A `standard` score of `0.75` and a `targeted` score of `0.60` reflect different weight vectors and can answer different questions.
 
+## Empirical validation
+
+The default parameters were validated against the human PeptideAtlas build
+(Jan 2026, 5.3M unique observed peptides) and internal score diagnostics.
+
+- **Score diagnostics** (`score_diagnostics()`): VIF, PCA, and ablation
+  analyses confirm the five scoring components are not redundant and the
+  weight vector is internally consistent. See the
+  [Score Diagnostics](score-diagnostics.html) article.
+
+- **PeptideAtlas concordance**: pepVet-valid peptides are 3x more likely to
+  be observed than invalid ones (38.0% enrichment, 95% CI [36.1%, 40.0%]).
+  The length and GRAVY defaults are validated as conservative. See the
+  [PeptideAtlas Concordance](peptideatlas-concordance.html) article for the
+  full analysis with signal decomposition, grid search, and threshold
+  calibration.
+
 ```{r session-info}
 sessionInfo()
 ```

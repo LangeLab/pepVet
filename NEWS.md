@@ -2,6 +2,11 @@
 
 # pepVet 0.1.7 (unreleased)
 
+## New documentation
+
+* Added *PeptideAtlas Concordance* article validating pepVet scoring parameters against the human PeptideAtlas build (5.3M observed peptides). Covers enrichment measurement with bootstrap CI, signal decomposition by filter, grid search over length/GRAVY boundaries, and threshold calibration.
+* Added empirical validation summary to the scoring-model article, cross-referencing the Score Diagnostics and PeptideAtlas Concordance articles.
+
 # pepVet 0.1.6
 
 ## New functions

@@ -310,11 +310,7 @@ plot_coverage_map <- function(result,
   p <- ggplot2::ggplot()
 
   ## Domain backgrounds (behind everything else)
-  # Pre-defined palette of 8 soft distinguishable fills for domains
-  domain_fills <- c(
-    "#D9EAF7", "#FFF0C2", "#D4EDD4", "#F7D9D9",
-    "#EDD4F7", "#D4F7F0", "#F7ECD4", "#D4D9F7"
-  )
+  domain_fills <- .pepvet_pal$domain
   if (!is.null(domains)) {
     n_dom <- nrow(domains)
     for (k in seq_len(n_dom)) {
@@ -615,12 +611,14 @@ plot_coverage_map <- function(result,
   p +
     ggplot2::scale_x_continuous(
       breaks = seq(0L, protein_length + x_step, by = x_step),
-      limits = c(0, protein_length + protein_length * 0.10),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
     ggplot2::scale_y_continuous(
-      limits = c(0, 1),
       expand = ggplot2::expansion(mult = c(0.01, 0.01))
+    ) +
+    ggplot2::coord_cartesian(
+      xlim = c(0, protein_length + protein_length * 0.10),
+      ylim = c(0, 1)
     ) +
     ggplot2::labs(
       title = auto_title,
@@ -1053,12 +1051,14 @@ plot_cleavage_map <- function(result,
   p +
     ggplot2::scale_x_continuous(
       breaks = seq(0L, protein_length + x_step, by = x_step),
-      limits = c(0, protein_length + 1),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
     ggplot2::scale_y_continuous(
-      limits = c(0, 1),
       expand = ggplot2::expansion(mult = c(0.02, 0.02))
+    ) +
+    ggplot2::coord_cartesian(
+      xlim = c(0, protein_length + 1),
+      ylim = c(0, 1)
     ) +
     ggplot2::labs(
       title = auto_title,
@@ -1150,7 +1150,6 @@ plot_weight_sensitivity <- function(x, title = NULL) {
   auto_title <- title %||% "Weight Sensitivity Analysis"
 
   iter_df <- iter
-  n_good <- sum(iter_df$verdict == "Good")
   n_mod  <- sum(iter_df$verdict == "Moderate")
   n_poor <- sum(iter_df$verdict == "Poor")
 
@@ -1167,24 +1166,25 @@ plot_weight_sensitivity <- function(x, title = NULL) {
 
   p <- ggplot2::ggplot(iter_df, ggplot2::aes(x = .data$composite_score))
 
+  sens_bw <- .get_param("sensitivity_bw")
   if (n_mod > 0L && n_poor > 0L) {
     p <- p + ggplot2::geom_density(
       ggplot2::aes(fill = .data$verdict, color = .data$verdict),
-      alpha = 0.30, bw = 0.025, linewidth = 0.3
+      alpha = 0.30, bw = sens_bw, linewidth = 0.3
     )
   } else if (n_mod > 0L) {
     p <- p +
       ggplot2::geom_density(fill = .pepvet_pal$good, colour = .pepvet_pal$good,
-        alpha = 0.30, bw = 0.025, linewidth = 0.3) +
+        alpha = 0.30, bw = sens_bw, linewidth = 0.3) +
       ggplot2::geom_density(
         data = iter_df[iter_df$verdict == "Moderate", , drop = FALSE],
         fill = .pepvet_pal$moderate, colour = .pepvet_pal$moderate,
-        alpha = 0.30, bw = 0.025, linewidth = 0.3
+        alpha = 0.30, bw = sens_bw, linewidth = 0.3
       )
   } else {
     p <- p + ggplot2::geom_density(
       fill = .pepvet_pal$good, color = .pepvet_pal$brand_dark,
-      alpha = 0.20, bw = 0.025, linewidth = 0.4
+      alpha = 0.20, bw = sens_bw, linewidth = 0.4
     )
   }
 
@@ -1235,9 +1235,9 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       y = NULL
     ) +
     ggplot2::scale_x_continuous(
-      limits = c(0, 1),
       expand = ggplot2::expansion(mult = 0.05)
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 1)) +
     .pepvet_theme() +
     ggplot2::theme(
       panel.grid.major.y = ggplot2::element_blank(),
@@ -1253,8 +1253,6 @@ plot_weight_sensitivity <- function(x, title = NULL) {
   pp <- x$per_protein
   total_inst <- x$summary$total_instability
   n_prot <- length(unique(pp$protein_id))
-  n_iter_est <- NULL  # not stored in summary, infer from data if possible
-
   auto_title <- title %||% "Proteome Verdict Stability"
 
   has_enzyme <- "enzyme" %in% names(pp)

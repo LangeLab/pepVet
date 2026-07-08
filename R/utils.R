@@ -9,19 +9,17 @@
 #' @importFrom stats rgamma
 NULL
 
-.get_aa_properties <- local({
-  aa_properties_cache <- NULL
+.pepvet_cache <- new.env(parent = emptyenv())
 
-  function() {
-    if (is.null(aa_properties_cache)) {
-      data_env <- new.env(parent = emptyenv())
-      utils::data("aa_properties", package = "pepVet", envir = data_env)
-      aa_properties_cache <<- data_env$aa_properties
-    }
-
-    aa_properties_cache
+.get_aa_properties <- function() {
+  if (is.null(.pepvet_cache$aa_properties)) {
+    data_env <- new.env(parent = emptyenv())
+    utils::data("aa_properties", package = "pepVet", envir = data_env)
+    .pepvet_cache$aa_properties <- data_env$aa_properties
   }
-})
+
+  .pepvet_cache$aa_properties
+}
 
 .water_monoisotopic_mass <- 18.01056
 .proton_monoisotopic_mass <- 1.007276
@@ -197,7 +195,11 @@ NULL
   scatter_alpha        = 0.88,
   scatter_max_pts      = 5000L,
   patchwork_title_size = 15,
-  patchwork_tag_size   = 14
+  patchwork_tag_size   = 14,
+  sensitivity_bw       = 0.025,
+  pi_binwidth          = 0.25,
+  length_binwidth      = 1L,
+  batch_score_binwidth = 0.05
 )
 
 .get_param <- function(name) {
@@ -801,15 +803,18 @@ pepvet_preset <- function(type = "standard") {
 
 .calculate_gravy <- function(peptide_sequence) {
   if (!is.character(peptide_sequence) || length(peptide_sequence) != 1L) {
-    .abort("{.arg peptide_sequence} must be a single character string.")
+    .abort("{.arg peptide_sequence} must be a single character string.",
+      class = "pepvet_error_invalid_sequence")
   }
 
   if (is.na(peptide_sequence)) {
-    .abort("{.arg peptide_sequence} must not be missing.")
+    .abort("{.arg peptide_sequence} must not be missing.",
+      class = "pepvet_error_invalid_sequence")
   }
 
   if (!nzchar(peptide_sequence)) {
-    .abort("{.arg peptide_sequence} must not be empty.")
+    .abort("{.arg peptide_sequence} must not be empty.",
+      class = "pepvet_error_invalid_sequence")
   }
 
   peptide_sequence <- toupper(peptide_sequence)
@@ -819,9 +824,11 @@ pepvet_preset <- function(type = "standard") {
   residue_index <- match(residues, aa_properties$amino_acid)
 
   if (anyNA(residue_index)) {
-    unknown_residues <- unique(residues[is.na(residue_index)])
     .abort(
-      "Unknown amino acid code(s): {.val {unknown_residues}}."
+      paste0("Unknown amino acid code(s): {.val ",
+        unique(residues[is.na(residue_index)]),
+        "}."),
+      class = "pepvet_error_invalid_sequence"
     )
   }
 
@@ -832,16 +839,15 @@ pepvet_preset <- function(type = "standard") {
 
 # Cached hydrophobicity lookup table (AA -> Kyte-Doolittle score).
 # Built once from .get_aa_properties() and reused for all subsequent calls.
-.get_hydro_lookup <- local({
-  cache <- NULL
-  function() {
-    if (is.null(cache)) {
-      aa_props <- .get_aa_properties()
-      cache <<- stats::setNames(aa_props$hydrophobicity, aa_props$amino_acid)
-    }
-    cache
+.get_hydro_lookup <- function() {
+  if (is.null(.pepvet_cache$hydro_lookup)) {
+    aa_props <- .get_aa_properties()
+    .pepvet_cache$hydro_lookup <- stats::setNames(
+      aa_props$hydrophobicity, aa_props$amino_acid
+    )
   }
-})
+  .pepvet_cache$hydro_lookup
+}
 
 # Internal batch version of .calculate_gravy.
 # Caller is responsible for passing a validated, non-empty character vector of

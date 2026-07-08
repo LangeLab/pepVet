@@ -99,7 +99,9 @@ NULL
   badge_gold_fill = "#FFF5CC",
 
   # Heatmap gradient midpoint
-  heatmap_mid = "#FFFAEC"
+  heatmap_mid = "#FFFAEC",
+  domain = c("#D9EAF7", "#FFF0C2", "#D4EDD4", "#F7D9D9",
+             "#EDD4F7", "#D4F7F0", "#F7ECD4", "#D4D9F7")
 )
 
 # Snapshot defaults at build time for pepvet_plot_config_reset()
@@ -398,7 +400,7 @@ NULL
       fill = .pepvet_pal$shade, alpha = 0.70
     ) +
     ggplot2::geom_histogram(
-      binwidth = 1L,
+      binwidth = .get_param("length_binwidth"),
       color = "white",
       linewidth = 0.2,
       alpha = 0.90
@@ -954,13 +956,12 @@ NULL
   p +
     ggplot2::scale_x_continuous(
       breaks = seq(0L, protein_length, by = x_step),
-      limits = c(0, x_lim),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
     ggplot2::scale_y_continuous(
-      limits = c(0, 1),
       expand = ggplot2::expansion(mult = c(0.02, 0.02))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, x_lim), ylim = c(0, 1)) +
     ggplot2::labs(
       title = mc_title,
       subtitle = sprintf(
@@ -1092,10 +1093,10 @@ NULL
     ) +
     ggplot2::scale_fill_manual(values = tier_colors, guide = "none") +
     ggplot2::scale_x_continuous(
-      limits = c(0, max(max(vals) + 0.08, 1.05)),
       breaks = seq(0, 1, by = 0.2),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, max(max(vals) + 0.08, 1.05))) +
     ggplot2::labs(
       title = "Component Scores",
       subtitle = sprintf(
@@ -1286,6 +1287,7 @@ pepvet_save_figure <- function(plot,
                                bg = "white",
                                device = NULL,
                                ...) {
+  rlang::check_installed("ggplot2", reason = "to save pepVet figures")
   # Auto-size: patchwork gets larger default canvas
   if (is.null(width) || is.null(height)) {
     is_patchwork <- inherits(plot, "patchwork")
@@ -1338,6 +1340,7 @@ pepvet_save_figure <- function(plot,
 #' }
 #' @export
 pepvet_theme_manuscript <- function() {
+  rlang::check_installed("ggplot2", reason = "to use pepVet manuscript theme")
   .pepvet_theme(base_size = 9) +
     ggplot2::theme(
       panel.grid.major = ggplot2::element_line(linewidth = 0.25),
@@ -1363,6 +1366,7 @@ pepvet_theme_manuscript <- function() {
 #' }
 #' @export
 pepvet_theme_presentation <- function() {
+  rlang::check_installed("ggplot2", reason = "to use pepVet presentation theme")
   .pepvet_theme(base_size = 14) +
     ggplot2::theme(
       panel.grid.major = ggplot2::element_line(linewidth = 0.5),
@@ -1370,7 +1374,7 @@ pepvet_theme_presentation <- function() {
       legend.key.size = ggplot2::unit(0.7, "lines"),
       axis.ticks = ggplot2::element_line(linewidth = 0.5),
       panel.border = ggplot2::element_rect(
-        fill = NA, color = "#DDDDDD", linewidth = 0.8
+        fill = NA, color = .pepvet_pal$separator, linewidth = 0.8
       )
     )
 }

@@ -375,7 +375,7 @@ batch_evaluate <- function(sequences,
     }, mc.cores = effective_cores)
 
     # Check for worker failures (mclapply returns try-error on crash).
-    # Retry failed chunks sequentially; this is slower but robust.
+    # Retry failed chunks sequentially. Slower but correct.
     failed <- vapply(results, inherits, logical(1), what = "try-error")
     if (any(failed)) {
       n_failed <- sum(failed)

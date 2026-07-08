@@ -168,13 +168,11 @@ plot_length_distribution <- function(
     ) +
     # Histogram bars
     ggplot2::geom_histogram(
-      binwidth = 1L,
+      binwidth = .get_param("length_binwidth"),
       color = "white",
       linewidth = 0.15,
       alpha = .get_param("scatter_alpha")
-    ) +
-    # Optional density overlay
-    {
+    ) + {
       if (show_density) {
         ggplot2::stat_density(
           ggplot2::aes(
@@ -325,7 +323,7 @@ plot_length_distribution <- function(
       color = .pepvet_pal$poor, linewidth = 0.5, linetype = "dashed"
     ) +
     ggplot2::geom_histogram(
-      binwidth = 1L, color = "white",
+      binwidth = .get_param("length_binwidth"), color = "white",
       linewidth = 0.12, alpha = .get_param("scatter_alpha")
     ) +
     {
@@ -583,9 +581,7 @@ plot_gravy_landscape <- function(
       width  = 0.25,
       height = 0,
       alpha  = 0.80
-    ) +
-    # Outlier sequence labels when count <= label_outliers_n
-    {
+    ) + {
       if (do_label) {
         ggplot2::geom_text(
           data = outliers,
@@ -995,7 +991,7 @@ plot_pI_distribution <- function(
   ## Build plot
   p <- ggplot2::ggplot(df, ggplot2::aes(x = .data$pI, fill = .data$bin)) +
     ggplot2::geom_histogram(
-      binwidth = 0.25,
+      binwidth = .get_param("pi_binwidth"),
       color = "white",
       linewidth = 0.2
     ) +
@@ -1711,9 +1707,7 @@ plot_mz_distribution <- function(
       size = 2.5,
       fontface = "italic",
       color = .pepvet_pal$poor
-    ) +
-    ## Rug marks
-    {
+    ) + {
       if (isTRUE(show_rug)) {
         ggplot2::geom_rug(
           sides  = "b",
@@ -1860,8 +1854,7 @@ plot_mz_distribution <- function(
       xintercept = scan_hi,
       color = .pepvet_pal$poor, linewidth = 0.55, linetype = "dashed"
     ) +
-    ggplot2::geom_density(alpha = 0.38, linewidth = 0.75, adjust = 0.9) +
-    {
+    ggplot2::geom_density(alpha = 0.38, linewidth = 0.75, adjust = 0.9) + {
       if (isTRUE(show_rug)) {
         ggplot2::geom_rug(
           sides = "b", alpha = 0.20,

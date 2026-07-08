@@ -229,11 +229,11 @@ plot_enzyme_comparison <- function(
       )
     ) +
     ggplot2::scale_x_continuous(
-      limits = c(0, 1),
       breaks = c(0, 0.25, 0.50, 0.75, 1.0),
       labels = c("0", ".25", ".50", ".75", "1"),
       expand = ggplot2::expansion(mult = c(0, 0.02))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 1)) +
     ggplot2::labs(
       tag      = "A",
       x        = "Score  [0 \u2013 1]",
@@ -290,29 +290,27 @@ plot_enzyme_comparison <- function(
       color = .pepvet_pal$text_axis_title, fontface = "bold"
     ) +
     # Recommended badge on the best enzyme
-    {
-      if (recommend) {
-        ggplot2::annotate(
-          "label",
-          x = badge_df$composite_score[[1L]] + 0.01,
-          y = best_enzyme,
-          label = "\u2605 Recommended",
-          hjust = -0.05,
-          vjust = -0.55,
-          size = 2.6,
-          color = .pepvet_pal$badge_gold_text,
-          fill = .pepvet_pal$badge_gold_fill,
-          linewidth = 0,
-          fontface = "bold"
-        )
-      }
+    if (recommend) {
+      ggplot2::annotate(
+        "label",
+        x = badge_df$composite_score[[1L]] + 0.01,
+        y = best_enzyme,
+        label = "\u2605 Recommended",
+        hjust = -0.05,
+        vjust = -0.55,
+        size = 2.6,
+        color = .pepvet_pal$badge_gold_text,
+        fill = .pepvet_pal$badge_gold_fill,
+        linewidth = 0,
+        fontface = "bold"
+      )
     } +
     ggplot2::scale_x_continuous(
-      limits = c(0, 1.1),
       breaks = c(0, 0.25, 0.50, 0.75, 1.0),
       labels = c("0", ".25", ".50", ".75", "1"),
       expand = ggplot2::expansion(mult = c(0, 0.28))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 1.1)) +
     ggplot2::labs(
       tag      = "B",
       x        = "Composite score",

@@ -305,10 +305,10 @@ plot_score_diagnostics <- function(x, title = NULL) {
     levels = c("low", "moderate", "high", "unknown"))
 
   severity_colors <- c(
-    low      = "#27AE60",
-    moderate = "#E8A838",
-    high     = "#C94040",
-    unknown  = "#B0B0B0"
+    low      = .pepvet_pal$good,
+    moderate = .pepvet_pal$moderate,
+    high     = .pepvet_pal$poor,
+    unknown  = .pepvet_pal$na_gray
   )
 
   pa <- ggplot2::ggplot(vif_df,
@@ -389,7 +389,8 @@ plot_score_diagnostics <- function(x, title = NULL) {
     ggplot2::geom_errorbar(ggplot2::aes(
       xmin = .data$mean_drop - .data$sd_drop,
       xmax = .data$mean_drop + .data$sd_drop),
-      width = 0.1, linewidth = 0.3, color = "#666666") +
+      width = 0.1, linewidth = 0.3,
+      color = .pepvet_pal$text_subtitle) +
     ggplot2::geom_text(ggplot2::aes(
       label = sprintf("drop %.3f\n(%d/%d flips)",
         .data$mean_drop, .data$n_verdict_flipped, n_prot)),

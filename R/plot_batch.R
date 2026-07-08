@@ -116,7 +116,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       fill = .pepvet_pal$zone_poor, alpha = 0.35
     ) +
     ggplot2::geom_histogram(
-      binwidth = 0.05,
+      binwidth = .get_param("batch_score_binwidth"),
       color = "white",
       linewidth = 0.2,
       alpha = .get_param("scatter_alpha"),
@@ -251,7 +251,6 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ) +
     ggplot2::scale_color_manual(values = comp_colors, guide = "none") +
     ggplot2::scale_x_continuous(
-      limits = c(0, 1.0),
       breaks = c(
         0, .get_param("verdict_moderate"),
         .get_param("verdict_good"), 1.0
@@ -264,6 +263,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       ),
       expand = ggplot2::expansion(add = c(0.02, 0.05))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 1)) +
     ggplot2::labs(
       title = "Component Profile",
       subtitle = paste(
@@ -348,11 +348,11 @@ plot_proteome_overview <- function(batch, title = NULL) {
         name = NULL
       ) +
       ggplot2::scale_x_continuous(
-        limits = c(0, 100),
         breaks = c(0, 25, 50, 75, 100),
         labels = c("0%", "25%", "50%", "75%", "100%"),
         expand = ggplot2::expansion(add = c(0, 0))
       ) +
+      ggplot2::coord_cartesian(xlim = c(0, 100)) +
       ggplot2::labs(
         title = "Difficulty Flags",
         subtitle = paste0(
@@ -576,11 +576,11 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ) +
     ggplot2::scale_y_discrete(labels = y_labels) +
     ggplot2::scale_x_continuous(
-      limits = c(0, 100),
       breaks = c(0, 25, 50, 75, 100),
       labels = c("0%", "25%", "50%", "75%", "100%"),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 100)) +
     ggplot2::labs(
       title = "Verdict Summary",
       subtitle = sprintf(
@@ -658,7 +658,6 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ) +
     ggplot2::scale_fill_manual(values = violin_fills, guide = "none") +
     ggplot2::scale_x_continuous(
-      limits = c(0, 1),
       breaks = c(
         0, .get_param("verdict_moderate"),
         .get_param("verdict_good"), 1.0
@@ -671,6 +670,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
       ),
       expand = ggplot2::expansion(add = c(0.02, 0.02))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 1)) +
     ggplot2::labs(
       title = "Score Distributions",
       subtitle = sprintf(
@@ -817,11 +817,11 @@ plot_batch_comparison <- function(comparison, title = NULL) {
       guide  = "none"
     ) +
     ggplot2::scale_x_continuous(
-      limits = c(0, 115),
       breaks = c(0, 25, 50, 75, 100),
       labels = c("0%", "25%", "50%", "75%", "100%"),
       expand = ggplot2::expansion(add = c(0, 0))
     ) +
+    ggplot2::coord_cartesian(xlim = c(0, 115)) +
     ggplot2::labs(
       title = "Per-Protein Win Rate",
       subtitle = paste0(

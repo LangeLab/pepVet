@@ -7,7 +7,8 @@
   "missed_cleavages"
 )
 
-.validate_digest_result <- function(digest_result, arg_name = "digest_result") {
+.validate_digest_result <- function(digest_result,
+                                     arg_name = "digest_result") {
   if (!inherits(digest_result, "data.frame")) {
     .abort(
       paste0(
@@ -189,7 +190,8 @@
       paste0(
         "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage ",
         "sites for {.val {enzyme}}. S_count set to 0."
-      )
+      ),
+      class = "pepvet_warning_no_cleavage_sites"
     )
 
     return(0)

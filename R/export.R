@@ -41,12 +41,20 @@
 #'   When no peptides pass the `length_range` filter, skyline format returns
 #'   an empty tibble and fasta format returns an empty character vector.
 #'
-#' @return When `file = NULL`: for `"skyline"`, a tibble with columns
-#'   \code{Protein}, \code{Peptide Sequence}, \code{Precursor Charge}, and
-#'   \code{Precursor Mz}; for `"generic"`, a tibble with all original columns
-#'   plus \code{gravy}, \code{pI}, and \code{valid}; for `"fasta"`, a
-#'   character vector of FASTA records. When `file` is specified: `file`,
-#'   invisibly.
+#' @family export
+#' @section Limitations:
+#'   Only peptides passing the specified `length_range` are exported.
+#'
+#' @return When `file = NULL`:
+#'   \itemize{
+#'     \item For `"skyline"`: a tibble with columns \code{Protein},
+#'       \code{Peptide Sequence}, \code{Precursor Charge}, and
+#'       \code{Precursor Mz}.
+#'     \item For `"generic"`: a tibble with all original columns plus
+#'       \code{gravy}, \code{pI}, and \code{valid}.
+#'     \item For `"fasta"`: a character vector of FASTA records.
+#'   }
+#'   When `file` is specified: `file`, invisibly.
 #'
 #' @seealso [digest_protein()], [evaluate_digest()], [calculate_peptide_mass()]
 #'

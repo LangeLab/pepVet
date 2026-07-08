@@ -32,18 +32,25 @@
 #'
 #' @details When the input batch lacks difficulty flag columns, panel C shows
 #'   an empty placeholder message instead of stacked bars.
+#' @section Limitations:
+#' At proteome sizes exceeding 2000 proteins the figure panels become dense
+#' and text labels may overlap. Consider filtering the batch to a
+#' representative subset or increasing the output dimensions.
 #' @return A `patchwork` object with three panels: score distribution
 #'   histogram (A), component median lollipop chart (B), and difficulty-flag
 #'   prevalence bars (C).
 #' @seealso [batch_evaluate()] for the upstream evaluation step.
 #' @family plot-batch
 #' @examples
-#' small <- system.file(
-#'   "extdata", "small_proteome_50_proteins.fasta",
-#'   package = "pepVet"
-#' )
-#' batch <- batch_evaluate(small, enzyme = "trypsin")
-#' plot_proteome_overview(batch)
+#' if (requireNamespace("ggplot2", quietly = TRUE) &&
+#'   requireNamespace("patchwork", quietly = TRUE)) {
+#'   small <- system.file(
+#'     "extdata", "small_proteome_50_proteins.fasta",
+#'     package = "pepVet"
+#'   )
+#'   batch <- batch_evaluate(small, enzyme = "trypsin")
+#'   plot_proteome_overview(batch)
+#' }
 #' @export
 plot_proteome_overview <- function(batch, title = NULL) {
   rlang::check_installed("ggplot2",
@@ -430,18 +437,25 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #' @param title Optional character title for the combined figure. When `NULL`
 #'   (default), generates an auto-title with protein and enzyme counts.
 #'
+#' @section Limitations:
+#' At proteome sizes exceeding 2000 proteins the figure panels become dense
+#' and text labels may overlap. Consider filtering the comparison to a
+#' representative subset or increasing the output dimensions.
 #' @return A `patchwork` object with four panels: verdict summary bars (A),
 #'   score distribution violins (B), component-score heatmap (C), and
 #'   per-protein win-rate bars (D).
 #' @seealso [batch_compare_enzymes()] for the upstream comparison step.
 #' @family plot-batch
 #' @examples
-#' small <- system.file(
-#'   "extdata", "small_proteome_50_proteins.fasta",
-#'   package = "pepVet"
-#' )
-#' comp <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
-#' plot_batch_comparison(comp)
+#' if (requireNamespace("ggplot2", quietly = TRUE) &&
+#'   requireNamespace("patchwork", quietly = TRUE)) {
+#'   small <- system.file(
+#'     "extdata", "small_proteome_50_proteins.fasta",
+#'     package = "pepVet"
+#'   )
+#'   comp <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
+#'   plot_batch_comparison(comp)
+#' }
 #' @export
 plot_batch_comparison <- function(comparison, title = NULL) {
   rlang::check_installed("ggplot2",

@@ -126,6 +126,9 @@
 #'   Unsupported enzymes raise an error rather than returning a partially
 #'   annotated table.
 #'
+#' @section Limitations: Trypsin family only, sequence-local P1-P1' context
+#'   only, no extended subsite modeling.
+#'
 #' @return A tibble with one row per candidate cleavage site and the columns
 #'   `position`, `residue`, `flanking_context`, `efficiency`, and
 #'   `rule_applied`. Returns an empty tibble when the sequence contains no
@@ -133,6 +136,7 @@
 #'
 #' @examples
 #' annotate_cleavage_sites("AKRTPK", enzyme = "trypsin")
+#' @family digest
 #' @export
 annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
   normalized_input <- .read_input(sequence)
@@ -207,6 +211,9 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #'   context only. They do not model extended subsite preferences, structural
 #'   protection, or PTMs that alter cleavage behavior.
 #'
+#' @section Limitations: Cleaver rules only, no structural accessibility,
+#'   no PTM awareness.
+#'
 #' @return A tibble with one row per peptide and the columns `protein_id`,
 #'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`. Each row
 #'   represents one observed cleavage product for one protein under the
@@ -218,6 +225,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #' digest_protein("MKWVTFISLLFLFSSAYSR")
 #' digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"))
 #' digest_protein("AKRTPK", include_cleavage_efficiency = TRUE)
+#' @family digest
 #' @importFrom cleaver cleavageRanges
 #' @export
 # nolint start: object_usage_linter.

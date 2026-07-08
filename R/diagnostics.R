@@ -249,6 +249,10 @@ score_diagnostics <- function(batch_result, weights = NULL) {
 #' @return A `patchwork` object with three panels: VIF (A), PCA (B),
 #'   ablation (C).
 #'
+#' @section Limitations:
+#' Shows what score_diagnostics() returns. Interpretation needs domain
+#' knowledge.
+#'
 #' @seealso [score_diagnostics()] for the upstream analysis.
 #'
 #' @family diagnostics

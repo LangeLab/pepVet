@@ -175,6 +175,11 @@ plot_digest_profile <- function(result,
 #'
 #'   The `color_by = "hydrophobicity"` mode calls the internal Kyte-Doolittle
 #'   GRAVY calculator and requires no additional input columns.
+#' @section Limitations:
+#' The interval-packing algorithm requires consistent, non-overlapping
+#' MC=0 peptide boundaries. Incomplete or conflicting peptide coordinates
+#' may produce suboptimal track layouts or raise an error during sequence
+#' reconstruction.
 #' @return A `ggplot` object showing a multi-lane coverage map with peptide
 #'   tracks, gap highlights, optional cleavage-site efficiency ticks, and
 #'   optional domain annotations.

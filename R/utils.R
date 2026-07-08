@@ -341,11 +341,11 @@ NULL
 
   expected_lengths <- if (isTRUE(has_proteome)) c(6L) else c(5L, 6L)
   if (!length(weights) %in% expected_lengths) {
-    expected_lengths_str <- paste(expected_lengths, collapse = " or ")
     .abort(
       paste0(
-        "{.arg weights} must contain exactly {expected_lengths_str} ",
-        "value(s) in this scoring mode."
+        "{.arg weights} must contain exactly ",
+        paste(expected_lengths, collapse = " or "),
+        " value(s) in this scoring mode."
       ),
       class = "pepvet_error_invalid_weights"
     )
@@ -445,6 +445,10 @@ NULL
 #' **`"fractionated"`** : SCX / high-pH RP fractionation planning. Same
 #' scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
 #' to append peptide-level pI values for fractionation-aware analysis.
+#'
+#' @family utils
+#' @section Limitations:
+#'   Only 6 named presets are provided. Custom presets are not validated.
 #'
 #' @return A named list with `gravy_range`, `length_range`, `weights`, and
 #'   `include_pI`.
@@ -998,6 +1002,11 @@ pepvet_preset <- function(type = "standard") {
 #'   It does not account for chemical labels such as TMT or iTRAQ, isotopic
 #'   labels such as SILAC, or post-translational modifications.
 #'
+#' @family utils
+#' @section Limitations:
+#'   This function computes monoisotopic mass only. Average mass is not
+#'   supported.
+#'
 #' @return A numeric vector of neutral masses or m/z values. Names are
 #'   preserved from `sequence` when present.
 #'
@@ -1047,6 +1056,11 @@ calculate_peptide_mass <- function(sequence, charge = 0L) {
 #' @param sequence Peptide sequence supplied as a character vector. Amino-acid
 #'   codes must be one-letter uppercase or lowercase symbols from the 20
 #'   standard residues. If `NULL`, raises an error.
+#'
+#' @family utils
+#' @section Limitations:
+#'   pI estimation uses the Lehninger pKa set. Calculation may be slow for
+#'   more than 5000 sequences.
 #'
 #' @return A numeric vector of estimated peptide pI values. Names are preserved
 #'   from `sequence` when present.

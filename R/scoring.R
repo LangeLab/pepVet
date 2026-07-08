@@ -421,6 +421,7 @@
 #'   target_and_background[target_and_background$protein_id == "target", ],
 #'   proteome = target_and_background
 #' )
+#' @family scoring
 #' @export
 score_peptides <- function(digest_result,
                            proteome = NULL,

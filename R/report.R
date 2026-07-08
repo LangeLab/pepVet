@@ -124,6 +124,10 @@
 #' @param title Optional character string printed as a section header above
 #'   the report. When `NULL` (default), the protein ID is used as the header.
 #'
+#' @family report
+#' @section Limitations:
+#'   Output is printed to the console only. File output is not supported.
+#'
 #' @return `x`, invisibly.
 #'
 #' @seealso [evaluate_digest()], [compare_digests()]
@@ -195,7 +199,7 @@ digest_report <- function(x, title = NULL) {
   cli::cat_rule()
 }
 
-#' Quick Digest Check for a Single Protein
+#' Quick digest check for a single protein
 #'
 #' `pepvet_check()` is a convenience wrapper that evaluates a protein digest
 #' and immediately prints a styled console report. It is intended for
@@ -209,6 +213,8 @@ digest_report <- function(x, title = NULL) {
 #' @param ... Additional arguments passed to [evaluate_digest()], such as
 #'   `missed_cleavages`, `include_cleavage_efficiency`, `weights`,
 #'   `gravy_range`, and `length_range`.
+#'
+#' @family report
 #'
 #' @return The [evaluate_digest()] result list, invisibly.
 #'

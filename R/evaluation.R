@@ -50,6 +50,13 @@
 #'       and the resolved \code{preset_used} label from [score_peptides()].}
 #'   }
 #'
+#' @section Limitations:
+#' Cleavage efficiency annotations only work for trypsin-family enzymes.
+#' Unsupported enzymes receive `NA` counts. The scoring model is rule-based;
+#' see [score_peptides()] for scope details.
+#'
+#' @family evaluation
+#'
 #' @seealso [digest_protein()], [score_peptides()], [compare_digests()],
 #'   [batch_evaluate()]
 #'
@@ -147,9 +154,17 @@ evaluate_digest <- function(sequence,
 #'   `include_pI`, plus `include_cleavage_efficiency` when peptide-level
 #'   cleavage annotations are requested during comparison.
 #'
+#' @inheritParams evaluate_digest
+#'
 #' @return A tibble with one row per enzyme and columns `enzyme` followed by
 #'   the score columns returned by [evaluate_digest()], sorted by
 #'   `composite_score` descending.
+#'
+#' @section Limitations:
+#' Single-protein only. Use [batch_compare_enzymes()] for proteome-wide
+#' enzyme comparison.
+#'
+#' @family evaluation
 #'
 #' @seealso [evaluate_digest()], [recommend_enzyme()]
 #'
@@ -219,8 +234,16 @@ compare_digests <- function(sequence,
 #' @param ... Additional scoring arguments passed to [compare_digests()] and
 #'   ultimately to [evaluate_digest()] and [score_peptides()].
 #'
+#' @inheritParams compare_digests
+#'
 #' @return A character vector of one or more enzyme names. Length greater than
 #'   one only when top scores are tied within floating-point tolerance.
+#'
+#' @section Limitations:
+#' Single-protein only. When multiple enzymes tie within tolerance, all are
+#' returned in alphabetical order with no further tie-breaking.
+#'
+#' @family evaluation
 #'
 #' @seealso [compare_digests()], [evaluate_digest()]
 #'
@@ -294,6 +317,13 @@ recommend_enzyme <- function(sequence,
 #'   `composite_score`, `verdict`, `median_peptide_length`,
 #'   `flag_short_protein`, `flag_hydrophobic`, `flag_low_complexity`,
 #'   `flag_no_valid_peptides`.
+#'
+#' @section Limitations:
+#' Parallel execution only on Unix (`parallel::mclapply`). Windows falls
+#' back to serial silently. If a worker crashes, the failed chunk is retried
+#' sequentially, which is slower but produces correct results.
+#'
+#' @family evaluation
 #'
 #' @seealso [evaluate_digest()], [compare_digests()], [summarize_batch()],
 #'   [triage_proteins()]
@@ -571,6 +601,13 @@ batch_evaluate <- function(sequences,
 #'       limiting factor.}
 #'   }
 #'
+#' @section Limitations:
+#' The `enzyme_switch_candidates` are heuristic flags based on sequence
+#' difficulty, not actual re-evaluation with alternative enzymes. Use
+#' [compare_digests()] to confirm whether a switch improves the verdict.
+#'
+#' @family evaluation
+#'
 #' @seealso [batch_evaluate()], [triage_proteins()]
 #'
 #' @examples
@@ -677,6 +714,8 @@ summarize_batch <- function(batch_result) {
 #' @param ... Additional scoring arguments passed to [batch_evaluate()], such
 #'   as `gravy_range` and `length_range`.
 #'
+#' @inheritParams batch_evaluate
+#'
 #' @return A tibble of class `pepvet_batch_comparison` with one row per
 #'   protein-enzyme pair. Columns: `protein_id`, `enzyme` (factor ordered
 #'   by the input `enzymes` vector, so ggplot2 axis and facet order matches
@@ -685,6 +724,12 @@ summarize_batch <- function(batch_result) {
 #'   `composite_score`, `verdict`, `median_peptide_length`, and the four
 #'   difficulty flags. Printing shows a per-enzyme summary table before the
 #'   tibble rows.
+#'
+#' @section Limitations:
+#' Enzymes run sequentially even when `cores > 1`; only proteins within each
+#' enzyme are parallelized. Parallel execution requires Unix.
+#'
+#' @family evaluation
 #'
 #' @seealso [batch_evaluate()], [compare_digests()], [summarize_batch()]
 #'
@@ -853,6 +898,13 @@ print.pepvet_batch_comparison <- function(x, ...) {
 #'       score.}
 #'   }
 #'
+#' @section Limitations:
+#' Triage actions are advisory, based on heuristic difficulty flags from the
+#' batch score columns. They do not re-evaluate the protein with alternative
+#' enzymes. Use [compare_digests()] for that.
+#'
+#' @family evaluation
+#'
 #' @seealso [batch_evaluate()], [summarize_batch()]
 #'
 #' @examples
@@ -938,6 +990,13 @@ triage_proteins <- function(batch_result) {
 #'   and corner-case table).  For multi-enzyme input: additionally reports
 #'   `top1_stability` and Kendall rank correlation.  For batch input: returns
 #'   `per_protein` (instability per protein) and `summary` aggregates.
+#'
+#' @section Limitations:
+#' Monte Carlo estimates are approximate. Stability depends on `n_iter`.
+#' The analysis only perturbs weights within the Dirichlet framework; it does
+#' not test alternative scoring functions or parameter ranges.
+#'
+#' @family evaluation
 #'
 #' @examples
 #' bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

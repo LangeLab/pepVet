@@ -325,8 +325,7 @@ plot_length_distribution <- function(
     ggplot2::geom_histogram(
       binwidth = .get_param("length_binwidth"), color = "white",
       linewidth = 0.12, alpha = .get_param("scatter_alpha")
-    ) +
-    {
+    ) + {
       if (show_density) {
         ggplot2::stat_density(
           ggplot2::aes(x = .data$length, y = ggplot2::after_stat(count)),

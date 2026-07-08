@@ -288,9 +288,7 @@ plot_enzyme_comparison <- function(
       ggplot2::aes(label = .data$comp_label),
       hjust = -0.35, size = 3.0,
       color = .pepvet_pal$text_axis_title, fontface = "bold"
-    ) +
-    ## Recommended badge on the best enzyme
-    {
+    ) + {
       if (recommend) {
         ggplot2::annotate(
           "label",

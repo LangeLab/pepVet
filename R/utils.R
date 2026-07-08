@@ -249,9 +249,12 @@ NULL
   if (!all(is.finite(normalized_range)) ||
       normalized_range[[1]] > normalized_range[[2]]) {
     .abort(
-      paste0(
-        "{.arg gravy_range} must contain finite ",
-        "values in ascending order."
+      c(
+        paste0(
+          "{.arg gravy_range} must contain finite ",
+          "values in ascending order."
+        ),
+        "i" = "Use c(lower, upper) where lower < upper, e.g. c(-1.0, 0.6)."
       ),
       class = "pepvet_error_invalid_gravy_range"
     )
@@ -344,10 +347,13 @@ NULL
   expected_lengths <- if (isTRUE(has_proteome)) c(6L) else c(5L, 6L)
   if (!length(weights) %in% expected_lengths) {
     .abort(
-      paste0(
-        "{.arg weights} must contain exactly ",
-        paste(expected_lengths, collapse = " or "),
-        " value(s) in this scoring mode."
+      c(
+        paste0(
+          "{.arg weights} must contain exactly ",
+          paste(expected_lengths, collapse = " or "),
+          " value(s) in this scoring mode."
+        ),
+        "i" = "Pass 5 values for protein-only mode or 6 for proteome-aware mode."
       ),
       class = "pepvet_error_invalid_weights"
     )
@@ -705,7 +711,10 @@ pepvet_preset <- function(type = "standard") {
     if (length(sequence) == 1L && !is.na(sequence) && file.exists(sequence)) {
       if (dir.exists(sequence)) {
         .abort(
-          "Expected a FASTA file path, but '{sequence}' is a directory.",
+          c(
+            "Expected a FASTA file path, but '{sequence}' is a directory.",
+            "i" = "Provide a path to a FASTA file, not a directory."
+          ),
           class = "pepvet_error_missing_file"
         )
       }
@@ -720,7 +729,10 @@ pepvet_preset <- function(type = "standard") {
           .looks_like_path(sequence)
       ) {
         .abort(
-          "FASTA file not found: '{sequence}'.",
+          c(
+            "FASTA file not found: '{sequence}'.",
+            "i" = "Check that the file path exists and is readable."
+          ),
           class = "pepvet_error_missing_file"
         )
       }

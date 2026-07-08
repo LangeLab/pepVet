@@ -11,9 +11,12 @@
                                      arg_name = "digest_result") {
   if (!inherits(digest_result, "data.frame")) {
     .abort(
-      paste0(
-        "{.arg {arg_name}} must be a digest tibble or data frame ",
-        "with pepVet digest columns."
+      c(
+        paste0(
+          "{.arg {arg_name}} must be a digest tibble or data frame ",
+          "with pepVet digest columns."
+        ),
+        "i" = "Use the output of {.fn digest_protein} or {.fn evaluate_digest}."
       ),
       class = "pepvet_error_invalid_digest"
     )
@@ -33,7 +36,10 @@
 
   if (nrow(digest_result) == 0L) {
     .abort(
-      "{.arg {arg_name}} must contain at least one peptide row.",
+      c(
+        "{.arg {arg_name}} must contain at least one peptide row.",
+        "i" = "Check that {.fn digest_protein} produced peptides for this input."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -67,7 +73,10 @@
 
   if (anyNA(digest_result)) {
     .abort(
-      "{.arg {arg_name}} must not contain missing values.",
+      c(
+        "{.arg {arg_name}} must not contain missing values.",
+        "i" = "Remove rows with NA values or regenerate the digest."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -80,7 +89,10 @@
 
   if (any(row_starts < 1L) || any(row_ends < row_starts)) {
     .abort(
-      "{.arg {arg_name}} contains invalid start/end coordinates.",
+      c(
+        "{.arg {arg_name}} contains invalid start/end coordinates.",
+        "i" = "Ensure all start positions are >= 1 and end >= start."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -90,7 +102,10 @@
       any(row_lengths != (row_ends - row_starts + 1L))
   ) {
     .abort(
-      "{.arg {arg_name}} must have internally consistent peptide lengths.",
+      c(
+        "{.arg {arg_name}} must have internally consistent peptide lengths.",
+        "i" = "The peptide sequence must match its start/end coordinates."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }

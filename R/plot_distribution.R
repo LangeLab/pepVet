@@ -42,7 +42,9 @@ plot_length_distribution <- function(
   show_density = TRUE,
   title = NULL
 ) {
-  rlang::check_installed("ggplot2", reason = "to use plot_length_distribution()")
+  rlang::check_installed("ggplot2",
+    reason = "to use plot_length_distribution()"
+  )
 
   ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
@@ -66,7 +68,10 @@ plot_length_distribution <- function(
   } else {
     .abort(
       c(
-        "{.arg result} must be an {.fn evaluate_digest} list or a peptide data.frame.",
+        paste0(
+          "{.arg result} must be an {.fn evaluate_digest} ",
+          "list or a peptide data.frame."
+        ),
         "x" = "Got {.cls {class(result)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -107,7 +112,10 @@ plot_length_distribution <- function(
     ),
     label = c(
       sprintf("Too short\n< %d aa\n(%.0f%%)", length_lo, pct_short),
-      sprintf("Valid\n[%d\u2013%d aa]\n(%.0f%%)", length_lo, length_hi, pct_valid),
+      sprintf(
+        "Valid\n[%d\u2013%d aa]\n(%.0f%%)",
+        length_lo, length_hi, pct_valid
+      ),
       sprintf("Too long\n> %d aa\n(%.0f%%)", length_hi, pct_long)
     ),
     color = unname(class_colors[c("Too short", "Valid", "Too long")]),
@@ -186,7 +194,12 @@ plot_length_distribution <- function(
     # Per-category annotation labels
     ggplot2::geom_text(
       data = cat_labels,
-      ggplot2::aes(x = .data$x, y = Inf, label = .data$label, color = I(.data$color)),
+      ggplot2::aes(
+        x = .data$x,
+        y = Inf,
+        label = .data$label,
+        color = I(.data$color)
+      ),
       vjust = 1.2,
       size = 2.8,
       fontface = "bold",
@@ -211,7 +224,10 @@ plot_length_distribution <- function(
     ggplot2::labs(
       title = auto_title,
       subtitle = sprintf(
-        "%d peptides total  \u00b7  %d valid (%.0f%%)  \u00b7  range [%d\u2013%d aa]",
+        paste0(
+          "%d peptides total  \u00b7  %d valid (%.0f%%)",
+          "  \u00b7  range [%d\u2013%d aa]"
+        ),
         n_total,
         as.integer(tbl[["Valid"]]),
         pct_valid,
@@ -251,8 +267,12 @@ plot_length_distribution <- function(
 }
 
 # Private: multi-input length distribution (faceted)
-.plot_length_distribution_multi <- function(results, length_range, show_density, title) {
-  rlang::check_installed("ggplot2", reason = "to use plot_length_distribution()")
+.plot_length_distribution_multi <- function(
+  results, length_range, show_density, title
+) {
+  rlang::check_installed("ggplot2",
+    reason = "to use plot_length_distribution()"
+  )
 
   labels <- if (!is.null(names(results))) {
     names(results)
@@ -288,7 +308,9 @@ plot_length_distribution <- function(
 
   auto_title <- title %||% "Peptide length distribution: comparison"
 
-  ggplot2::ggplot(peps, ggplot2::aes(x = .data$length, fill = .data$length_class)) +
+  ggplot2::ggplot(peps, ggplot2::aes(
+    x = .data$length, fill = .data$length_class
+  )) +
     ggplot2::annotate("rect",
       xmin = g_lo - 0.5, xmax = g_hi + 0.5,
       ymin = -Inf, ymax = Inf,
@@ -397,7 +419,9 @@ plot_gravy_landscape <- function(
   title = NULL
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_gravy_landscape()")
-  rlang::check_installed("patchwork", reason = "to assemble panels in plot_gravy_landscape()")
+  rlang::check_installed("patchwork",
+    reason = "to assemble panels in plot_gravy_landscape()"
+  )
 
   ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
@@ -421,7 +445,10 @@ plot_gravy_landscape <- function(
   } else {
     .abort(
       c(
-        "{.arg result} must be an {.fn evaluate_digest} list or a peptide data.frame.",
+        paste0(
+          "{.arg result} must be an {.fn evaluate_digest} ",
+          "list or a peptide data.frame."
+        ),
         "x" = "Got {.cls {class(result)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -439,7 +466,10 @@ plot_gravy_landscape <- function(
   if (!"gravy" %in% names(peps)) {
     if (!"peptide" %in% names(peps)) {
       .abort(
-        "Cannot compute GRAVY: {.arg result} needs a {.field gravy} or {.field peptide} column.",
+        paste0(
+          "Cannot compute GRAVY: {.arg result} needs a ",
+          "{.field gravy} or {.field peptide} column."
+        ),
         class = "pepvet_error_invalid_digest_result"
       )
     }
@@ -487,7 +517,10 @@ plot_gravy_landscape <- function(
   ## Axis limits with padding
   x_pad <- 1.5
   y_pad <- 0.15
-  x_lims <- c(max(0, min(peps$length, na.rm = TRUE) - x_pad), max(peps$length, na.rm = TRUE) + x_pad)
+  x_lims <- c(
+    max(0, min(peps$length, na.rm = TRUE) - x_pad),
+    max(peps$length, na.rm = TRUE) + x_pad
+  )
   y_lims <- c(
     min(peps$gravy, na.rm = TRUE) - y_pad,
     max(peps$gravy, na.rm = TRUE) + y_pad
@@ -586,7 +619,10 @@ plot_gravy_landscape <- function(
       x = "Peptide length (aa)",
       y = "GRAVY score",
       subtitle = sprintf(
-        "%d / %d peptides fully valid (%.0f%%). Valid region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]",
+        paste0(
+          "%d / %d peptides fully valid (%.0f%%). ",
+          "Valid region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]"
+        ),
         n_valid, n_total, pct_valid, length_lo, length_hi, gravy_lo, gravy_hi
       )
     ) +
@@ -663,7 +699,9 @@ plot_gravy_landscape <- function(
 }
 
 # Private: multi-input GRAVY landscape (faceted, no marginals)
-.plot_gravy_landscape_multi <- function(results, length_range, gravy_range, title) {
+.plot_gravy_landscape_multi <- function(
+  results, length_range, gravy_range, title
+) {
   rlang::check_installed("ggplot2", reason = "to use plot_gravy_landscape()")
 
   labels <- if (!is.null(names(results))) {
@@ -694,7 +732,8 @@ plot_gravy_landscape <- function(
   g_grav_lo <- peps_list[[1L]]$gravy_lo[[1L]]
   g_grav_hi <- peps_list[[1L]]$gravy_hi[[1L]]
 
-  peps$valid_length <- peps$length >= peps$length_lo & peps$length <= peps$length_hi
+  peps$valid_length <- peps$length >= peps$length_lo &
+    peps$length <= peps$length_hi
   peps$valid_gravy <- peps$gravy >= peps$gravy_lo & peps$gravy <= peps$gravy_hi
   peps$class <- factor(
     ifelse(peps$valid_length & peps$valid_gravy, "Valid",
@@ -838,7 +877,8 @@ plot_pI_distribution <- function(
     # evaluate_digest() list: compute pI for valid peptides
     peps <- result$peptides
     lr <- result$params$length_range %||% c(7L, 25L)
-    valid <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], , drop = FALSE]
+  valid <- peps[peps$length >= lr[[1L]] &
+    peps$length <= lr[[2L]], , drop = FALSE]
     if (nrow(valid) == 0L || !"peptide" %in% names(valid)) {
       .abort(
         "No valid peptides found in {.arg result} to compute pI values.",
@@ -862,7 +902,11 @@ plot_pI_distribution <- function(
   } else {
     .abort(
       c(
-        "{.arg result} must be an {.fn evaluate_digest} list, a {.fn score_peptides} tibble, a data.frame with a {.field pI} column, or a numeric vector.",
+        paste0(
+          "{.arg result} must be an {.fn evaluate_digest} list, ",
+          "a {.fn score_peptides} tibble, a data.frame ",
+          "with a {.field pI} column, or a numeric vector."
+        ),
         "x" = "Got {.cls {class(result)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -870,7 +914,10 @@ plot_pI_distribution <- function(
   }
 
   if (length(pI_vals) == 0L) {
-    .abort("No pI values to plot.", class = "pepvet_error_invalid_digest_result")
+    .abort(
+      "No pI values to plot.",
+      class = "pepvet_error_invalid_digest_result"
+    )
   }
 
   ## Fraction bins
@@ -882,7 +929,9 @@ plot_pI_distribution <- function(
   bin_labels <- character(length(breaks) + 1L)
   bin_labels[[1L]] <- sprintf("< %.0f", lo_break)
   for (i in seq_len(length(breaks) - 1L)) {
-    bin_labels[[i + 1L]] <- sprintf("%.0f\u2013%.0f", breaks[[i]], breaks[[i + 1L]])
+    bin_labels[[i + 1L]] <- sprintf(
+      "%.0f\u2013%.0f", breaks[[i]], breaks[[i + 1L]]
+    )
   }
   bin_labels[[length(bin_labels)]] <- sprintf("> %.0f", hi_break)
 
@@ -898,7 +947,8 @@ plot_pI_distribution <- function(
   bin_counts <- as.integer(table(pI_bin))
   n_bins <- length(bin_labels)
 
-  # Mid-x for each label: for <lo and >hi, place 1 unit outside; for intervals, mid-point
+  # Mid-x for each label: for <lo and >hi, place 1 unit outside;
+  #   for intervals, mid-point
   bin_mids <- numeric(n_bins)
   bin_mids[[1L]] <- lo_break - 1
   for (i in seq_len(length(breaks) - 1L)) {
@@ -917,7 +967,9 @@ plot_pI_distribution <- function(
   n_colours <- n_bins
   # Use a hand-picked sequential palette that works with the pepVet brand
   # Acidic (low pI) to cool blues; basic (high pI) to warm orange-reds
-  viridis_cols <- grDevices::hcl.colors(n_colours, palette = "viridis", alpha = 0.85)
+  viridis_cols <- grDevices::hcl.colors(
+    n_colours, palette = "viridis", alpha = 0.85
+  )
 
   ## Auto title
   auto_title <- if (!is.null(title)) {
@@ -929,7 +981,10 @@ plot_pI_distribution <- function(
   ) {
     pid <- result$params$protein_ids[[1L]]
     enzyme <- result$params$enzyme
-    paste0(.tidy_protein_id(pid), "  \u00b7  ", enzyme, "  \u00b7  pI distribution")
+    paste0(
+      .tidy_protein_id(pid), "  \u00b7  ", enzyme,
+      "  \u00b7  pI distribution"
+    )
   } else {
     "pI distribution"
   }
@@ -1008,8 +1063,9 @@ plot_pI_distribution <- function(
 .pI_from_result <- function(r, length_range = c(7L, 25L)) {
   lr <- r$params$length_range %||% length_range
   peps <- r$peptides
-  valid <- peps[peps$length >= lr[[1L]] & peps$length <= lr[[2L]], , drop = FALSE]
-  if (nrow(valid) == 0L || !"peptide" %in% names(valid)) {
+    valid <- peps[peps$length >= lr[[1L]] &
+      peps$length <= lr[[2L]], , drop = FALSE]
+    if (nrow(valid) == 0L || !"peptide" %in% names(valid)) {
     return(numeric(0L))
   }
   as.numeric(calculate_pI(valid$peptide))
@@ -1136,8 +1192,14 @@ plot_missed_cleavage_impact <- function(
   if (!is.list(results) || length(results) < 2L) {
     .abort(
       c(
-        "!" = "{.arg results} must be a list of at least 2 {.fn evaluate_digest} results.",
-        "i" = "Create one result per missed-cleavage level, e.g. MC=0, MC=1, MC=2."
+        "!" = paste0(
+          "{.arg results} must be a list of at least 2 ",
+          "{.fn evaluate_digest} results."
+        ),
+        "i" = paste0(
+          "Create one result per missed-cleavage level, ",
+          "e.g. MC=0, MC=1, MC=2."
+        )
       ),
       class = "pepvet_error_invalid_digest_result"
     )
@@ -1153,7 +1215,10 @@ plot_missed_cleavage_impact <- function(
     if (!is.list(r) || !"scores" %in% names(r)) {
       .abort(
         c(
-          "!" = "Element {.val {nm}} is not a valid {.fn evaluate_digest} result.",
+          "!" = paste0(
+            "Element {.val {nm}} is not a valid ",
+            "{.fn evaluate_digest} result."
+          ),
           "i" = "Each element must be a list with a {.code scores} component."
         ),
         class = "pepvet_error_invalid_digest_result"
@@ -1307,7 +1372,10 @@ plot_missed_cleavage_impact <- function(
     ggplot2::labs(
       title = auto_title,
       subtitle = sprintf(
-        "Bold line = composite  \u00b7  Dotted thresholds at %s / %s  \u00b7  Best MC highlighted",
+        paste0(
+          "Bold line = composite  \u00b7  Dotted thresholds ",
+          "at %s / %s  \u00b7  Best MC highlighted"
+        ),
         .get_param("verdict_moderate"), .get_param("verdict_good")
       ),
       x = "Missed cleavages allowed",
@@ -1398,7 +1466,10 @@ plot_mz_distribution <- function(
       scan_range[[1L]] >= scan_range[[2L]]
   ) {
     .abort(
-      "{.arg scan_range} must be a numeric vector of length 2 in ascending order.",
+      paste0(
+        "{.arg scan_range} must be a numeric vector ",
+        "of length 2 in ascending order."
+      ),
       class = "pepvet_error_invalid_input"
     )
   }
@@ -1438,7 +1509,11 @@ plot_mz_distribution <- function(
   } else {
     .abort(
       c(
-        "{.arg result} must be an {.fn evaluate_digest} list, a named list of such results, or a data.frame with a {.field peptide} column.",
+        paste0(
+          "{.arg result} must be an {.fn evaluate_digest} list, ",
+          "a named list of such results, or a data.frame ",
+          "with a {.field peptide} column."
+        ),
         "x" = "Got {.cls {class(result)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_digest_result"
@@ -1454,7 +1529,10 @@ plot_mz_distribution <- function(
     # Filter to valid length range, compute m/z per charge state
     if (!"peptide" %in% names(peps)) {
       .abort(
-        "{.arg result} must contain a {.field peptide} column to compute m/z values.",
+        paste0(
+          "{.arg result} must contain a {.field peptide} column ",
+          "to compute m/z values."
+        ),
         class = "pepvet_error_invalid_digest_result"
       )
     }

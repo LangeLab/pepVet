@@ -9,7 +9,10 @@
   if (!is.data.frame(comparison)) {
     .abort(
       c(
-        "{.arg comparison} must be a data.frame / tibble returned by {.fn compare_digests}.",
+        paste0(
+          "{.arg comparison} must be a data.frame / tibble returned ",
+          "by {.fn compare_digests}."
+        ),
         "x" = "Got {.cls {class(comparison)[[1L]]}}."
       ),
       class = "pepvet_error_invalid_comparison"
@@ -96,7 +99,9 @@ plot_enzyme_comparison <- function(
   title = NULL
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_enzyme_comparison()")
-  rlang::check_installed("patchwork", reason = "to use plot_enzyme_comparison()")
+  rlang::check_installed("patchwork",
+    reason = "to use plot_enzyme_comparison()"
+  )
 
   .validate_comparison_for_plot(comparison)
 
@@ -150,8 +155,13 @@ plot_enzyme_comparison <- function(
 
   ## Verdict tier color for composite lollipop heads
   tier_color <- function(x) {
-    ifelse(x >= .get_param("verdict_good"), .pepvet_pal$good,
-      ifelse(x >= .get_param("verdict_moderate"), .pepvet_pal$moderate, .pepvet_pal$poor)
+    ifelse(
+      x >= .get_param("verdict_good"), .pepvet_pal$good,
+      ifelse(
+        x >= .get_param("verdict_moderate"),
+        .pepvet_pal$moderate,
+        .pepvet_pal$poor
+      )
     )
   }
   comparison$comp_color <- tier_color(comparison$composite_score)
@@ -179,7 +189,9 @@ plot_enzyme_comparison <- function(
     ) +
     # Threshold reference lines
     ggplot2::geom_vline(
-      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
+      xintercept = c(
+        .get_param("verdict_moderate"), .get_param("verdict_good")
+      ),
       color = .pepvet_pal$separator, linetype = "dashed", linewidth = 0.4
     ) +
     ggplot2::geom_col(
@@ -253,7 +265,9 @@ plot_enzyme_comparison <- function(
       fill = .pepvet_pal$shade, alpha = 0.55
     ) +
     ggplot2::geom_vline(
-      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
+      xintercept = c(
+        .get_param("verdict_moderate"), .get_param("verdict_good")
+      ),
       color = .pepvet_pal$separator, linetype = "dashed", linewidth = 0.4
     ) +
     # Lollipop stems
@@ -328,7 +342,9 @@ plot_enzyme_comparison <- function(
     ) &
     ggplot2::theme(
       plot.tag = ggplot2::element_text(
-        size = .get_param("patchwork_tag_size"), face = "bold", color = .pepvet_pal$brand
+        size = .get_param("patchwork_tag_size"),
+        face = "bold",
+        color = .pepvet_pal$brand
       )
     )
 }

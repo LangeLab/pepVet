@@ -24,7 +24,9 @@
 #' Hydrophobicity values follow Kyte J, Doolittle RF (1982). "A simple method
 #' for displaying the hydropathic character of a protein." *Journal of
 #' Molecular Biology*, 157(1), 105-132.
-#' [doi:10.1016/0022-2836(82)90515-0](https://doi.org/10.1016/0022-2836(82)90515-0).
+#' [doi:10.1016/0022-2836(82)90515-0](
+#'   https://doi.org/10.1016/0022-2836(82)90515-0
+#' ).
 #'
 #' Monoisotopic masses follow the free amino acid convention used by ExPASy
 #' FindMod: <https://web.expasy.org/findmod/findmod_masses.html>.

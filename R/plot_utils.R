@@ -137,12 +137,24 @@ NULL
       ),
 
       # Axes
-      axis.title = ggplot2::element_text(size = base_size - 1, color = .pepvet_pal$text_axis_title),
-      axis.text = ggplot2::element_text(size = base_size - 2, color = .pepvet_pal$text_axis_tick),
-      axis.ticks = ggplot2::element_line(color = .pepvet_pal$axis_tick, linewidth = 0.3),
+      axis.title = ggplot2::element_text(
+        size = base_size - 1,
+        color = .pepvet_pal$text_axis_title
+      ),
+      axis.text = ggplot2::element_text(
+        size = base_size - 2,
+        color = .pepvet_pal$text_axis_tick
+      ),
+      axis.ticks = ggplot2::element_line(
+        color = .pepvet_pal$axis_tick,
+        linewidth = 0.3
+      ),
 
       # Grid
-      panel.grid.major = ggplot2::element_line(color = .pepvet_pal$grid_major, linewidth = 0.35),
+      panel.grid.major = ggplot2::element_line(
+        color = .pepvet_pal$grid_major,
+        linewidth = 0.35
+      ),
       panel.grid.minor = ggplot2::element_blank(),
       panel.border = ggplot2::element_rect(
         fill      = NA,
@@ -151,7 +163,10 @@ NULL
       ),
 
       # Strip (for faceted plots)
-      strip.background = ggplot2::element_rect(fill = .pepvet_pal$strip_bg, color = .pepvet_pal$separator),
+      strip.background = ggplot2::element_rect(
+        fill = .pepvet_pal$strip_bg,
+        color = .pepvet_pal$separator
+      ),
       strip.text = ggplot2::element_text(
         face  = "bold",
         size  = base_size - 0.5,
@@ -223,7 +238,9 @@ NULL
 #' @param class Character string, error class to raise.
 #' @return `data`, invisibly.
 #' @noRd
-.validate_nonempty <- function(data, name = "data", class = "pepvet_error_invalid_input") {
+.validate_nonempty <- function(data,
+                                name = "data",
+                                class = "pepvet_error_invalid_input") {
   if (is.data.frame(data) && nrow(data) == 0L) {
     .abort(
       "{.arg {name}} must have at least one row.",
@@ -255,7 +272,10 @@ NULL
     return(paste0(parts[[2L]], "  (", parts[[3L]], ")"))
   }
   # NCBI RefSeq: NP_001234.1 or XP_...
-  m2 <- regmatches(protein_id, regexpr("^([A-Z]{2}_[0-9]+(\\.[0-9]+)?)", protein_id))
+  m2 <- regmatches(
+    protein_id,
+    regexpr("^([A-Z]{2}_[0-9]+(\\.[0-9]+)?)", protein_id)
+  )
   if (length(m2) == 1L && nchar(m2) > 0L) {
     return(m2)
   }
@@ -287,8 +307,14 @@ NULL
   ) {
     .abort(
       c(
-        "!" = "{.arg result} must be a named list returned by {.fn evaluate_digest}.",
-        "i" = "Expected elements {.code scores}, {.code peptides}, and {.code params}."
+        "!" = paste0(
+          "{.arg result} must be a named list returned by ",
+          "{.fn evaluate_digest}."
+        ),
+        "i" = paste0(
+          "Expected elements {.code scores}, {.code peptides}, ",
+          "and {.code params}."
+        )
       ),
       class = "pepvet_error_invalid_digest_result"
     )
@@ -301,8 +327,14 @@ NULL
   ) {
     .abort(
       c(
-        "!" = "{.code result$peptides} must be a tibble from {.fn digest_protein}.",
-        "i" = "Missing required columns: {.val {setdiff(required_cols, names(peps))}}."
+        "!" = paste0(
+          "{.code result$peptides} must be a tibble from ",
+          "{.fn digest_protein}."
+        ),
+        "i" = paste0(
+          "Missing required columns: ",
+          "{.val {setdiff(required_cols, names(peps))}}."
+        )
       ),
       class = "pepvet_error_invalid_digest_result"
     )
@@ -311,9 +343,18 @@ NULL
   if (n_proteins > 1L) {
     .abort(
       c(
-        "!" = "{.fn plot_digest_profile} is designed for single-protein results.",
-        "i" = "Found {.val {n_proteins}} distinct protein IDs in {.code result$peptides}.",
-        "i" = "Run {.fn evaluate_digest} with a single-entry FASTA or a bare sequence."
+        "!" = paste0(
+          "{.fn plot_digest_profile} is designed for ",
+          "single-protein results."
+        ),
+        "i" = paste0(
+          "Found {.val {n_proteins}} distinct protein IDs ",
+          "in {.code result$peptides}."
+        ),
+        "i" = paste0(
+          "Run {.fn evaluate_digest} with a ",
+          "single-entry FASTA or a bare sequence."
+        )
       ),
       class = "pepvet_error_multi_protein"
     )
@@ -407,10 +448,15 @@ NULL
   n_total <- sum(!is.na(peps$gravy))
 
   # Suitable bin count for the data range (Freedman-Diaconis rule, clamped)
-  gravy_iqr <- diff(stats::quantile(peps$gravy, c(0.25, 0.75), na.rm = TRUE, names = FALSE))
+  gravy_iqr <- diff(stats::quantile(
+    peps$gravy, c(0.25, 0.75),
+    na.rm = TRUE, names = FALSE
+  ))
   fd_bw <- 2 * gravy_iqr / length(peps$gravy)^(1 / 3)
   n_bins <- if (is.finite(fd_bw) && fd_bw > 0) {
-    max(15L, min(40L, as.integer(diff(range(peps$gravy, na.rm = TRUE)) / fd_bw)))
+    max(15L, min(40L,
+      as.integer(diff(range(peps$gravy, na.rm = TRUE)) / fd_bw)
+    ))
   } else {
     30L
   }
@@ -534,7 +580,10 @@ NULL
 
   if (nrow(mc0_peps) == 0L) {
     .abort(
-      "Could not reconstruct the full protein sequence because no MC=0 peptides were available.",
+      paste0(
+        "Could not reconstruct the full protein sequence because ",
+        "no MC=0 peptides were available."
+      ),
       class = "pepvet_error_invalid_digest_result"
     )
   }
@@ -548,7 +597,10 @@ NULL
 
     if (length(peptide_chars) != length(residue_positions)) {
       .abort(
-        "Peptide coordinates do not match peptide sequence length during sequence reconstruction.",
+        paste0(
+          "Peptide coordinates do not match peptide sequence ",
+          "length during sequence reconstruction."
+        ),
         class = "pepvet_error_invalid_digest_result"
       )
     }
@@ -557,7 +609,10 @@ NULL
     has_mismatch <- !is.na(existing_chars) & existing_chars != peptide_chars
     if (any(has_mismatch)) {
       .abort(
-        "Peptide table contains inconsistent residue assignments and cannot be rendered as a sequence map.",
+        paste0(
+          "Peptide table contains inconsistent residue assignments ",
+          "and cannot be rendered as a sequence map."
+        ),
         class = "pepvet_error_invalid_digest_result"
       )
     }
@@ -567,7 +622,10 @@ NULL
 
   if (anyNA(sequence_chars)) {
     .abort(
-      "Could not reconstruct a complete protein sequence from the peptide table.",
+      paste0(
+        "Could not reconstruct a complete protein sequence ",
+        "from the peptide table."
+      ),
       class = "pepvet_error_invalid_digest_result"
     )
   }
@@ -621,8 +679,12 @@ NULL
 
   if (nrow(overlap_peps) > 0L) {
     for (index in seq_len(nrow(overlap_peps))) {
-      residue_positions <- seq.int(overlap_peps$start[[index]], overlap_peps$end[[index]])
-      overlap_counts[residue_positions] <- overlap_counts[residue_positions] + 1L
+      residue_positions <- seq.int(
+        overlap_peps$start[[index]],
+        overlap_peps$end[[index]]
+      )
+      overlap_counts[residue_positions] <-
+        overlap_counts[residue_positions] + 1L
     }
   }
 
@@ -698,7 +760,8 @@ NULL
 
 #' Compute y-band coordinates for multi-lane coverage plots (shared helper)
 #'
-#' Divides the plotting area (y between 0 and 1) into equal horizontal lanes, one
+#' Divides the plotting area (y between 0 and 1) into equal horizontal
+#' lanes, one
 #' per missed-cleavage level, optionally reserving space at the bottom for
 #' cleavage-site tick marks.
 #'
@@ -1036,7 +1099,10 @@ NULL
     ggplot2::labs(
       title = "Component Scores",
       subtitle = sprintf(
-        "Dotted thresholds at %s (Moderate) and %s (Good). Dashed line = composite",
+        paste0(
+          "Dotted thresholds at %s (Moderate) and %s (Good). ",
+          "Dashed line = composite"
+        ),
         .get_param("verdict_moderate"), .get_param("verdict_good")
       ),
       x = "Score (0 \u2013 1)",
@@ -1058,12 +1124,15 @@ NULL
 #'   `.pepvet_pal` entries (e.g. `list(brand = "#004488", good = "#2ECC71")`).
 #'   Sub-lists like `verdict`, `component`, and `overlap` are replaced entirely.
 #' @param params Named list of parameter overrides. Names must match existing
-#'   `.pepvet_params` entries (e.g. `list(verdict_good = 0.70, scatter_alpha = 0.90)`).
+#'   `.pepvet_params` entries (e.g.
+#'   `list(verdict_good = 0.70, scatter_alpha = 0.90)`).
 #' @param theme Named list of ggplot2 theme element overrides. Passed directly
 #'   to [ggplot2::theme()] and applied on top of the base `.pepvet_theme()`.
-#'   (e.g. `list(legend.position = "right", plot.title = element_text(size = 14))`).
+#'   (e.g.
+#'   `list(legend.position = "right", plot.title = element_text(size = 14))`).
 #'
-#' @return Invisibly returns a list with current `palette`, `params`, and `theme`.
+#' @return Invisibly returns a list with current `palette`, `params`,
+#'   and `theme`.
 #' @family plot-utils
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
@@ -1149,7 +1218,8 @@ pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
 #'
 #' Restores all colors, parameters, and theme overrides to the package defaults.
 #'
-#' @return Invisibly returns a list with current `palette`, `params`, and `theme`.
+#' @return Invisibly returns a list with current `palette`, `params`,
+#'   and `theme`.
 #' @family plot-utils
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE)) {
@@ -1178,13 +1248,18 @@ pepvet_plot_config_reset <- function() {
 #' All arguments in `...` are passed to [ggplot2::ggsave()] and can override
 #' the defaults.
 #'
-#' @param plot A ggplot or patchwork object produced by any pepVet plot function.
-#' @param filename Character path for the output file. Extensions `.png`, `.pdf`,
-#'   `.svg`, etc. are handled by [ggplot2::ggsave()]. Defaults to `"pepvet_plot.png"`
+#' @param plot A ggplot or patchwork object produced by any pepVet
+#'   plot function.
+#' @param filename Character path for the output file. Extensions
+#'   `.png`, `.pdf`,
+#'   `.svg`, etc. are handled by [ggplot2::ggsave()]. Defaults to
+#'   `"pepvet_plot.png"`
 #'   in the working directory.
-#' @param width,height Numeric. Plot dimensions in inches. When `NULL` (default),
+#' @param width,height Numeric. Plot dimensions in inches. When
+#'   `NULL` (default),
 #'   auto-sized: single-panel = 10x7, multi-panel patchwork = 14x10.
-#' @param dpi Numeric. Resolution in dots per inch. Defaults to `300` (publication).
+#' @param dpi Numeric. Resolution in dots per inch. Defaults to
+#'   `300` (publication).
 #' @param bg Character. Background color. Defaults to `"white"`.
 #' @param device Device to use. When `NULL` (default) and the filename extension
 #'   is `.png`, tries [ragg::agg_png()] for anti-aliased output, falling back

@@ -111,7 +111,10 @@ score_diagnostics <- function(batch_result, weights = NULL) {
   comp_cols <- grep("^S_", names(batch_result), value = TRUE)
   if (length(comp_cols) < 2L) {
     .abort(
-      "{.arg batch_result} must contain at least two component score columns (S_*).",
+      paste0(
+        "{.arg batch_result} must contain at least two ",
+        "component score columns (S_*)."
+      ),
       class = "pepvet_error_invalid_diagnostics_input"
     )
   }
@@ -138,7 +141,10 @@ score_diagnostics <- function(batch_result, weights = NULL) {
   if (n_prot <= n_comp + 1L) {
     vif_vals[] <- NA_real_
     cli::cli_warn(
-      "Too few proteins ({n_prot}) for reliable VIF estimation (need > {n_comp + 1L}). Returning NA.",
+      paste0(
+        "Too few proteins ({n_prot}) for reliable VIF estimation ",
+        "(need > {n_comp + 1L}). Returning NA."
+      ),
       class = "pepvet_warning_diagnostics_vif"
     )
   } else {
@@ -172,7 +178,10 @@ score_diagnostics <- function(batch_result, weights = NULL) {
   } else {
     true_verdict <- ifelse(
       true_composite >= .get_param("verdict_good"), "Good",
-      ifelse(true_composite >= .get_param("verdict_moderate"), "Moderate", "Poor")
+      ifelse(
+        true_composite >= .get_param("verdict_moderate"),
+        "Moderate", "Poor"
+      )
     )
   }
 
@@ -198,7 +207,10 @@ score_diagnostics <- function(batch_result, weights = NULL) {
 
     perturbed_verdict <- ifelse(
       perturbed_composite >= .get_param("verdict_good"), "Good",
-      ifelse(perturbed_composite >= .get_param("verdict_moderate"), "Moderate", "Poor")
+      ifelse(
+        perturbed_composite >= .get_param("verdict_moderate"),
+        "Moderate", "Poor"
+      )
     )
     ablation_tbl$n_verdict_flipped[i] <- sum(perturbed_verdict != true_verdict)
   }

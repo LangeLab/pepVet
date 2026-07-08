@@ -10,7 +10,10 @@
 .validate_digest_result <- function(digest_result, arg_name = "digest_result") {
   if (!inherits(digest_result, "data.frame")) {
     .abort(
-      "{.arg {arg_name}} must be a digest tibble or data frame with pepVet digest columns.",
+      paste0(
+        "{.arg {arg_name}} must be a digest tibble or data frame ",
+        "with pepVet digest columns."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -41,7 +44,10 @@
       !is.character(digest_result$peptide)
   ) {
     .abort(
-      "{.arg {arg_name}} must store {.field protein_id} and {.field peptide} as character columns.",
+      paste0(
+        "{.arg {arg_name}} must store {.field protein_id} and ",
+        "{.field peptide} as character columns."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -50,7 +56,10 @@
 
   if (!all(vapply(digest_result[numeric_columns], is.numeric, logical(1)))) {
     .abort(
-      "{.arg {arg_name}} must store coordinate and count columns as numeric values.",
+      paste0(
+        "{.arg {arg_name}} must store coordinate and count ",
+        "columns as numeric values."
+      ),
       class = "pepvet_error_invalid_digest"
     )
   }
@@ -105,7 +114,9 @@
 }
 
 .extract_valid_digest <- function(protein_digest, length_range = c(7L, 25L)) {
-  protein_digest[.valid_length_mask(protein_digest, length_range), , drop = FALSE]
+  protein_digest[
+    .valid_length_mask(protein_digest, length_range), , drop = FALSE
+  ]
 }
 
 .fallback_expected_peptide_length <- function(enzyme = "trypsin") {
@@ -145,8 +156,12 @@
   sum(.valid_length_mask(protein_digest, length_range)) / nrow(protein_digest)
 }
 
-.score_coverage <- function(protein_digest, length_range = c(7L, 25L), valid_digest = NULL) {
-  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
+.score_coverage <- function(protein_digest,
+                             length_range = c(7L, 25L),
+                             valid_digest = NULL) {
+  if (is.null(valid_digest)) {
+    valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  }
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -171,16 +186,22 @@
                          valid_digest = NULL) {
   if (.has_no_cleavage_sites(protein_digest)) {
     cli::cli_warn(
-      "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage sites for {.val {enzyme}}. S_count set to 0."
+      paste0(
+        "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage ",
+        "sites for {.val {enzyme}}. S_count set to 0."
+      )
     )
 
     return(0)
   }
 
-  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  if (is.null(valid_digest)) {
+    valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  }
   valid_count <- nrow(valid_digest)
   protein_length <- max(protein_digest$end)
-  expected_count <- protein_length / .expected_peptide_length(protein_digest, enzyme)
+  expected_count <- protein_length /
+    .expected_peptide_length(protein_digest, enzyme)
 
   min(valid_count / expected_count, 1)
 }
@@ -189,7 +210,9 @@
                          gravy_range = c(-1.0, 0.6),
                          length_range = c(7L, 25L),
                          valid_digest = NULL) {
-  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  if (is.null(valid_digest)) {
+    valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  }
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -206,8 +229,12 @@
   )
 }
 
-.score_charge <- function(protein_digest, length_range = c(7L, 25L), valid_digest = NULL) {
-  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
+.score_charge <- function(protein_digest,
+                           length_range = c(7L, 25L),
+                           valid_digest = NULL) {
+  if (is.null(valid_digest)) {
+    valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  }
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -227,7 +254,9 @@
                           proteome_index,
                           length_range = c(7L, 25L),
                           valid_digest = NULL) {
-  if (is.null(valid_digest)) valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  if (is.null(valid_digest)) {
+    valid_digest <- .extract_valid_digest(protein_digest, length_range)
+  }
 
   if (nrow(valid_digest) == 0L) {
     return(0)
@@ -267,7 +296,8 @@
   ifelse(
     composite_score >= .get_param("verdict_good"),
     "Good",
-    ifelse(composite_score >= .get_param("verdict_moderate"), "Moderate", "Poor")
+    ifelse(composite_score >= .get_param("verdict_moderate"),
+      "Moderate", "Poor")
   )
 }
 
@@ -288,14 +318,18 @@
       length_range = length_range,
       valid_digest = valid_digest
     ),
-    S_hydro    = .score_hydro(protein_digest, gravy_range, length_range, valid_digest),
+    S_hydro    = .score_hydro(
+      protein_digest, gravy_range, length_range, valid_digest
+    ),
     S_charge   = .score_charge(protein_digest, length_range, valid_digest)
   )
 
   if (!is.null(proteome_index)) {
     component_scores <- c(
       component_scores,
-      S_unique = .score_unique(protein_digest, proteome_index, length_range, valid_digest)
+      S_unique = .score_unique(
+        protein_digest, proteome_index, length_range, valid_digest
+      )
     )
   }
 
@@ -446,7 +480,8 @@ score_peptides <- function(digest_result,
       # Zero-cleavage hard-fail: S_count == 0 and S_coverage == 0 means
       # the protein was not digested by this enzyme.  Override composite
       # and verdict so an undigestible protein is always "Poor".
-      if (component_scores[["S_count"]] == 0 && component_scores[["S_coverage"]] == 0) {
+      if (component_scores[["S_count"]] == 0 &&
+            component_scores[["S_coverage"]] == 0) {
         composite_score <- 0
       }
 
@@ -466,11 +501,15 @@ score_peptides <- function(digest_result,
       )
 
       if (isTRUE(normalized_include_pI)) {
-        valid_digest <- .extract_valid_digest(protein_digest, normalized_length_range)
+        valid_digest <- .extract_valid_digest(
+          protein_digest, normalized_length_range
+        )
         peptide_pI <- if (nrow(valid_digest) == 0L) {
           numeric(0)
         } else {
-          stats::setNames(calculate_pI(valid_digest$peptide), valid_digest$peptide)
+          stats::setNames(
+            calculate_pI(valid_digest$peptide), valid_digest$peptide
+          )
         }
 
         row_values$pI <- list(peptide_pI)

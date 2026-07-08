@@ -43,7 +43,11 @@
     ifelse(
       next_residues %in% c("D", "E"),
       "acidic_p1_prime",
-      ifelse(next_residues %in% c("K", "R"), "adjacent_basic_residues", "default_trypsin_site")
+      ifelse(
+        next_residues %in% c("K", "R"),
+        "adjacent_basic_residues",
+        "default_trypsin_site"
+      )
     )
   )
   flanking_context <- vapply(
@@ -135,7 +139,10 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 
   if (length(normalized_input) != 1L) {
     .abort(
-      "{.arg sequence} must resolve to exactly one protein for cleavage-site annotation.",
+      paste0(
+        "{.arg sequence} must resolve to exactly one protein ",
+        "for cleavage-site annotation."
+      ),
       class = "pepvet_error_invalid_input"
     )
   }
@@ -145,8 +152,14 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
   if (!.supports_cleavage_efficiency_annotations(normalized_enzyme)) {
     .abort(
       c(
-        "Cleavage-efficiency annotations are currently implemented only for the trypsin family.",
-        "i" = "Supported annotation enzymes: {.val { .cleavage_annotation_trypsin_enzymes}}"
+        paste0(
+          "Cleavage-efficiency annotations are currently implemented only ",
+          "for the trypsin family."
+        ),
+        "i" = paste0(
+          "Supported annotation enzymes: {.val { ",
+          ".cleavage_annotation_trypsin_enzymes}}"
+        )
       ),
       class = "pepvet_error_unsupported_cleavage_annotation"
     )
@@ -215,19 +228,25 @@ digest_protein <- function(sequence,
   normalized_input <- .read_input(sequence)
   normalized_enzyme <- .normalize_enzyme(enzyme)
   max_missed_cleavages <- .validate_missed_cleavages(missed_cleavages)
-  include_efficiency <- .validate_include_cleavage_efficiency(include_cleavage_efficiency)
+  include_efficiency <- .validate_include_cleavage_efficiency(
+    include_cleavage_efficiency
+  )
   sequence_strings <- as.character(normalized_input)
   protein_ids <- names(normalized_input)
 
   # One batch call for all proteins instead of one Biostrings::AAString()
   # conversion + one S4 cleavageRanges dispatch per protein.
   # Returns an IRangesList with one IRanges element per protein.
-  all_strict_ranges <- cleaver::cleavageRanges(normalized_input, enzym = normalized_enzyme)
+  all_strict_ranges <- cleaver::cleavageRanges(
+    normalized_input, enzym = normalized_enzyme
+  )
 
   # Compute all digest ranges first so we know the total row count.
   all_digest_ranges <- lapply(
     seq_along(sequence_strings),
-    function(index) .build_digest_ranges(all_strict_ranges[[index]], max_missed_cleavages)
+    function(index) {
+      .build_digest_ranges(all_strict_ranges[[index]], max_missed_cleavages)
+    }
   )
 
   if (!isTRUE(include_efficiency)) {
@@ -282,7 +301,9 @@ digest_protein <- function(sequence,
       n_rows <- length(digest_ranges$start)
       digest_table <- tibble::tibble(
         protein_id       = rep(protein_id, n_rows),
-        peptide          = substring(protein_sequence, digest_ranges$start, digest_ranges$end),
+        peptide          = substring(
+          protein_sequence, digest_ranges$start, digest_ranges$end
+        ),
         start            = digest_ranges$start,
         end              = digest_ranges$end,
         length           = digest_ranges$end - digest_ranges$start + 1L,
@@ -290,7 +311,8 @@ digest_protein <- function(sequence,
       )
 
       if (!.supports_cleavage_efficiency_annotations(normalized_enzyme)) {
-        digest_table$cleavage_efficiency <- rep(NA_character_, nrow(digest_table))
+        digest_table$cleavage_efficiency <-
+          rep(NA_character_, nrow(digest_table))
         return(digest_table)
       }
 

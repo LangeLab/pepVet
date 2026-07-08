@@ -218,7 +218,10 @@ plot_coverage_map <- function(result,
     ) {
       .abort(
         c(
-          "!" = "{.arg cleavage_sites} must be a data.frame from {.fn annotate_cleavage_sites}.",
+          "!" = paste0(
+            "{.arg cleavage_sites} must be a data.frame ",
+            "from {.fn annotate_cleavage_sites}."
+          ),
           "i" = "Required columns: {.code position}, {.code efficiency}."
         ),
         class = "pepvet_error_invalid_cleavage_sites"
@@ -232,7 +235,10 @@ plot_coverage_map <- function(result,
     ) {
       .abort(
         c(
-          "!" = "{.arg domains} must be a data.frame with columns {.code name}, {.code start}, {.code end}.",
+          "!" = paste0(
+            "{.arg domains} must be a data.frame with ",
+            "columns {.code name}, {.code start}, {.code end}."
+          ),
           "i" = "Each row describes one annotated protein domain."
         ),
         class = "pepvet_error_invalid_domains"
@@ -253,7 +259,11 @@ plot_coverage_map <- function(result,
 
   ## Determine MC levels present and build lane coordinates
   has_mc <- "missed_cleavages" %in% names(peps)
-  mc_levels <- if (has_mc) sort(unique(peps$missed_cleavages[!is.na(peps$missed_cleavages)])) else 0L
+  mc_levels <- if (has_mc) {
+    sort(unique(peps$missed_cleavages[!is.na(peps$missed_cleavages)]))
+  } else {
+    0L
+  }
   tick_h <- if (!is.null(cleavage_sites)) 0.11 else 0.0
   lanes <- .lane_y_coords(mc_levels, tick_height = tick_h)
 
@@ -265,7 +275,8 @@ plot_coverage_map <- function(result,
   gap_df <- cs0$gap_df
 
   ## Build fill aesthetic and scale
-  #   For "validity"/"length_class": factor column `fill_cat` to scale_fill_manual
+  #   For "validity"/"length_class": factor column `fill_cat`
+  #   to scale_fill_manual
   #   For "hydrophobicity":          numeric column `fill_val` (GRAVY)
   #                                  to scale_fill_gradientn
   if (color_by == "hydrophobicity") {
@@ -281,8 +292,9 @@ plot_coverage_map <- function(result,
       levels = c("Valid", "Too short", "Too long", "Invalid")
     )
     if (color_by == "validity") {
-      levels(peps$fill_cat)[levels(peps$fill_cat) %in% c("Too short", "Too long")] <-
-        "Invalid"
+      levels(peps$fill_cat)[
+        levels(peps$fill_cat) %in% c("Too short", "Too long")
+      ] <- "Invalid"
     }
   }
 
@@ -354,7 +366,7 @@ plot_coverage_map <- function(result,
     # Each peptide gets a `track` integer (1 = bottom, 2 = above, ...).
     # For MC=0 tryptic digests there are no overlaps so n_tracks == 1.
     # For MC>=1 merged peptides share residues; packing yields 2-4 tracks.
-    # y-bounds are pre-computed into data-frame columns to avoid the closure trap.
+    # y-bounds pre-computed into data-frame columns to avoid closure trap.
     if (nrow(lane_invalid) > 0L) {
       lane_invalid <- .pack_peptides(lane_invalid)
       n_tracks_i <- max(lane_invalid$track)
@@ -385,7 +397,8 @@ plot_coverage_map <- function(result,
     p <- p + ggplot2::annotate("rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = y_mid - 0.07 * lane_h, ymax = y_mid + 0.07 * lane_h,
-      fill = .pepvet_pal$backbone_fill, color = .pepvet_pal$backbone_brd, linewidth = 0.35
+      fill = .pepvet_pal$backbone_fill,
+      color = .pepvet_pal$backbone_brd, linewidth = 0.35
     )
 
     ## Gap overlays (annotate() is eager, safe with loop vars)
@@ -461,7 +474,9 @@ plot_coverage_map <- function(result,
       if (nrow(label_v) > 0L && n_tracks_v <= 4L) {
         p <- p + ggplot2::geom_text(
           data = label_v,
-          ggplot2::aes(x = .data$label_x, y = .data$.y_mid, label = .data$length),
+          ggplot2::aes(
+            x = .data$label_x, y = .data$.y_mid, label = .data$length
+          ),
           size = 2.3, color = "white", fontface = "bold"
         )
       }
@@ -701,7 +716,9 @@ plot_peptide_overlap_map <- function(result,
   normalized_wrap <- as.integer(residues_per_line)
   if (
     normalized_wrap < 1L ||
-      !isTRUE(all.equal(as.numeric(residues_per_line), as.numeric(normalized_wrap)))
+      !isTRUE(all.equal(
+        as.numeric(residues_per_line), as.numeric(normalized_wrap)
+      ))
   ) {
     .abort(
       "{.arg residues_per_line} must be a single positive integer.",
@@ -716,11 +733,12 @@ plot_peptide_overlap_map <- function(result,
   display_id <- .tidy_protein_id(protein_id)
   protein_length <- max(peps$end, na.rm = TRUE)
 
+  mc_arg <- if (is.null(normalized_length_range)) NULL else missed_cleavages
   tile_df <- .build_peptide_overlap_df(
     peps,
     protein_length = protein_length,
     length_range = normalized_length_range,
-    missed_cleavages = if (is.null(normalized_length_range)) NULL else missed_cleavages,
+    missed_cleavages = mc_arg,
     residues_per_line = normalized_wrap
   )
 
@@ -947,7 +965,8 @@ plot_cleavage_map <- function(result,
       "rect",
       xmin = 0.5, xmax = protein_length + 0.5,
       ymin = 0.28, ymax = 0.72,
-      fill = .pepvet_pal$cleavage_bg, color = .pepvet_pal$protein_brd, linewidth = 0.4
+      fill = .pepvet_pal$cleavage_bg,
+      color = .pepvet_pal$protein_brd, linewidth = 0.4
     ) +
     # Fragment blocks
     ggplot2::geom_rect(
@@ -1039,7 +1058,10 @@ plot_cleavage_map <- function(result,
     ggplot2::labs(
       title = auto_title,
       subtitle = sprintf(
-        "%d cleavage sites  \u00b7  %d / %d valid fragments  \u00b7  protein length %d aa",
+        paste0(
+          "%d cleavage sites  \u00b7  %d / %d valid fragments",
+          "  \u00b7  protein length %d aa"
+        ),
         n_sites, n_valid, n_total, protein_length
       ),
       caption = if (!has_efficiency) {
@@ -1177,7 +1199,9 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       colour = .pepvet_pal$good, fontface = "italic", alpha = 0.6) +
     # Threshold lines
     ggplot2::geom_vline(
-      xintercept = c(.get_param("verdict_moderate"), .get_param("verdict_good")),
+      xintercept = c(
+        .get_param("verdict_moderate"), .get_param("verdict_good")
+      ),
       linetype = "dashed", colour = .pepvet_pal$text_axis_title,
       linewidth = 0.5) +
     # CI ribbon
@@ -1250,17 +1274,27 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       ggplot2::labs(
         title = auto_title,
         subtitle = sprintf(
-          "%.0f%% of proteins have <5%% verdict instability  |  Median = %.1f%%  |  %d proteins",
+          paste0(
+            "%.0f%% of proteins have <5%% verdict instability",
+            "  |  Median = %.1f%%  |  %d proteins"
+          ),
           pct_stable, median_inst * 100, n_prot
         ),
-        x = "Verdict instability (fraction of iterations where verdict changed)",
+        x = paste0(
+          "Verdict instability (fraction of iterations ",
+          "where verdict changed)"
+        ),
         y = "Count"
       ) +
       .pepvet_theme()
   } else {
     enz_means <- tapply(pp$verdict_instability, pp$enzyme, mean, na.rm = TRUE)
-    enz_medians <- tapply(pp$verdict_instability, pp$enzyme, stats::median, na.rm = TRUE)
-    enz_n <- tapply(pp$verdict_instability, pp$enzyme, function(v) sum(!is.na(v)))
+    enz_medians <- tapply(
+      pp$verdict_instability, pp$enzyme, stats::median, na.rm = TRUE
+    )
+    enz_n <- tapply(
+      pp$verdict_instability, pp$enzyme, function(v) sum(!is.na(v))
+    )
 
     enz_order <- names(sort(enz_means))
     pp$enzyme <- factor(pp$enzyme, levels = enz_order)
@@ -1306,10 +1340,16 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       ggplot2::labs(
         title = auto_title,
         subtitle = sprintf(
-          "%.0f%% of protein-enzyme pairs have <5%% verdict instability  |  %d proteins  |  %d enzymes",
+          paste0(
+            "%.0f%% of protein-enzyme pairs have <5%% verdict instability",
+            "  |  %d proteins  |  %d enzymes"
+          ),
           pct_stable, n_prot, length(enz_means)
         ),
-        x = "Verdict instability (fraction of iterations where verdict changed)",
+        x = paste0(
+          "Verdict instability (fraction of iterations ",
+          "where verdict changed)"
+        ),
         y = "Count"
       ) +
       .pepvet_theme() +

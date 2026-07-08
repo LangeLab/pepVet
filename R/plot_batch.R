@@ -104,7 +104,8 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ) +
     ggplot2::annotate(
       "rect",
-      xmin = -0.01, xmax = .get_param("verdict_moderate"), ymin = -Inf, ymax = Inf,
+      xmin = -0.01, xmax = .get_param("verdict_moderate"),
+      ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$zone_poor, alpha = 0.35
     ) +
     ggplot2::geom_histogram(
@@ -130,7 +131,8 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ) +
     ggplot2::annotate(
       "text",
-      x = (.get_param("verdict_good") + 1.0) / 2, y = Inf, hjust = 0.5, vjust = 1.7,
+      x = (.get_param("verdict_good") + 1.0) / 2,
+      y = Inf, hjust = 0.5, vjust = 1.7,
       label = sprintf("Good\n%d%%", pct_good),
       size = 3.2,
       fontface = "bold",
@@ -243,7 +245,10 @@ plot_proteome_overview <- function(batch, title = NULL) {
     ggplot2::scale_color_manual(values = comp_colors, guide = "none") +
     ggplot2::scale_x_continuous(
       limits = c(0, 1.0),
-      breaks = c(0, .get_param("verdict_moderate"), .get_param("verdict_good"), 1.0),
+      breaks = c(
+        0, .get_param("verdict_moderate"),
+        .get_param("verdict_good"), 1.0
+      ),
       labels = c(
         "0",
         format(.get_param("verdict_moderate")),
@@ -409,11 +414,13 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #'   showing the full distribution of composite scores.  An IQR boxplot is
 #'   overlaid on each violin.  Violin fill color reflects the enzyme's median
 #'   verdict.
-#' - **(C) Component heatmap:** median component scores in an enzyme-by-component
+#' - **(C) Component heatmap:** median component scores in an
+#'   enzyme-by-component
 #'   grid, filled by the verdict gradient (red to amber to green). Reveals which
 #'   digest quality dimension differentiates the enzymes.
 #' - **(D) Per-protein win rate:** bar chart showing the proportion of proteins
-#'   for which each enzyme achieves the highest composite score. The starred enzyme
+#'   for which each enzyme achieves the highest composite score. The starred
+#'   enzyme
 #'   matches the recommendation in panel A.
 #'
 #' @param comparison A `pepvet_batch_comparison` tibble returned by
@@ -452,14 +459,19 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   if (length(missing_cols) > 0L) {
     .abort(
       c(
-        "!" = "{.arg comparison} must be a tibble from {.fn batch_compare_enzymes}.",
+        "!" = paste0(
+          "{.arg comparison} must be a tibble from {.fn batch_compare_enzymes}."
+        ),
         "i" = "Missing columns: {.val {missing_cols}}."
       ),
       class = "pepvet_error_invalid_batch"
     )
   }
 
-  .validate_nonempty(comparison, "comparison", class = "pepvet_error_invalid_batch")
+  .validate_nonempty(
+    comparison, "comparison",
+    class = "pepvet_error_invalid_batch"
+  )
 
   comparison$composite_score <- as.numeric(comparison$composite_score)
   comparison$enzyme <- as.character(comparison$enzyme)
@@ -633,7 +645,10 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::scale_fill_manual(values = violin_fills, guide = "none") +
     ggplot2::scale_x_continuous(
       limits = c(0, 1),
-      breaks = c(0, .get_param("verdict_moderate"), .get_param("verdict_good"), 1.0),
+      breaks = c(
+        0, .get_param("verdict_moderate"),
+        .get_param("verdict_good"), 1.0
+      ),
       labels = c(
         "0",
         format(.get_param("verdict_moderate")),
@@ -645,7 +660,10 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::labs(
       title = "Score Distributions",
       subtitle = sprintf(
-        "Violin + IQR box  \u00b7  Fill = median verdict  \u00b7  Dashed lines = %s / %s",
+        paste0(
+          "Violin + IQR box  \u00b7  Fill = median verdict  ",
+          "\u00b7  Dashed lines = %s / %s"
+        ),
         .get_param("verdict_moderate"), .get_param("verdict_good")
       ),
       x = "Composite score",
@@ -678,7 +696,10 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     )
   }))
   tile_rows$enzyme <- factor(tile_rows$enzyme, levels = rev(enz_order))
-  tile_rows$component <- factor(tile_rows$component, levels = comp_labels[comp_cols])
+  tile_rows$component <- factor(
+    tile_rows$component,
+    levels = comp_labels[comp_cols]
+  )
 
   verdict_grad <- grDevices::colorRampPalette(
     c(.pepvet_pal$poor, .pepvet_pal$heatmap_mid, .pepvet_pal$good)
@@ -698,7 +719,10 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::scale_fill_gradientn(
       colors = verdict_grad,
       limits = c(0, 1),
-      breaks = c(0, .get_param("verdict_moderate"), .get_param("verdict_good"), 1.0),
+      breaks = c(
+        0, .get_param("verdict_moderate"),
+        .get_param("verdict_good"), 1.0
+      ),
       labels = c(
         "0",
         format(.get_param("verdict_moderate")),
@@ -743,7 +767,10 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     sub$enzyme[which.max(sub$composite_score)]
   }, character(1L))
 
-  win_counts <- tabulate(factor(best_for, levels = enz_order), nbins = length(enz_order))
+  win_counts <- tabulate(
+    factor(best_for, levels = enz_order),
+    nbins = length(enz_order)
+  )
   win_df <- data.frame(
     enzyme = enz_order,
     n_wins = win_counts,
@@ -757,7 +784,10 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     win_df,
     ggplot2::aes(y = enzyme, x = pct_wins, fill = is_best)
   ) +
-    ggplot2::geom_col(alpha = .get_param("scatter_alpha"), width = 0.65, color = NA) +
+    ggplot2::geom_col(
+      alpha = .get_param("scatter_alpha"),
+      width = 0.65, color = NA
+    ) +
     ggplot2::geom_text(
       ggplot2::aes(
         x     = pct_wins + 0.8,

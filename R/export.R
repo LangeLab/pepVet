@@ -110,7 +110,10 @@ export_peptide_list <- function(peptides,
 .validate_export_peptides <- function(peptides) {
   if (!inherits(peptides, "data.frame")) {
     .abort(
-      "{.arg peptides} must be a peptide tibble from {.fn digest_protein} or {.fn evaluate_digest}{.code $peptides}.",
+      paste0(
+        "{.arg peptides} must be a peptide tibble from ",
+        "{.fn digest_protein} or {.fn evaluate_digest}{.code $peptides}."
+      ),
       class = "pepvet_error_invalid_export_input"
     )
   }
@@ -162,7 +165,10 @@ export_peptide_list <- function(peptides,
       any(charges != as.integer(charges))
   ) {
     .abort(
-      "{.arg charges} must be a non-empty integer vector of positive charge states (e.g., {.code 2:3}).",
+      paste0(
+        "{.arg charges} must be a non-empty integer vector ",
+        "of positive charge states (e.g., {.code 2:3})."
+      ),
       class = "pepvet_error_invalid_charges"
     )
   }

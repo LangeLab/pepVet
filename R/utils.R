@@ -212,8 +212,15 @@ NULL
   m / rowSums(m)
 }
 
-.abort <- function(message, ..., class = NULL, call = rlang::caller_env()) {
-  cli::cli_abort(message, ..., class = c(class, "pepvet_error"), call = call, .envir = call)
+.abort <- function(message, ...,
+                   class = NULL,
+                   call = rlang::caller_env()) {
+  cli::cli_abort(
+    message, ...,
+    class = c(class, "pepvet_error"),
+    call = call,
+    .envir = call
+  )
 }
 
 .bind_rows <- function(df_list) {
@@ -224,18 +231,26 @@ NULL
 }
 
 .validate_gravy_range <- function(gravy_range) {
-  if (!is.numeric(gravy_range) || length(gravy_range) != 2L || anyNA(gravy_range)) {
+  if (!is.numeric(gravy_range) ||
+      length(gravy_range) != 2L || anyNA(gravy_range)) {
     .abort(
-      "{.arg gravy_range} must be a numeric vector of length 2 with no missing values.",
+      paste0(
+        "{.arg gravy_range} must be a numeric vector ",
+        "of length 2 with no missing values."
+      ),
       class = "pepvet_error_invalid_gravy_range"
     )
   }
 
   normalized_range <- as.numeric(gravy_range)
 
-  if (!all(is.finite(normalized_range)) || normalized_range[[1]] > normalized_range[[2]]) {
+  if (!all(is.finite(normalized_range)) ||
+      normalized_range[[1]] > normalized_range[[2]]) {
     .abort(
-      "{.arg gravy_range} must contain finite values in ascending order.",
+      paste0(
+        "{.arg gravy_range} must contain finite ",
+        "values in ascending order."
+      ),
       class = "pepvet_error_invalid_gravy_range"
     )
   }
@@ -244,9 +259,13 @@ NULL
 }
 
 .validate_length_range <- function(length_range) {
-  if (!is.numeric(length_range) || length(length_range) != 2L || anyNA(length_range)) {
+  if (!is.numeric(length_range) ||
+      length(length_range) != 2L || anyNA(length_range)) {
     .abort(
-      "{.arg length_range} must be a numeric vector of length 2 with no missing values.",
+      paste0(
+        "{.arg length_range} must be a numeric vector ",
+        "of length 2 with no missing values."
+      ),
       class = "pepvet_error_invalid_length_range"
     )
   }
@@ -302,7 +321,9 @@ NULL
     )
   }
 
-  normalized_weights <- as.numeric(weights[match(expected_names, observed_names)])
+  normalized_weights <- as.numeric(
+    weights[match(expected_names, observed_names)]
+  )
   names(normalized_weights) <- expected_names
   normalized_weights
 }
@@ -322,19 +343,30 @@ NULL
   if (!length(weights) %in% expected_lengths) {
     expected_lengths_str <- paste(expected_lengths, collapse = " or ")
     .abort(
-      "{.arg weights} must contain exactly {expected_lengths_str} value(s) in this scoring mode.",
+      paste0(
+        "{.arg weights} must contain exactly {expected_lengths_str} ",
+        "value(s) in this scoring mode."
+      ),
       class = "pepvet_error_invalid_weights"
     )
   }
 
   if (!isTRUE(has_proteome) && length(weights) == 6L) {
-    normalized_weights <- .normalize_weights(weights, .default_scoring_weights$proteome_aware)
+    normalized_weights <- .normalize_weights(
+      weights, .default_scoring_weights$proteome_aware
+    )
 
     if (normalized_weights[["S_unique"]] > 0) {
       .abort(
         c(
-          "{.arg weights} assigns a non-zero value to {.field S_unique} but no {.arg proteome} was supplied.",
-          "i" = "Provide a proteome digest for uniqueness scoring or set S_unique to 0."
+          paste0(
+            "{.arg weights} assigns a non-zero value to {.field S_unique} ",
+            "but no {.arg proteome} was supplied."
+          ),
+          "i" = paste0(
+            "Provide a proteome digest for uniqueness ",
+            "scoring or set S_unique to 0."
+          )
         ),
         class = "pepvet_error_invalid_weights"
       )
@@ -445,7 +477,9 @@ pepvet_preset <- function(type = "standard") {
   preset <- .pepvet_presets[[normalized_type]]
   preset$gravy_range <- .validate_gravy_range(preset$gravy_range)
   preset$length_range <- .validate_length_range(preset$length_range)
-  preset$weights <- .normalize_weights(preset$weights, .default_scoring_weights$proteome_aware)
+  preset$weights <- .normalize_weights(
+    preset$weights, .default_scoring_weights$proteome_aware
+  )
   preset$include_pI <- .validate_include_pI(preset$include_pI)
   preset
 }
@@ -455,7 +489,8 @@ pepvet_preset <- function(type = "standard") {
 }
 
 .same_named_weights <- function(x, y, tolerance = 1e-8) {
-  identical(names(x), names(y)) && .same_numeric_values(x, y, tolerance = tolerance)
+  identical(names(x), names(y)) &&
+    .same_numeric_values(x, y, tolerance = tolerance)
 }
 
 .identify_preset_used <- function(gravy_range,
@@ -477,7 +512,9 @@ pepvet_preset <- function(type = "standard") {
       }
 
       identical(.validate_length_range(preset$length_range), length_range) &&
-        .same_numeric_values(.validate_gravy_range(preset$gravy_range), gravy_range) &&
+        .same_numeric_values(
+          .validate_gravy_range(preset$gravy_range), gravy_range
+        ) &&
         .same_named_weights(effective_weights, weights) &&
         identical(.validate_include_pI(preset$include_pI), include_pI)
     },
@@ -528,7 +565,10 @@ pepvet_preset <- function(type = "standard") {
   if (!enzyme %in% .supported_digest_enzymes) {
     .abort(
       c(
-        "{.arg enzyme} must be one of pepVet's supported cleaver-compatible enzyme names.",
+        paste0(
+          "{.arg enzyme} must be one of pepVet's supported ",
+          "cleaver-compatible enzyme names."
+        ),
         "i" = "Supported enzymes: {.val { .supported_digest_enzymes}}"
       ),
       class = "pepvet_error_invalid_enzyme"
@@ -572,7 +612,10 @@ pepvet_preset <- function(type = "standard") {
       is.na(include_cleavage_efficiency)
   ) {
     .abort(
-      "{.arg include_cleavage_efficiency} must be a single, non-missing logical value.",
+      paste0(
+        "{.arg include_cleavage_efficiency} must be a single, ",
+        "non-missing logical value."
+      ),
       class = "pepvet_error_invalid_include_cleavage_efficiency"
     )
   }
@@ -625,7 +668,10 @@ pepvet_preset <- function(type = "standard") {
 
   if (length(invalid_residues) > 0L) {
     .abort(
-      "Sequence {.val {sequence_name}} contains unsupported amino acid code(s): {.val {invalid_residues}}.",
+      paste0(
+        "Sequence {.val {sequence_name}} contains unsupported ",
+        "amino acid code(s): {.val {invalid_residues}}."
+      ),
       class = "pepvet_error_invalid_sequence"
     )
   }
@@ -800,13 +846,20 @@ pepvet_preset <- function(type = "standard") {
 .calculate_gravy_vec <- function(peptide_vector) {
   hydro_lookup <- .get_hydro_lookup()
   res_lists <- strsplit(peptide_vector, "", fixed = TRUE)
-  vapply(res_lists, function(res) mean(hydro_lookup[res], na.rm = TRUE), numeric(1))
+  vapply(
+    res_lists,
+    function(res) mean(hydro_lookup[res], na.rm = TRUE),
+    numeric(1)
+  )
 }
 
 .normalize_peptide_sequences <- function(sequence, arg_name = "sequence") {
   if (!is.character(sequence) || length(sequence) == 0L) {
     .abort(
-      "{.arg {arg_name}} must be a non-empty character vector of peptide sequences.",
+      paste0(
+        "{.arg {arg_name}} must be a non-empty character vector ",
+        "of peptide sequences."
+      ),
       class = "pepvet_error_invalid_sequence"
     )
   }
@@ -867,7 +920,8 @@ pepvet_preset <- function(type = "standard") {
 }
 
 .validate_include_pI <- function(include_pI) {
-  if (!is.logical(include_pI) || length(include_pI) != 1L || is.na(include_pI)) {
+  if (!is.logical(include_pI) ||
+      length(include_pI) != 1L || is.na(include_pI)) {
     .abort(
       "{.arg include_pI} must be a single, non-missing logical value.",
       class = "pepvet_error_invalid_include_pi"
@@ -877,7 +931,8 @@ pepvet_preset <- function(type = "standard") {
   include_pI
 }
 
-# Internal: sequences already uppercase 20-standard-AA strings (no re-validation).
+# Internal: sequences already uppercase 20-standard-AA strings
+# (no re-validation).
 # Counts each of the 7 ionizable residues per peptide using vectorized gsub
 # (7 gsub passes over the whole vector) instead of strsplit + a for-loop over
 # every sequence.  This is >20x faster for large peptide sets.
@@ -912,12 +967,14 @@ pepvet_preset <- function(type = "standard") {
 
   for (residue in c("H", "K", "R")) {
     net_charge <- net_charge +
-      composition_matrix[, residue] / (1 + 10^(pH - .ionizable_side_chain_pka[[residue]]))
+      composition_matrix[, residue] /
+        (1 + 10^(pH - .ionizable_side_chain_pka[[residue]]))
   }
 
   for (residue in c("C", "D", "E", "Y")) {
     net_charge <- net_charge -
-      composition_matrix[, residue] / (1 + 10^(.ionizable_side_chain_pka[[residue]] - pH))
+      composition_matrix[, residue] /
+        (1 + 10^(.ionizable_side_chain_pka[[residue]] - pH))
   }
 
   net_charge
@@ -1003,13 +1060,17 @@ calculate_pI <- function(sequence) {
 
   if (length(normalized_sequences) > .get_param("scatter_max_pts")) {
     cli::cli_inform(
-      "Calculating peptide pI values for {length(normalized_sequences)} sequences."
+      paste0(
+        "Calculating peptide pI values for ",
+        "{length(normalized_sequences)} sequences."
+      )
     )
   }
 
   # Use the internal helper to avoid re-normalizing sequences that were just
   # validated above.
-  composition_matrix <- .ionizable_composition_matrix_internal(normalized_sequences)
+  composition_matrix <-
+    .ionizable_composition_matrix_internal(normalized_sequences)
   lower_bound <- rep(0, length(normalized_sequences))
   upper_bound <- rep(14, length(normalized_sequences))
 

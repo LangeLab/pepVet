@@ -102,8 +102,12 @@ evaluate_digest <- function(sequence,
   score_index <- match(scores$protein_id, cleavage_counts$protein_id)
   scores <- tibble::add_column(
     scores,
-    n_high_efficiency_sites = cleavage_counts$n_high_efficiency_sites[score_index],
-    n_low_efficiency_sites = cleavage_counts$n_low_efficiency_sites[score_index],
+    n_high_efficiency_sites = cleavage_counts$n_high_efficiency_sites[
+      score_index
+    ],
+    n_low_efficiency_sites = cleavage_counts$n_low_efficiency_sites[
+      score_index
+    ],
     .after = "preset_used"
   )
 
@@ -162,7 +166,8 @@ compare_digests <- function(sequence,
                             ...) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
     .abort(
-      "{.arg enzymes} must be a non-empty character vector with no missing values.",
+      paste0("{.arg enzymes} must be a non-empty character vector ",
+        "with no missing values."),
       class = "pepvet_error_invalid_enzymes"
     )
   }
@@ -171,7 +176,8 @@ compare_digests <- function(sequence,
 
   if (length(normalized_input) != 1L) {
     .abort(
-      "{.arg sequence} must resolve to exactly one protein for enzyme comparison.",
+      paste0("{.arg sequence} must resolve to exactly one protein ",
+        "for enzyme comparison."),
       class = "pepvet_error_invalid_input"
     )
   }
@@ -250,8 +256,10 @@ recommend_enzyme <- function(sequence,
 #'
 #' `batch_evaluate()` calls [evaluate_digest()] independently for each protein
 #' in `sequences` and returns a flat tibble with one row per protein. Columns
-#' include `protein_id`, `protein_length`, all component scores, `composite_score`,
-#' `verdict`, `n_peptides`, `n_valid_peptides`, `median_peptide_length`, and four
+#' include `protein_id`, `protein_length`, all component scores,
+#'   `composite_score`,
+#' `verdict`, `n_peptides`, `n_valid_peptides`,
+#'   `median_peptide_length`, and four
 #' sequence-level difficulty flags. Pass the result to [summarize_batch()] for
 #' aggregate statistics or to [triage_proteins()] for action recommendations.
 #'
@@ -263,7 +271,8 @@ recommend_enzyme <- function(sequence,
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param include_cleavage_efficiency Logical flag passed to
 #'   [evaluate_digest()] and ultimately [digest_protein()]. Defaults to `FALSE`.
-#'   When `TRUE`, each per-protein peptide table includes a `cleavage_efficiency`
+#'   When `TRUE`, each per-protein peptide table includes a
+#'   `cleavage_efficiency`
 #'   column (does not affect the flat batch tibble columns).
 #' @param proteome Optional proteome digest tibble passed to [score_peptides()]
 #'   for every protein evaluation. When `NULL` (default), no uniqueness
@@ -341,7 +350,8 @@ batch_evaluate <- function(sequences,
     if (any(failed)) {
       n_failed <- sum(failed)
       cli::cli_warn(
-        "{n_failed} parallel worker{?s} failed. Retrying failed chunk{?s} sequentially.",
+        paste0("{n_failed} parallel worker{?s} failed. Retrying failed ",
+          "chunk{?s} sequentially."),
         class = "pepvet_warning_parallel_retry"
       )
       for (i in which(failed)) {
@@ -450,7 +460,8 @@ batch_evaluate <- function(sequences,
   if (length(missing_cols) > 0L) {
     .abort(
       c(
-        "{.arg batch_result} is missing required columns from {.fn batch_evaluate}.",
+        paste0("{.arg batch_result} is missing required columns from ",
+          "{.fn batch_evaluate}."),
         "i" = "Missing: {.val {missing_cols}}"
       ),
       class = "pepvet_error_invalid_batch_result"
@@ -474,7 +485,8 @@ batch_evaluate <- function(sequences,
   valid_mask <-
     all_peptides$length >= .get_param("length_lo") &
       all_peptides$length <= .get_param("length_hi")
-  n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask], nbins = length(protein_ids)))
+  n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask],
+    nbins = length(protein_ids)))
 
   # flags derivable from counts
   flag_short_protein <- protein_length < 100L
@@ -485,7 +497,8 @@ batch_evaluate <- function(sequences,
   if (any(valid_mask)) {
     gravy_vals <- .calculate_gravy_vec(all_peptides$peptide[valid_mask])
     median_gravy <- tapply(gravy_vals, pid_factor[valid_mask], stats::median)
-    flag_hydrophobic[match(names(median_gravy), protein_ids)] <- median_gravy > 0.6
+    flag_hydrophobic[match(names(median_gravy), protein_ids)] <-
+      median_gravy > 0.6
   }
 
   # flag_low_complexity: dominant AA > 50% in reconstructed MC=0 sequence.
@@ -759,7 +772,9 @@ batch_compare_enzymes <- function(
 
 #' @export
 print.pepvet_batch_comparison <- function(x, ...) {
-  has_summary_shape <- all(c("enzyme", "composite_score", "verdict") %in% names(x))
+  has_summary_shape <- all(
+    c("enzyme", "composite_score", "verdict") %in% names(x)
+  )
 
   if (!has_summary_shape) {
     plain_x <- x
@@ -874,7 +889,8 @@ triage_proteins <- function(batch_result) {
       flat$flag_no_valid_peptides | flat$flag_low_complexity,
       "skip",
       ifelse(
-        flat$flag_hydrophobic | flat$flag_short_protein | flat$verdict == "Poor",
+        flat$flag_hydrophobic | flat$flag_short_protein |
+          flat$verdict == "Poor",
         "try_other_enzyme",
         ifelse(
           any_component_low,
@@ -941,10 +957,13 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       .sensitivity_batch(x, nu, n_iter, chunk_size, importance)
     }
   } else if (is.list(x) && "scores" %in% names(x)) {
-    .sensitivity_single(x$scores, x$params, nu, n_iter, importance, corner_cases)
+    .sensitivity_single(
+      x$scores, x$params, nu, n_iter, importance, corner_cases
+    )
   } else {
     .abort(
-      "{.arg x} must be an {.fn evaluate_digest}, {.fn compare_digests}, or {.fn batch_evaluate} result.",
+      paste0("{.arg x} must be an {.fn evaluate_digest}, ",
+        "{.fn compare_digests}, or {.fn batch_evaluate} result."),
       class = "pepvet_error_invalid_input"
     )
   }
@@ -1124,15 +1143,18 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     )
 
     # Compare each iteration verdict with the default verdict using full 3-level
-    # classification (not just Good vs not-Good like the previous single-threshold check).
+    # classification (not just Good vs not-Good like the previous
+    # single-threshold check).
     iter_good <- C_chunk >= .get_param("verdict_good")
     iter_mod  <- C_chunk >= .get_param("verdict_moderate")
-    iter_verdict <- ifelse(iter_good, "Good", ifelse(iter_mod, "Moderate", "Poor"))
+    iter_verdict <- ifelse(iter_good, "Good",
+      ifelse(iter_mod, "Moderate", "Poor"))
     same <- iter_verdict == def_verdict
     instability <- 1 - rowMeans(same, na.rm = TRUE)
 
     # Empirical quantiles (one pass per row for both tails)
-    ci_mat <- apply(C_chunk, 1L, stats::quantile, probs = c(0.025, 0.975), na.rm = TRUE)
+    ci_mat <- apply(C_chunk, 1L, stats::quantile,
+      probs = c(0.025, 0.975), na.rm = TRUE)
     ci_lo <- ci_mat[1L, ]
     ci_hi <- ci_mat[2L, ]
     comp_mean <- rowMeans(C_chunk, na.rm = TRUE)

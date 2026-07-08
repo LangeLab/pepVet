@@ -121,7 +121,7 @@ plot_length_distribution <- function(
     color = unname(class_colors[c("Too short", "Valid", "Too long")]),
     stringsAsFactors = FALSE
   )
-  # Drop labels for empty categories
+  ## Drop labels for empty categories
   cat_labels <- cat_labels[
     c(pct_short > 0, TRUE, pct_long > 0), ,
     drop = FALSE
@@ -150,14 +150,14 @@ plot_length_distribution <- function(
     x = .data$length,
     fill = .data$length_class
   )) +
-    # Valid-range background shading
+    ## Valid-range background shading
     ggplot2::annotate(
       "rect",
       xmin = length_lo - 0.5, xmax = length_hi + 0.5,
       ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.55
     ) +
-    # Boundary lines at valid range edges
+    ## Boundary lines at valid range edges
     ggplot2::geom_vline(
       xintercept = length_lo - 0.5,
       color = .pepvet_pal$good, linewidth = 0.6, linetype = "dashed"
@@ -166,7 +166,7 @@ plot_length_distribution <- function(
       xintercept = length_hi + 0.5,
       color = .pepvet_pal$poor, linewidth = 0.6, linetype = "dashed"
     ) +
-    # Histogram bars
+    ## Histogram bars
     ggplot2::geom_histogram(
       binwidth = .get_param("length_binwidth"),
       color = "white",
@@ -189,7 +189,7 @@ plot_length_distribution <- function(
         )
       }
     } +
-    # Per-category annotation labels
+    ## Per-category annotation labels
     ggplot2::geom_text(
       data = cat_labels,
       ggplot2::aes(
@@ -203,7 +203,7 @@ plot_length_distribution <- function(
       fontface = "bold",
       inherit.aes = FALSE
     ) +
-    # Scales
+    ## Scales
     ggplot2::scale_fill_manual(
       values = class_colors,
       name = NULL,
@@ -242,7 +242,7 @@ plot_length_distribution <- function(
   p
 }
 
-# Private helper: detect a named list of evaluate_digest() results
+## Private helper: detect a named list of evaluate_digest() results
 .is_named_results_list <- function(x) {
   is.list(x) && !is.data.frame(x) &&
     length(x) >= 1L &&
@@ -256,7 +256,7 @@ plot_length_distribution <- function(
     ))
 }
 
-# Private helper: extract auto-label for a single evaluate_digest result
+## Private helper: extract auto-label for a single evaluate_digest result
 .result_label <- function(r) {
   paste0(
     .tidy_protein_id(r$params$protein_ids[[1L]]),
@@ -264,7 +264,7 @@ plot_length_distribution <- function(
   )
 }
 
-# Private: multi-input length distribution (faceted)
+## Private: multi-input length distribution (faceted)
 .plot_length_distribution_multi <- function(
   results, length_range, show_density, title
 ) {
@@ -289,7 +289,7 @@ plot_length_distribution <- function(
   })
   peps <- .bind_rows(peps_list)
 
-  # Use the first result's range as global default for shading
+  ## Use the first result's range as global default for shading
   g_lo <- peps_list[[1L]]$length_range_lo[[1L]]
   g_hi <- peps_list[[1L]]$length_range_hi[[1L]]
 
@@ -460,7 +460,7 @@ plot_gravy_landscape <- function(
     )
   }
 
-  # Compute GRAVY if not already present
+  ## Compute GRAVY if not already present
   if (!"gravy" %in% names(peps)) {
     if (!"peptide" %in% names(peps)) {
       .abort(
@@ -549,14 +549,14 @@ plot_gravy_landscape <- function(
       color = .data$class, fill = .data$class
     )
   ) +
-    # Valid region background
+    ## Valid region background
     ggplot2::annotate(
       "rect",
       xmin = length_lo - 0.5, xmax = length_hi + 0.5,
       ymin = gravy_lo, ymax = gravy_hi,
       fill = .pepvet_pal$shade, alpha = 0.55, color = NA
     ) +
-    # Valid region dashed border
+    ## Valid region dashed border
     ggplot2::annotate(
       "rect",
       xmin = length_lo - 0.5, xmax = length_hi + 0.5,
@@ -564,7 +564,7 @@ plot_gravy_landscape <- function(
       fill = NA, color = .pepvet_pal$good,
       linewidth = 0.45, linetype = "dashed"
     ) +
-    # Reference lines at valid boundaries
+    ## Reference lines at valid boundaries
     ggplot2::geom_hline(
       yintercept = c(gravy_lo, gravy_hi),
       color = .pepvet_pal$separator, linewidth = 0.3, linetype = "dotted"
@@ -573,7 +573,7 @@ plot_gravy_landscape <- function(
       xintercept = c(length_lo - 0.5, length_hi + 0.5),
       color = .pepvet_pal$separator, linewidth = 0.3, linetype = "dotted"
     ) +
-    # Points (jittered horizontally to avoid over-plotting at integer lengths)
+    ## Points (jittered horizontally to avoid over-plotting at integer lengths)
     ggplot2::geom_jitter(
       shape  = 21,
       size   = 2.2,
@@ -694,7 +694,7 @@ plot_gravy_landscape <- function(
     )
 }
 
-# Private: multi-input GRAVY landscape (faceted, no marginals)
+## Private: multi-input GRAVY landscape (faceted, no marginals)
 .plot_gravy_landscape_multi <- function(
   results, length_range, gravy_range, title
 ) {
@@ -870,7 +870,7 @@ plot_pI_distribution <- function(
       !is.data.frame(result) &&
       all(c("peptides", "params") %in% names(result))
   ) {
-    # evaluate_digest() list: compute pI for valid peptides
+    ## evaluate_digest() list: compute pI for valid peptides
     peps <- result$peptides
     lr <- result$params$length_range %||% c(7L, 25L)
   valid <- peps[peps$length >= lr[[1L]] &
@@ -884,7 +884,7 @@ plot_pI_distribution <- function(
     as.numeric(calculate_pI(valid$peptide))
   } else if (is.data.frame(result)) {
     if ("pI" %in% names(result) && is.list(result$pI)) {
-      # score_peptides(include_pI = TRUE): unlist the list column
+      ## score_peptides(include_pI = TRUE): unlist the list column
       vals <- unlist(result$pI, use.names = FALSE)
       as.numeric(vals[!is.na(vals)])
     } else if ("pI" %in% names(result)) {
@@ -943,8 +943,8 @@ plot_pI_distribution <- function(
   bin_counts <- as.integer(table(pI_bin))
   n_bins <- length(bin_labels)
 
-  # Mid-x for each label: for <lo and >hi, place 1 unit outside;
-  #   for intervals, mid-point
+  ## Mid-x for each label: for <lo and >hi, place 1 unit outside;
+  ##   for intervals, mid-point
   bin_mids <- numeric(n_bins)
   bin_mids[[1L]] <- lo_break - 1
   for (i in seq_len(length(breaks) - 1L)) {
@@ -961,8 +961,8 @@ plot_pI_distribution <- function(
 
   ## Colours: viridis-based sequential across bins
   n_colours <- n_bins
-  # Use a hand-picked sequential palette that works with the pepVet brand
-  # Acidic (low pI) to cool blues; basic (high pI) to warm orange-reds
+  ## Use a hand-picked sequential palette that works with the pepVet brand
+  ## Acidic (low pI) to cool blues; basic (high pI) to warm orange-reds
   viridis_cols <- grDevices::hcl.colors(
     n_colours, palette = "viridis", alpha = 0.85
   )
@@ -1008,7 +1008,7 @@ plot_pI_distribution <- function(
       expand = ggplot2::expansion(mult = c(0, 0.12))
     )
 
-  # Optional fraction boundary lines
+  ## Optional fraction boundary lines
   if (isTRUE(show_fraction_lines)) {
     interior_breaks <- breaks[-c(1L, length(breaks))]
     if (length(interior_breaks) > 0L) {
@@ -1021,7 +1021,7 @@ plot_pI_distribution <- function(
     }
   }
 
-  # Per-fraction count annotations (above bars, suppressed for zero-count bins)
+  ## Per-fraction count annotations (above bars, suppressed for zero-count bins)
   ann_nonzero <- ann_df[ann_df$count > 0L, , drop = FALSE]
   if (nrow(ann_nonzero) > 0L) {
     p <- p + ggplot2::geom_text(
@@ -1055,7 +1055,7 @@ plot_pI_distribution <- function(
     )
 }
 
-# Private: extract pI values from a single evaluate_digest result
+## Private: extract pI values from a single evaluate_digest result
 .pI_from_result <- function(r, length_range = c(7L, 25L)) {
   lr <- r$params$length_range %||% length_range
   peps <- r$peptides
@@ -1067,7 +1067,7 @@ plot_pI_distribution <- function(
   as.numeric(calculate_pI(valid$peptide))
 }
 
-# Private: multi-input pI distribution (overlaid density curves)
+## Private: multi-input pI distribution (overlaid density curves)
 .plot_pI_distribution_multi <- function(results, fraction_breaks,
                                         show_fraction_lines, title) {
   rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
@@ -1103,7 +1103,7 @@ plot_pI_distribution <- function(
   x_lo <- min(c(df$pI, lo_break)) - 0.5
   x_hi <- max(c(df$pI, hi_break)) + 0.5
 
-  # Colour palette: one line per protein/enzyme
+  ## Colour palette: one line per protein/enzyme
   n <- length(labels)
   cols <- grDevices::hcl.colors(n, palette = "Dark 2")
   names(cols) <- labels
@@ -1200,12 +1200,12 @@ plot_missed_cleavage_impact <- function(
       class = "pepvet_error_invalid_digest_result"
     )
   }
-  # Auto-name if unnamed
+  ## Auto-name if unnamed
   if (is.null(names(results))) {
     names(results) <- paste0("MC=", seq_along(results) - 1L)
   }
 
-  # Validate each leaf
+  ## Validate each leaf
   for (nm in names(results)) {
     r <- results[[nm]]
     if (!is.list(r) || !"scores" %in% names(r)) {
@@ -1258,7 +1258,7 @@ plot_missed_cleavage_impact <- function(
       stringsAsFactors = FALSE
     )
   })
-  # Add composite as its own group
+  ## Add composite as its own group
   long_rows[[length(long_rows) + 1L]] <- data.frame(
     mc_label = df$mc_label,
     x_idx = df$x_idx,
@@ -1316,7 +1316,7 @@ plot_missed_cleavage_impact <- function(
       group = component
     )
   ) +
-    # Threshold reference lines
+    ## Threshold reference lines
     ggplot2::geom_hline(
       yintercept = .get_param("verdict_moderate"), linetype = "dotted",
       color = .pepvet_pal$moderate, linewidth = 0.5, alpha = 0.7
@@ -1325,7 +1325,7 @@ plot_missed_cleavage_impact <- function(
       yintercept = .get_param("verdict_good"), linetype = "dotted",
       color = .pepvet_pal$good, linewidth = 0.5, alpha = 0.7
     ) +
-    # Component lines
+    ## Component lines
     ggplot2::geom_line(
       data = long_df[!long_df$is_composite, ],
       ggplot2::aes(linewidth = component),
@@ -1335,7 +1335,7 @@ plot_missed_cleavage_impact <- function(
       data = long_df[!long_df$is_composite, ],
       size = 2.0, alpha = 0.80
     ) +
-    # Composite bold line
+    ## Composite bold line
     ggplot2::geom_line(
       data = long_df[long_df$is_composite, ],
       ggplot2::aes(linewidth = component)
@@ -1344,7 +1344,7 @@ plot_missed_cleavage_impact <- function(
       data = long_df[long_df$is_composite, ],
       size = 3.5, shape = 18
     ) +
-    # Best-MC annotation
+    ## Best-MC annotation
     ggplot2::annotate(
       "label",
       x = best_idx,
@@ -1522,7 +1522,7 @@ plot_mz_distribution <- function(
     mz_long$charge_state <- as.character(mz_long$charge_state)
     n_total <- nrow(mz_long)
   } else {
-    # Filter to valid length range, compute m/z per charge state
+    ## Filter to valid length range, compute m/z per charge state
     if (!"peptide" %in% names(peps)) {
       .abort(
         paste0(
@@ -1571,7 +1571,7 @@ plot_mz_distribution <- function(
   )
 
   ## Assign brand colors to charge states
-  # z=+2 = primary brand color; z=+3 = brand_light; z=+4+ = moderate, etc.
+  ## z=+2 = primary brand color; z=+3 = brand_light; z=+4+ = moderate, etc.
   z_color_palette <- c(
     .pepvet_pal$brand,
     .pepvet_pal$brand_light,
@@ -1750,7 +1750,7 @@ plot_mz_distribution <- function(
   p
 }
 
-# Private: multi-input mz distribution (faceted)
+## Private: multi-input mz distribution (faceted)
 .plot_mz_distribution_multi <- function(
   results,
   scan_range,

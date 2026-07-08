@@ -182,12 +182,12 @@ plot_enzyme_comparison <- function(
     long,
     ggplot2::aes(x = .data$value, y = .data$enzyme, fill = .data$score_name)
   ) +
-    # Good-region shading
+    ## Good-region shading
     ggplot2::annotate("rect",
       xmin = .get_param("verdict_good"), xmax = 1.0, ymin = -Inf, ymax = Inf,
       fill = .pepvet_pal$shade, alpha = 0.55
     ) +
-    # Threshold reference lines
+    ## Threshold reference lines
     ggplot2::geom_vline(
       xintercept = c(
         .get_param("verdict_moderate"), .get_param("verdict_good")
@@ -198,7 +198,7 @@ plot_enzyme_comparison <- function(
       position = ggplot2::position_dodge(width = 0.75),
       width = 0.68, alpha = .get_param("scatter_alpha")
     ) +
-    # Composite score: bold dark vertical tick spanning the full enzyme row
+    ## Composite score: bold dark vertical tick spanning the full enzyme row
     ggplot2::geom_segment(
       data = comparison,
       ggplot2::aes(
@@ -210,7 +210,7 @@ plot_enzyme_comparison <- function(
       color = .pepvet_pal$brand_dark, linewidth = 1.5,
       inherit.aes = FALSE
     ) +
-    # Threshold region labels
+    ## Threshold region labels
     ggplot2::annotate("text",
       x = c(
         .get_param("verdict_moderate") + 0.01,
@@ -270,7 +270,7 @@ plot_enzyme_comparison <- function(
       ),
       color = .pepvet_pal$separator, linetype = "dashed", linewidth = 0.4
     ) +
-    # Lollipop stems
+    ## Lollipop stems
     ggplot2::geom_segment(
       ggplot2::aes(
         x = 0, xend = .data$composite_score,
@@ -278,32 +278,34 @@ plot_enzyme_comparison <- function(
       ),
       color = .pepvet_pal$separator, linewidth = 0.6
     ) +
-    # Lollipop heads colored by verdict tier
+    ## Lollipop heads colored by verdict tier
     ggplot2::geom_point(
       ggplot2::aes(color = I(.data$comp_color)),
       size = 4.5
     ) +
-    # Score value label
+    ## Score value label
     ggplot2::geom_text(
       ggplot2::aes(label = .data$comp_label),
       hjust = -0.35, size = 3.0,
       color = .pepvet_pal$text_axis_title, fontface = "bold"
     ) +
-    # Recommended badge on the best enzyme
-    if (recommend) {
-      ggplot2::annotate(
-        "label",
-        x = badge_df$composite_score[[1L]] + 0.01,
-        y = best_enzyme,
-        label = "\u2605 Recommended",
-        hjust = -0.05,
-        vjust = -0.55,
-        size = 2.6,
-        color = .pepvet_pal$badge_gold_text,
-        fill = .pepvet_pal$badge_gold_fill,
-        linewidth = 0,
-        fontface = "bold"
-      )
+    ## Recommended badge on the best enzyme
+    {
+      if (recommend) {
+        ggplot2::annotate(
+          "label",
+          x = badge_df$composite_score[[1L]] + 0.01,
+          y = best_enzyme,
+          label = "\u2605 Recommended",
+          hjust = -0.05,
+          vjust = -0.55,
+          size = 2.6,
+          color = .pepvet_pal$badge_gold_text,
+          fill = .pepvet_pal$badge_gold_fill,
+          linewidth = 0,
+          fontface = "bold"
+        )
+      }
     } +
     ggplot2::scale_x_continuous(
       breaks = c(0, 0.25, 0.50, 0.75, 1.0),

@@ -358,7 +358,7 @@ batch_evaluate <- function(sequences,
   extra_args <- list(...)
   n_proteins <- length(normalized_input)
 
-  # On Windows mclapply is unavailable; silently run serial.
+  ## On Windows mclapply is unavailable; silently run serial.
   effective_cores <- if (.Platform$OS.type == "windows") {
     1L
   } else {
@@ -374,8 +374,8 @@ batch_evaluate <- function(sequences,
       )
     }, mc.cores = effective_cores)
 
-    # Check for worker failures (mclapply returns try-error on crash).
-    # Retry failed chunks sequentially. Slower but correct.
+    ## Check for worker failures (mclapply returns try-error on crash).
+    ## Retry failed chunks sequentially. Slower but correct.
     failed <- vapply(results, inherits, logical(1), what = "try-error")
     if (any(failed)) {
       n_failed <- sum(failed)
@@ -404,9 +404,9 @@ batch_evaluate <- function(sequences,
 
 ## Private batch helpers
 
-# Core pipeline for a pre-parsed AAStringSet, called by batch_evaluate() both
-# in serial mode and from within each mclapply worker. Accepts extra scoring
-# arguments as a captured list (extra_args) so they survive fork serialization.
+## Core pipeline for a pre-parsed AAStringSet, called by batch_evaluate() both
+## in serial mode and from within each mclapply worker. Accepts extra scoring
+## arguments as a captured list (extra_args) so they survive fork serialization.
 .batch_evaluate_inner <- function(normalized_input, enzyme, missed_cleavages,
                                   include_cleavage_efficiency, proteome,
                                   weights, extra_args) {
@@ -501,13 +501,13 @@ batch_evaluate <- function(sequences,
   batch_result
 }
 
-# Vectorized difficulty flags for a full multi-protein peptide tibble.
-# Returns a named list of vectors, each of length == length(protein_ids),
-# in the same order as protein_ids.
+## Vectorized difficulty flags for a full multi-protein peptide tibble.
+## Returns a named list of vectors, each of length == length(protein_ids),
+## in the same order as protein_ids.
 .batch_difficulty_flags <- function(all_peptides, protein_ids) {
   pid_factor <- factor(all_peptides$protein_id, levels = protein_ids)
 
-  # protein_length and n_peptides
+  ## protein_length and n_peptides
   protein_length <- as.integer(tapply(all_peptides$end, pid_factor, max))
   n_peptides <- as.integer(tabulate(pid_factor))
 
@@ -518,11 +518,11 @@ batch_evaluate <- function(sequences,
   n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask],
     nbins = length(protein_ids)))
 
-  # flags derivable from counts
+  ## flags derivable from counts
   flag_short_protein <- protein_length < 100L
   flag_no_valid_peptides <- n_valid_peptides == 0L
 
-  # flag_hydrophobic: median GRAVY of valid peptides > 0.6 per protein
+  ## flag_hydrophobic: median GRAVY of valid peptides > 0.6 per protein
   flag_hydrophobic <- logical(length(protein_ids))
   if (any(valid_mask)) {
     gravy_vals <- .calculate_gravy_vec(all_peptides$peptide[valid_mask])
@@ -531,9 +531,9 @@ batch_evaluate <- function(sequences,
       median_gravy > 0.6
   }
 
-  # flag_low_complexity: dominant AA > 50% in reconstructed MC=0 sequence.
-  # Build one concatenated sequence per protein from MC=0 peptides (sorted by
-  # start), then check character frequencies.
+  ## flag_low_complexity: dominant AA > 50% in reconstructed MC=0 sequence.
+  ## Build one concatenated sequence per protein from MC=0 peptides (sorted by
+  ## start), then check character frequencies.
   mc0_mask <- all_peptides$missed_cleavages == 0L
   mc0_peps <- all_peptides[mc0_mask, c("protein_id", "start", "peptide"),
     drop = FALSE
@@ -770,8 +770,8 @@ batch_compare_enzymes <- function(
     )
   }
 
-  # Parse input once. Each per-enzyme batch_evaluate() call receives the
-  # same in-memory AAStringSet, which fork workers share via copy-on-write.
+  ## Parse input once. Each per-enzyme batch_evaluate() call receives the
+  ## same in-memory AAStringSet, which fork workers share via copy-on-write.
   normalized_input <- .read_input(sequences)
   normalized_enzymes <- vapply(enzymes, .normalize_enzyme, character(1L),
     USE.NAMES = FALSE
@@ -926,8 +926,8 @@ triage_proteins <- function(batch_result) {
     c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge", "S_unique")
   )
 
-  # Fully vectorized: avoids row-by-row subsetting via vapply.
-  # any_component_low: TRUE when at least one component score < 0.5.
+  ## Fully vectorized: avoids row-by-row subsetting via vapply.
+  ## any_component_low: TRUE when at least one component score < 0.5.
   any_component_low <- if (length(score_cols) > 0L) {
     rowSums(as.matrix(flat[score_cols]) < 0.5, na.rm = TRUE) > 0L
   } else {
@@ -1029,7 +1029,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 }
 
 
-# ---- Single-protein sensitivity ----
+## Single-protein sensitivity
 
 .sensitivity_single <- function(scores, params, nu, n_iter,
                                 importance, corner_cases) {
@@ -1201,9 +1201,9 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       ifelse(def >= .get_param("verdict_moderate"), "Moderate", "Poor")
     )
 
-    # Compare each iteration verdict with the default verdict using full 3-level
-    # classification (not just Good vs not-Good like the previous
-    # single-threshold check).
+    ## Compare each iteration verdict with the default verdict using full 3-level
+    ## classification (not just Good vs not-Good like the previous
+    ## single-threshold check).
     iter_good <- C_chunk >= .get_param("verdict_good")
     iter_mod  <- C_chunk >= .get_param("verdict_moderate")
     iter_verdict <- ifelse(iter_good, "Good",
@@ -1211,7 +1211,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     same <- iter_verdict == def_verdict
     instability <- 1 - rowMeans(same, na.rm = TRUE)
 
-    # Empirical quantiles (one pass per row for both tails)
+    ## Empirical quantiles (one pass per row for both tails)
     ci_mat <- apply(C_chunk, 1L, stats::quantile,
       probs = c(0.025, 0.975), na.rm = TRUE)
     ci_lo <- ci_mat[1L, ]
@@ -1226,7 +1226,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       composite_hi        = ci_hi
     )
 
-    # Keep composites for importance calculation (shared across chunks)
+    ## Keep composites for importance calculation (shared across chunks)
     if (importance) {
       if (ci == 1L) {
         C_all <- C_chunk
@@ -1240,7 +1240,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 
   per_protein <- .bind_rows(per_protein_list)
 
-  # Preserve extra grouping columns from the input (e.g. enzyme)
+  ## Preserve extra grouping columns from the input (e.g. enzyme)
   extra_cols <- setdiff(names(batch_tbl), names(per_protein))
   for (ec in extra_cols) {
     per_protein[[ec]] <- batch_tbl[[ec]]
@@ -1262,7 +1262,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   )
 
   if (importance) {
-    # C_all is n_prot x n_iter, W is n_iter x n_comp
+    ## C_all is n_prot x n_iter, W is n_iter x n_comp
     r2_per_prot <- vapply(seq_len(n_prot), function(i) {
       vapply(seq_along(comp_names), function(j) {
         stats::cor(W[, j], C_all[i, ])^2

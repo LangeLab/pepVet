@@ -206,8 +206,8 @@ NULL
   .pepvet_params[[name]]
 }
 
-# Dirichlet random vector generator (base R, no dependencies)
-# Returns an n x k matrix where each row sums to 1.
+## Dirichlet random vector generator (base R, no dependencies)
+## Returns an n x k matrix where each row sums to 1.
 .rdirichlet <- function(n, alpha) {
   k <- length(alpha)
   m <- matrix(rgamma(n * k, shape = rep(alpha, each = n)), nrow = n, ncol = k)
@@ -543,8 +543,8 @@ pepvet_preset <- function(type = "standard") {
     return(index)
   }
 
-  # unique() removes duplicate (peptide, protein_id) pairs before grouping,
-  # so each list element already contains the deduplicated protein_id set.
+  ## unique() removes duplicate (peptide, protein_id) pairs before grouping,
+  ## so each list element already contains the deduplicated protein_id set.
   peptide_pairs <- unique(proteome_digests[c("peptide", "protein_id")])
   grouped <- split(peptide_pairs$protein_id, peptide_pairs$peptide)
   list2env(grouped, envir = index)
@@ -768,7 +768,7 @@ pepvet_preset <- function(type = "standard") {
   range_ends <- IRanges::end(strict_ranges)
   peptide_count <- length(strict_ranges)
 
-  # Fast path: no missed cleavages, return vectors directly with no loop.
+  ## Fast path: no missed cleavages, return vectors directly with no loop.
   if (missed_cleavages == 0L) {
     return(list(
       start            = range_starts,
@@ -777,7 +777,7 @@ pepvet_preset <- function(type = "standard") {
     ))
   }
 
-  # Pre-allocate output vectors (avoids repeated list reallocation).
+  ## Pre-allocate output vectors (avoids repeated list reallocation).
   total_rows <- sum(vapply(
     seq_len(peptide_count),
     function(i) min(missed_cleavages, peptide_count - i) + 1L,
@@ -832,13 +832,13 @@ pepvet_preset <- function(type = "standard") {
     )
   }
 
-  # na.rm = TRUE: residues without a Kyte-Doolittle value (e.g. pyrrolysine,
-  # O) are excluded from the mean rather than propagating NA.
+  ## na.rm = TRUE: residues without a Kyte-Doolittle value (e.g. pyrrolysine,
+  ## O) are excluded from the mean rather than propagating NA.
   mean(aa_properties$hydrophobicity[residue_index], na.rm = TRUE)
 }
 
-# Cached hydrophobicity lookup table (AA -> Kyte-Doolittle score).
-# Built once from .get_aa_properties() and reused for all subsequent calls.
+## Cached hydrophobicity lookup table (AA -> Kyte-Doolittle score).
+## Built once from .get_aa_properties() and reused for all subsequent calls.
 .get_hydro_lookup <- function() {
   if (is.null(.pepvet_cache$hydro_lookup)) {
     aa_props <- .get_aa_properties()
@@ -849,10 +849,10 @@ pepvet_preset <- function(type = "standard") {
   .pepvet_cache$hydro_lookup
 }
 
-# Internal batch version of .calculate_gravy.
-# Caller is responsible for passing a validated, non-empty character vector of
-# uppercase, 20-standard-AA sequences (as produced by digest_protein output).
-# Skips per-call validation; uses the cached hydrophobicity lookup.
+## Internal batch version of .calculate_gravy.
+## Caller is responsible for passing a validated, non-empty character vector of
+## uppercase, 20-standard-AA sequences (as produced by digest_protein output).
+## Skips per-call validation; uses the cached hydrophobicity lookup.
 .calculate_gravy_vec <- function(peptide_vector) {
   hydro_lookup <- .get_hydro_lookup()
   res_lists <- strsplit(peptide_vector, "", fixed = TRUE)
@@ -941,11 +941,11 @@ pepvet_preset <- function(type = "standard") {
   include_pI
 }
 
-# Internal: sequences already uppercase 20-standard-AA strings
-# (no re-validation).
-# Counts each of the 7 ionizable residues per peptide using vectorized gsub
-# (7 gsub passes over the whole vector) instead of strsplit + a for-loop over
-# every sequence.  This is >20x faster for large peptide sets.
+## Internal: sequences already uppercase 20-standard-AA strings
+## (no re-validation).
+## Counts each of the 7 ionizable residues per peptide using vectorized gsub
+## (7 gsub passes over the whole vector) instead of strsplit + a for-loop over
+## every sequence.  This is >20x faster for large peptide sets.
 .ionizable_composition_matrix_internal <- function(normalized_sequences) {
   ionizable_residues <- names(.ionizable_side_chain_pka)
   seq_lengths <- nchar(normalized_sequences)
@@ -1087,8 +1087,8 @@ calculate_pI <- function(sequence) {
     )
   }
 
-  # Use the internal helper to avoid re-normalizing sequences that were just
-  # validated above.
+  ## Use the internal helper to avoid re-normalizing sequences that were just
+  ## validated above.
   composition_matrix <-
     .ionizable_composition_matrix_internal(normalized_sequences)
   lower_bound <- rep(0, length(normalized_sequences))

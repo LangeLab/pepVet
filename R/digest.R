@@ -242,14 +242,14 @@ digest_protein <- function(sequence,
   sequence_strings <- as.character(normalized_input)
   protein_ids <- names(normalized_input)
 
-  # One batch call for all proteins instead of one Biostrings::AAString()
-  # conversion + one S4 cleavageRanges dispatch per protein.
-  # Returns an IRangesList with one IRanges element per protein.
+  ## One batch call for all proteins instead of one Biostrings::AAString()
+  ## conversion + one S4 cleavageRanges dispatch per protein.
+  ## Returns an IRangesList with one IRanges element per protein.
   all_strict_ranges <- cleaver::cleavageRanges(
     normalized_input, enzym = normalized_enzyme
   )
 
-  # Compute all digest ranges first so we know the total row count.
+  ## Compute all digest ranges first so we know the total row count.
   all_digest_ranges <- lapply(
     seq_along(sequence_strings),
     function(index) {
@@ -258,9 +258,9 @@ digest_protein <- function(sequence,
   )
 
   if (!isTRUE(include_efficiency)) {
-    # Fast path: pre-allocate six vectors and fill with a single for-loop, then
-    # construct one tibble at the end.  This replaces 20K tibble::tibble()
-    # constructions + do.call(rbind, 20K_tibbles), which dominated the profile.
+    ## Fast path: pre-allocate six vectors and fill with a single for-loop, then
+    ## construct one tibble at the end.  This replaces 20K tibble::tibble()
+    ## constructions + do.call(rbind, 20K_tibbles), which dominated the profile.
     n_per_protein <- vapply(
       all_digest_ranges, function(dr) length(dr$start), integer(1L)
     )
@@ -297,8 +297,8 @@ digest_protein <- function(sequence,
     ))
   }
 
-  # Slow path (include_cleavage_efficiency = TRUE): build per-protein tibbles
-  # and rbind, so cleavage annotations can be appended per protein.
+  ## Slow path (include_cleavage_efficiency = TRUE): build per-protein tibbles
+  ## and rbind, so cleavage annotations can be appended per protein.
   digest_tables <- lapply(
     seq_along(sequence_strings),
     function(index) {

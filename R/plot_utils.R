@@ -1,12 +1,12 @@
 ## pepVet Visualization Suite
 #
-# All public functions in this file guard their ggplot2 dependency at runtime
-# via rlang::check_installed().  This means ggplot2 (and patchwork for
-# multi-panel functions) live in Suggests, not Imports, keeping the package
-# installable on servers where graphical output is not needed.
+## All public functions in this file guard their ggplot2 dependency at runtime
+## via rlang::check_installed().  This means ggplot2 (and patchwork for
+## multi-panel functions) live in Suggests, not Imports, keeping the package
+## installable on servers where graphical output is not needed.
 #
-# Internal helpers (.pepvet_pal, .pepvet_theme, etc.) may be called freely by
-# any plotting function in this file.
+## Internal helpers (.pepvet_pal, .pepvet_theme, etc.) may be called freely by
+## any plotting function in this file.
 ##
 
 #' @importFrom rlang .data check_installed %||%
@@ -26,29 +26,29 @@ NULL
 #'
 #' @noRd
 .pepvet_pal <- list(
-  # Brand / primary
+  ## Brand / primary
   brand = "#2C5F8A",
   brand_dark = "#1A3D5C",
   brand_light = "#7BAED4",
 
-  # Length-class categories
+  ## Length-class categories
   valid = "#2C5F8A",
   too_short = "#E8A838",
   too_long = "#C94040",
 
-  # Scoring tiers
+  ## Scoring tiers
   good = "#27AE60",
   moderate = "#E8A838",
   poor = "#C94040",
 
-  # Verdict colors (named, matches the tier values above)
+  ## Verdict colors (named, matches the tier values above)
   verdict = c(
     Good     = "#27AE60",
     Moderate = "#E8A838",
     Poor     = "#C94040"
   ),
 
-  # Component score colors (5 + S_unique)
+  ## Component score colors (5 + S_unique)
   component = c(
     S_coverage = "#2C5F8A",
     S_length   = "#27AE60",
@@ -58,7 +58,7 @@ NULL
     S_unique   = "#B8C2CC"
   ),
 
-  # Coverage / cleavage map structural elements
+  ## Coverage / cleavage map structural elements
   protein_bg = "#D8DDE6",
   protein_brd = "#AAAAAA",
   backbone_fill = "#D0D6E0",
@@ -75,12 +75,12 @@ NULL
     "Detected 3+ times" = "#2C5F8A"
   ),
 
-  # Background shading for valid ranges
+  ## Background shading for valid ranges
   shade = "#EDF6F0",
   neutral = "#F4F6F9",
   separator = "#DDDDDD",
 
-  # Theme element colors
+  ## Theme element colors
   text_subtitle = "#666666",
   text_axis_title = "#444444",
   text_axis_tick = "#555555",
@@ -90,25 +90,25 @@ NULL
   text_secondary = "#999999",
   text_dark = "#333333",
 
-  # Zone shading (verdict background bands)
+  ## Zone shading (verdict background bands)
   zone_moderate = "#FFF3E0",
   zone_poor = "#FFEBEE",
 
-  # Badge colors
+  ## Badge colors
   badge_gold_text = "#7A5A00",
   badge_gold_fill = "#FFF5CC",
 
-  # Heatmap gradient midpoint
+  ## Heatmap gradient midpoint
   heatmap_mid = "#FFFAEC",
   domain = c("#D9EAF7", "#FFF0C2", "#D4EDD4", "#F7D9D9",
              "#EDD4F7", "#D4F7F0", "#F7ECD4", "#D4D9F7")
 )
 
-# Snapshot defaults at build time for pepvet_plot_config_reset()
-# Store in an environment (not locked like namespace bindings)
+## Snapshot defaults at build time for pepvet_plot_config_reset()
+## Store in an environment (not locked like namespace bindings)
 .pepvet_config_env <- new.env(parent = emptyenv())
 .pepvet_config_env$pal_default <- .pepvet_pal
-.pepvet_config_env$params_default <- NULL # populated by .onLoad()
+.pepvet_config_env$params_default <- NULL  ## populated by .onLoad()
 .pepvet_config_env$theme_overrides <- list()
 
 ## Internal ggplot2 theme
@@ -125,7 +125,7 @@ NULL
 .pepvet_theme <- function(base_size = 11) {
   out <- ggplot2::theme_minimal(base_size = base_size) +
     ggplot2::theme(
-      # Title / subtitle
+      ## Title / subtitle
       plot.title = ggplot2::element_text(
         face = "bold",
         size = base_size + 1,
@@ -138,7 +138,7 @@ NULL
         margin = ggplot2::margin(b = 6)
       ),
 
-      # Axes
+      ## Axes
       axis.title = ggplot2::element_text(
         size = base_size - 1,
         color = .pepvet_pal$text_axis_title
@@ -152,7 +152,7 @@ NULL
         linewidth = 0.3
       ),
 
-      # Grid
+      ## Grid
       panel.grid.major = ggplot2::element_line(
         color = .pepvet_pal$grid_major,
         linewidth = 0.35
@@ -164,7 +164,7 @@ NULL
         linewidth = 0.5
       ),
 
-      # Strip (for faceted plots)
+      ## Strip (for faceted plots)
       strip.background = ggplot2::element_rect(
         fill = .pepvet_pal$strip_bg,
         color = .pepvet_pal$separator
@@ -175,7 +175,7 @@ NULL
         color = .pepvet_pal$brand
       ),
 
-      # Legend
+      ## Legend
       legend.position = "bottom",
       legend.key.size = ggplot2::unit(0.55, "lines"),
       legend.text = ggplot2::element_text(size = base_size - 2),
@@ -186,11 +186,11 @@ NULL
       ),
       legend.background = ggplot2::element_rect(fill = NA, color = NA),
 
-      # Plot margins
+      ## Plot margins
       plot.margin = ggplot2::margin(8, 10, 6, 10)
     )
 
-  # Apply user theme overrides if set
+  ## Apply user theme overrides if set
   overrides <- .pepvet_config_env$theme_overrides
   if (length(overrides) > 0L) {
     out <- out + do.call(ggplot2::theme, overrides)
@@ -264,7 +264,7 @@ NULL
 #' @return A character string with a shortened display label.
 #' @noRd
 .tidy_protein_id <- function(protein_id) {
-  # UniProt format: sp|ACC|GENE or tr|ACC|GENE
+  ## UniProt format: sp|ACC|GENE or tr|ACC|GENE
   m <- regmatches(
     protein_id,
     regexpr("^[a-z]+\\|([A-Z0-9]+)\\|([A-Z0-9_./-]+)", protein_id)
@@ -273,7 +273,7 @@ NULL
     parts <- strsplit(m, "\\|")[[1L]]
     return(paste0(parts[[2L]], "  (", parts[[3L]], ")"))
   }
-  # NCBI RefSeq: NP_001234.1 or XP_...
+  ## NCBI RefSeq: NP_001234.1 or XP_...
   m2 <- regmatches(
     protein_id,
     regexpr("^([A-Z]{2}_[0-9]+(\\.[0-9]+)?)", protein_id)
@@ -281,12 +281,12 @@ NULL
   if (length(m2) == 1L && nchar(m2) > 0L) {
     return(m2)
   }
-  # Generic: take first space-delimited token (FASTA >header convention)
+  ## Generic: take first space-delimited token (FASTA >header convention)
   m3 <- regmatches(protein_id, regexpr("^[^ ]+", protein_id))
   if (length(m3) == 1L && nchar(m3) > 0L && nchar(m3) <= 42L) {
     return(m3)
   }
-  # Truncate as last resort
+  ## Truncate as last resort
   if (nchar(protein_id) > 42L) {
     paste0(substr(protein_id, 1L, 39L), "...")
   } else {
@@ -388,11 +388,11 @@ NULL
 
   class_colors <- .length_class_colors()
 
-  # Sensible x-axis upper limit
+  ## Sensible x-axis upper limit
   x_max <- max(peps$length, na.rm = TRUE) + 1L
 
   ggplot2::ggplot(peps, ggplot2::aes(x = length, fill = length_class)) +
-    # Valid-range shading
+    ## Valid-range shading
     ggplot2::annotate(
       "rect",
       xmin = length_lo - 0.5, xmax = length_hi + 0.5,
@@ -449,7 +449,7 @@ NULL
   )
   n_total <- sum(!is.na(peps$gravy))
 
-  # Suitable bin count for the data range (Freedman-Diaconis rule, clamped)
+  ## Suitable bin count for the data range (Freedman-Diaconis rule, clamped)
   gravy_iqr <- diff(stats::quantile(
     peps$gravy, c(0.25, 0.75),
     na.rm = TRUE, names = FALSE
@@ -464,7 +464,7 @@ NULL
   }
 
   ggplot2::ggplot(peps, ggplot2::aes(x = gravy)) +
-    # LC-friendly range shading
+    ## LC-friendly range shading
     ggplot2::annotate(
       "rect",
       xmin = gravy_lo, xmax = gravy_hi,
@@ -478,7 +478,7 @@ NULL
       linewidth = 0.2,
       alpha = .get_param("scatter_alpha")
     ) +
-    # Range boundary lines
+    ## Range boundary lines
     ggplot2::geom_vline(
       xintercept = gravy_lo,
       linetype   = "dashed",
@@ -531,7 +531,7 @@ NULL
     drop = FALSE
   ]
 
-  # Restrict coverage calculation to a single MC level when requested
+  ## Restrict coverage calculation to a single MC level when requested
   cov_peps <- if (!is.null(mc_filter) && "missed_cleavages" %in% names(peps)) {
     valid_peps[valid_peps$missed_cleavages == mc_filter, , drop = FALSE]
   } else {
@@ -657,8 +657,8 @@ NULL
   protein_sequence <- .reconstruct_sequence_from_peptides(peps)
   overlap_counts <- integer(protein_length)
 
-  # When length_range is NULL, count all MC levels (user opted in).
-  # Otherwise filter to the specified MC level (default 1L).
+  ## When length_range is NULL, count all MC levels (user opted in).
+  ## Otherwise filter to the specified MC level (default 1L).
   has_mc <- "missed_cleavages" %in% names(peps)
   count_all_mc <- is.null(length_range) && has_mc
 
@@ -740,11 +740,11 @@ NULL
   peps <- peps[o, , drop = FALSE]
   n <- nrow(peps)
 
-  track_ends <- integer(0L) # last 'end' position in each open track
+  track_ends <- integer(0L)  ## last 'end' position in each open track
   tracks <- integer(n)
 
   for (i in seq_len(n)) {
-    # Find tracks where the last end is strictly before this peptide's start
+    ## Find tracks where the last end is strictly before this peptide's start
     fit <- which(track_ends < peps$start[[i]])
     if (length(fit) == 0L) {
       track_ends <- c(track_ends, peps$end[[i]])
@@ -800,7 +800,7 @@ NULL
   length_lo <- length_range[[1L]]
   length_hi <- length_range[[2L]]
 
-  # Filter to the requested MC level only
+  ## Filter to the requested MC level only
   has_mc <- "missed_cleavages" %in% names(peps)
   if (has_mc && !is.null(missed_cleavages)) {
     peps <- peps[peps$missed_cleavages == missed_cleavages, , drop = FALSE]
@@ -813,7 +813,7 @@ NULL
     drop = FALSE
   ]
 
-  # Coverage from valid peptides at this MC level
+  ## Coverage from valid peptides at this MC level
   covered <- rep(FALSE, protein_length)
   for (i in seq_len(nrow(valid_peps))) {
     s <- valid_peps$start[[i]]
@@ -822,7 +822,7 @@ NULL
   }
   pct_cov <- round(100 * sum(covered) / protein_length, 1L)
 
-  # Gap regions (residue-level uncovered runs)
+  ## Gap regions (residue-level uncovered runs)
   rl <- rle(covered)
   rl_ends <- cumsum(rl$lengths)
   rl_starts <- c(1L, head(rl_ends, -1L) + 1L)
@@ -837,7 +837,7 @@ NULL
   x_step <- .nice_x_step(protein_length)
   x_lim <- protein_length + 1L
 
-  # Pack valid peptides into sub-tracks
+  ## Pack valid peptides into sub-tracks
   if (nrow(valid_peps) > 0L) {
     valid_peps <- .pack_peptides(valid_peps)
     n_tracks <- max(valid_peps$track)
@@ -852,7 +852,7 @@ NULL
     valid_peps$.y_mid <- (valid_peps$.y_lo + valid_peps$.y_hi) / 2.0
   }
 
-  # Pack invalid peptides into sub-tracks
+  ## Pack invalid peptides into sub-tracks
   if (nrow(invalid_peps) > 0L) {
     invalid_peps <- .pack_peptides(invalid_peps)
     n_tracks_i <- max(invalid_peps$track)
@@ -875,7 +875,7 @@ NULL
       linewidth = 0.4
     )
 
-  # Invalid peptides (behind valid)
+  ## Invalid peptides (behind valid)
   if (nrow(invalid_peps) > 0L) {
     p <- p + ggplot2::geom_rect(
       data = invalid_peps,
@@ -892,7 +892,7 @@ NULL
     )
   }
 
-  # Valid peptides
+  ## Valid peptides
   if (nrow(valid_peps) > 0L) {
     p <- p + ggplot2::geom_rect(
       data = valid_peps,
@@ -908,7 +908,7 @@ NULL
       alpha = .get_param("scatter_alpha")
     )
 
-    # Peptide length labels
+    ## Peptide length labels
     label_v <- valid_peps[valid_peps$length >= 8L, , drop = FALSE]
     if (nrow(label_v) > 0L) {
       label_v$label_x <- (label_v$start + label_v$end) / 2.0
@@ -925,7 +925,7 @@ NULL
     }
   }
 
-  # Gap overlays
+  ## Gap overlays
   if (nrow(gap_df) > 0L) {
     p <- p + ggplot2::geom_rect(
       data = gap_df,
@@ -935,7 +935,7 @@ NULL
     )
   }
 
-  # Title
+  ## Title
   mc_title <- if (!is.null(missed_cleavages)) {
     sprintf("Sequence Coverage (MC = %d)", missed_cleavages)
   } else {
@@ -1021,7 +1021,7 @@ NULL
   df$tier <- ifelse(df$value >= good_thresh, "Good",
     ifelse(df$value >= mod_thresh, "Moderate", "Poor")
   )
-  # Ordered factor so highest-priority score is at top of chart
+  ## Ordered factor so highest-priority score is at top of chart
   df$label <- factor(df$label, levels = rev(df$label))
 
   tier_colors <- c(
@@ -1033,7 +1033,7 @@ NULL
   composite <- as.numeric(scores$composite_score[[1L]])
   verdict <- as.character(scores$verdict[[1L]])
 
-  # Verdict badge background color
+  ## Verdict badge background color
   badge_fill <- switch(verdict,
     Good     = .pepvet_pal$good,
     Moderate = .pepvet_pal$moderate,
@@ -1044,7 +1044,7 @@ NULL
   n_scores <- nrow(df)
 
   ggplot2::ggplot(df, ggplot2::aes(x = value, y = label, fill = tier)) +
-    # Tier boundary guide lines
+    ## Tier boundary guide lines
     ggplot2::geom_vline(
       xintercept = .get_param("verdict_moderate"),
       linetype   = "dotted",
@@ -1060,7 +1060,7 @@ NULL
       alpha      = 0.8
     ) +
     ggplot2::geom_col(width = 0.62, alpha = 0.90) +
-    # Score value labels (outside bars)
+    ## Score value labels (outside bars)
     ggplot2::geom_text(
       ggplot2::aes(
         label = sprintf("%.3f", value),
@@ -1071,14 +1071,14 @@ NULL
       color = .pepvet_pal$text_dark,
       fontface = "bold"
     ) +
-    # Composite score reference line
+    ## Composite score reference line
     ggplot2::geom_vline(
       xintercept = composite,
       linetype   = "dashed",
       color      = .pepvet_pal$brand_dark,
       linewidth  = 1.0
     ) +
-    # Composite label (annotated at the top of the chart)
+    ## Composite label (annotated at the top of the chart)
     ggplot2::annotate(
       "label",
       x         = composite,
@@ -1288,7 +1288,7 @@ pepvet_save_figure <- function(plot,
                                device = NULL,
                                ...) {
   rlang::check_installed("ggplot2", reason = "to save pepVet figures")
-  # Auto-size: patchwork gets larger default canvas
+  ## Auto-size: patchwork gets larger default canvas
   if (is.null(width) || is.null(height)) {
     is_patchwork <- inherits(plot, "patchwork")
     if (is_patchwork) {
@@ -1300,7 +1300,7 @@ pepvet_save_figure <- function(plot,
     }
   }
 
-  # Auto-device: prefer ragg for anti-aliased PNG
+  ## Auto-device: prefer ragg for anti-aliased PNG
   if (is.null(device)) {
     ext <- tolower(tools::file_ext(filename))
     if (identical(ext, "png") &&

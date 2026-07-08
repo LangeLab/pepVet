@@ -5,7 +5,7 @@
 ## that the five (or six) component scores measure orthogonal
 ## digest-quality dimensions.
 
-# Component color palette shared between diagnostics and visualization
+## Component color palette shared between diagnostics and visualization
 .diagnostics_comp_colors <- c(
   S_length   = "#5D7B93",
   S_coverage = "#3E787F",

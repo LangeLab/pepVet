@@ -170,8 +170,8 @@
 
   protein_length <- max(protein_digest$end)
 
-  # Compute covered bases without S4 IRanges dispatch: sort intervals by start,
-  # then use cummax of prior ends to merge overlaps in one vectorized pass.
+  ## Compute covered bases without S4 IRanges dispatch: sort intervals by start,
+  ## then use cummax of prior ends to merge overlaps in one vectorized pass.
   s <- valid_digest$start
   e <- valid_digest$end
   ord <- order(s)
@@ -220,8 +220,8 @@
     return(0)
   }
 
-  # Batch GRAVY: builds the hydrophobicity lookup once and calls strsplit on
-  # the whole vector instead of once per peptide.
+  ## Batch GRAVY: builds the hydrophobicity lookup once and calls strsplit on
+  ## the whole vector instead of once per peptide.
   gravy_values <- .calculate_gravy_vec(valid_digest$peptide)
   tolerance <- sqrt(.Machine$double.eps)
 
@@ -242,10 +242,10 @@
     return(0)
   }
 
-  # Vectorized: check for any internal basic residue (K, R, H) using grepl
-  # with a character class instead of strsplit + %in% per peptide.
-  # Trim the last character to check only internal positions (non-C-terminal).
-  # Single-residue peptides have no internal positions; treat as lacking charge.
+  ## Vectorized: check for any internal basic residue (K, R, H) using grepl
+  ## with a character class instead of strsplit + %in% per peptide.
+  ## Trim the last character to check only internal positions (non-C-terminal).
+  ## Single-residue peptides have no internal positions; treat as lacking charge.
   peptide_lengths <- nchar(valid_digest$peptide)
   internal_seqs <- ifelse(peptide_lengths > 1L,
     substr(valid_digest$peptide, 1L, peptide_lengths - 1L), "")
@@ -308,7 +308,7 @@
                               enzyme = "trypsin",
                               length_range = c(7L, 25L),
                               gravy_range = c(-1.0, 0.6)) {
-  # Extract valid digest once to avoid 4 independent [.data.frame subsets.
+  ## Extract valid digest once to avoid 4 independent [.data.frame subsets.
   valid_digest <- .extract_valid_digest(protein_digest, length_range)
 
   component_scores <- c(
@@ -462,8 +462,8 @@ score_peptides <- function(digest_result,
     factor(validated_digest$protein_id, levels = protein_levels)
   )
 
-  # Convert to base data.frame once so that per-protein subsetting uses
-  # [.data.frame instead of the slower [.tbl_df throughout the inner loop.
+  ## Convert to base data.frame once so that per-protein subsetting uses
+  ## [.data.frame instead of the slower [.tbl_df throughout the inner loop.
   validated_digest <- as.data.frame(validated_digest, stringsAsFactors = FALSE)
 
   scored_rows <- lapply(
@@ -480,9 +480,9 @@ score_peptides <- function(digest_result,
       weighted_components <- component_scores[names(normalized_weights)]
       composite_score <- sum(weighted_components * normalized_weights)
 
-      # Zero-cleavage hard-fail: S_count == 0 and S_coverage == 0 means
-      # the protein was not digested by this enzyme.  Override composite
-      # and verdict so an undigestible protein is always "Poor".
+      ## Zero-cleavage hard-fail: S_count == 0 and S_coverage == 0 means
+      ## the protein was not digested by this enzyme.  Override composite
+      ## and verdict so an undigestible protein is always "Poor".
       if (component_scores[["S_count"]] == 0 &&
             component_scores[["S_coverage"]] == 0) {
         composite_score <- 0

@@ -190,7 +190,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
     comp_id = comp_cols,
     label = factor(
       comp_names[comp_cols],
-      levels = rev(comp_names[comp_cols]) # bottom-to-top order
+      levels = rev(comp_names[comp_cols])  ## bottom-to-top order
     ),
     score = comp_medians,
     stringsAsFactors = FALSE
@@ -364,7 +364,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
       ) +
       .pepvet_theme()
   } else {
-    # Fallback: empty placeholder when no flag columns present
+    ## Fallback: empty placeholder when no flag columns present
     pc <- ggplot2::ggplot() +
       ggplot2::annotate(
         "text",
@@ -768,7 +768,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     )
 
   ## Panel D: Per-protein win rate
-  # For each protein, find the enzyme with the highest composite score
+  ## For each protein, find the enzyme with the highest composite score
   cs_df <- data.frame(
     protein_id = as.character(comparison$protein_id),
     enzyme = as.character(comparison$enzyme),

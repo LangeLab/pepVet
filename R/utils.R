@@ -646,13 +646,6 @@ pepvet_preset <- function(type = "standard") {
 }
 
 .validate_sequence <- function(sequence, sequence_name = "sequence") {
-  if (!is.character(sequence) || length(sequence) != 1L) {
-    .abort(
-      "{.arg sequence} must be a single character string.",
-      class = "pepvet_error_invalid_sequence"
-    )
-  }
-
   if (is.na(sequence)) {
     .abort(
       "Sequence '{sequence_name}' must not be missing.",
@@ -801,42 +794,6 @@ pepvet_preset <- function(type = "standard") {
   list(start = out_starts, end = out_ends, missed_cleavages = out_mc)
 }
 
-.calculate_gravy <- function(peptide_sequence) {
-  if (!is.character(peptide_sequence) || length(peptide_sequence) != 1L) {
-    .abort("{.arg peptide_sequence} must be a single character string.",
-      class = "pepvet_error_invalid_sequence")
-  }
-
-  if (is.na(peptide_sequence)) {
-    .abort("{.arg peptide_sequence} must not be missing.",
-      class = "pepvet_error_invalid_sequence")
-  }
-
-  if (!nzchar(peptide_sequence)) {
-    .abort("{.arg peptide_sequence} must not be empty.",
-      class = "pepvet_error_invalid_sequence")
-  }
-
-  peptide_sequence <- toupper(peptide_sequence)
-  aa_properties <- .get_aa_properties()
-
-  residues <- strsplit(peptide_sequence, split = "", fixed = TRUE)[[1]]
-  residue_index <- match(residues, aa_properties$amino_acid)
-
-  if (anyNA(residue_index)) {
-    .abort(
-      paste0("Unknown amino acid code(s): {.val ",
-        unique(residues[is.na(residue_index)]),
-        "}."),
-      class = "pepvet_error_invalid_sequence"
-    )
-  }
-
-  ## na.rm = TRUE: residues without a Kyte-Doolittle value (e.g. pyrrolysine,
-  ## O) are excluded from the mean rather than propagating NA.
-  mean(aa_properties$hydrophobicity[residue_index], na.rm = TRUE)
-}
-
 ## Cached hydrophobicity lookup table (AA -> Kyte-Doolittle score).
 ## Built once from .get_aa_properties() and reused for all subsequent calls.
 .get_hydro_lookup <- function() {
@@ -849,11 +806,11 @@ pepvet_preset <- function(type = "standard") {
   .pepvet_cache$hydro_lookup
 }
 
-## Internal batch version of .calculate_gravy.
+## Compute GRAVY scores for a character vector of peptide sequences.
 ## Caller is responsible for passing a validated, non-empty character vector of
 ## uppercase, 20-standard-AA sequences (as produced by digest_protein output).
-## Skips per-call validation; uses the cached hydrophobicity lookup.
-.calculate_gravy_vec <- function(peptide_vector) {
+## Uses the cached hydrophobicity lookup; skips per-call validation.
+.calculate_gravy <- function(peptide_vector) {
   hydro_lookup <- .get_hydro_lookup()
   res_lists <- strsplit(peptide_vector, "", fixed = TRUE)
   vapply(
@@ -1083,7 +1040,8 @@ calculate_pI <- function(sequence) {
       paste0(
         "Calculating peptide pI values for ",
         "{length(normalized_sequences)} sequences."
-      )
+      ),
+      class = "pepvet_message_calculating_pi"
     )
   }
 

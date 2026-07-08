@@ -525,7 +525,7 @@ batch_evaluate <- function(sequences,
   ## flag_hydrophobic: median GRAVY of valid peptides > 0.6 per protein
   flag_hydrophobic <- logical(length(protein_ids))
   if (any(valid_mask)) {
-    gravy_vals <- .calculate_gravy_vec(all_peptides$peptide[valid_mask])
+    gravy_vals <- .calculate_gravy(all_peptides$peptide[valid_mask])
     median_gravy <- tapply(gravy_vals, pid_factor[valid_mask], stats::median)
     flag_hydrophobic[match(names(median_gravy), protein_ids)] <-
       median_gravy > 0.6
@@ -780,7 +780,8 @@ batch_compare_enzymes <- function(
   n_enzymes <- length(normalized_enzymes)
 
   cli::cli_inform(
-    "Scoring {n_proteins} protein{?s} against {n_enzymes} enzyme{?s}."
+    "Scoring {n_proteins} protein{?s} against {n_enzymes} enzyme{?s}.",
+    class = "pepvet_message_batch_scoring"
   )
 
   extra_args <- list(...)

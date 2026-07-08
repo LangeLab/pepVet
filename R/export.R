@@ -211,7 +211,7 @@ export_peptide_list <- function(peptides,
 
 .export_generic <- function(peptides, valid_mask) {
   result <- peptides
-  result$gravy <- .calculate_gravy_vec(peptides$peptide)
+  result$gravy <- .calculate_gravy(peptides$peptide)
   result$pI <- as.numeric(calculate_pI(peptides$peptide))
   result$valid <- valid_mask
   result

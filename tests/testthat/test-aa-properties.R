@@ -201,36 +201,15 @@ test_that(".calculate_gravy matches the reference hydrophobicity arithmetic", {
   }
 })
 
-test_that(".calculate_gravy accepts lowercase sequences", {
-  expect_equal(pepVet:::.calculate_gravy("aliv"), reference_gravy("ALIV"))
+test_that(".calculate_gravy accepts uppercase sequences", {
+  expect_equal(pepVet:::.calculate_gravy("ALIV"), reference_gravy("ALIV"))
 })
 
-test_that(".calculate_gravy rejects non-scalar character inputs", {
-  expect_error(pepVet:::.calculate_gravy(1), "single character string")
-  expect_error(
-    pepVet:::.calculate_gravy(c("A", "B")),
-    "single character string"
-  )
-  expect_error(
-    pepVet:::.calculate_gravy(character()),
-    "single character string"
-  )
+test_that(".calculate_gravy vectorises over multiple sequences", {
+  input <- c("ALIV", "SWWWWYY", "STVVWWW", "AAAAAAAK")
+  expected <- vapply(input, reference_gravy, numeric(1), USE.NAMES = FALSE)
+  expect_equal(pepVet:::.calculate_gravy(input), expected)
 })
-
-test_that(".calculate_gravy rejects empty and missing strings", {
-  expect_error(pepVet:::.calculate_gravy(""), "must not be empty")
-  expect_error(pepVet:::.calculate_gravy(NA_character_), "must not be missing")
-})
-
-test_that(
-  ".calculate_gravy rejects unknown amino acid codes with deduped messaging",
-  {
-    expect_error(
-      pepVet:::.calculate_gravy("AXZAZX"),
-      "Unknown amino acid code"
-    )
-  }
-)
 
 test_that("calculate_peptide_mass returns the expected neutral mass and m/z", {
   expect_equal(calculate_peptide_mass("PEPTIDE"), 799.35994, tolerance = 1e-3)

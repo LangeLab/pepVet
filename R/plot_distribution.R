@@ -471,7 +471,7 @@ plot_gravy_landscape <- function(
         class = "pepvet_error_invalid_digest_result"
       )
     }
-    peps$gravy <- .calculate_gravy_vec(peps$peptide)
+    peps$gravy <- .calculate_gravy(peps$peptide)
   }
 
   length_lo <- as.integer(length_range[[1L]])
@@ -712,7 +712,7 @@ plot_gravy_landscape <- function(
     gr <- r$params$gravy_range %||% gravy_range
     df <- r$peptides
     if (!"gravy" %in% names(df) && "peptide" %in% names(df)) {
-      df$gravy <- .calculate_gravy_vec(df$peptide)
+      df$gravy <- .calculate_gravy(df$peptide)
     }
     df$length_lo <- as.integer(lr[[1L]])
     df$length_hi <- as.integer(lr[[2L]])

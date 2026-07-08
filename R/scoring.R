@@ -222,7 +222,7 @@
 
   ## Batch GRAVY: builds the hydrophobicity lookup once and calls strsplit on
   ## the whole vector instead of once per peptide.
-  gravy_values <- .calculate_gravy_vec(valid_digest$peptide)
+  gravy_values <- .calculate_gravy(valid_digest$peptide)
   tolerance <- sqrt(.Machine$double.eps)
 
   mean(

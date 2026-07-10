@@ -34,7 +34,7 @@
 
 ## Housekeeping
 
-* Refactored `zzz.R` to eliminate `lockBinding`/`makeActiveBinding` R CMD check NOTE.
+* Refactored `zzz.R` to avoid the `lockBinding` R CMD check NOTE while preserving active bindings for mutable plot configuration.
 * Fixed README installation instructions (removed `S4Vectors` from BiocManager install; pulled in automatically by Biostrings).
 * Enabled automatic CI triggers for R CMD check on push and PR across ubuntu, macOS, and Windows.
 * Added `.gitattributes`, `.Rbuildignore` updates, `.onAttach` removal, and cli cleanup.

@@ -26,8 +26,9 @@ empty, raises an error.}
 \item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{1L}.}
 
 \item{include_cleavage_efficiency}{Logical flag passed to
-\code{\link[=evaluate_digest]{evaluate_digest()}} and ultimately \code{\link[=digest_protein]{digest_protein()}}. Defaults to \code{FALSE}.
-When \code{TRUE}, each per-protein peptide table includes a \code{cleavage_efficiency}
+\code{\link[=digest_protein]{digest_protein()}}. Defaults to \code{FALSE}.
+When \code{TRUE}, each per-protein peptide table includes a
+\code{cleavage_efficiency}
 column (does not affect the flat batch tibble columns).}
 
 \item{proteome}{Optional proteome digest tibble passed to \code{\link[=score_peptides]{score_peptides()}}
@@ -56,13 +57,21 @@ all available component scores (\code{S_length}, \code{S_coverage}, \code{S_coun
 \code{flag_no_valid_peptides}.
 }
 \description{
-\code{batch_evaluate()} calls \code{\link[=evaluate_digest]{evaluate_digest()}} independently for each protein
-in \code{sequences} and returns a flat tibble with one row per protein. Columns
-include \code{protein_id}, \code{protein_length}, all component scores, \code{composite_score},
-\code{verdict}, \code{n_peptides}, \code{n_valid_peptides}, \code{median_peptide_length}, and four
+\code{batch_evaluate()} processes proteins in bulk, using one digest and score
+call per serial or parallel chunk, and returns a flat tibble with one row
+per protein. Columns include \code{protein_id}, \code{protein_length}, and all
+component scores, including \code{composite_score}, \code{verdict}, \code{n_peptides},
+\code{n_valid_peptides}, and \code{median_peptide_length}, plus four
 sequence-level difficulty flags. Pass the result to \code{\link[=summarize_batch]{summarize_batch()}} for
 aggregate statistics or to \code{\link[=triage_proteins]{triage_proteins()}} for action recommendations.
 }
+\section{Limitations}{
+
+Parallel execution only on Unix (\code{parallel::mclapply}). Windows falls
+back to serial silently. If a worker crashes, the failed chunk is retried
+sequentially, which is slower but produces correct results.
+}
+
 \examples{
 small_proteome <- system.file(
   "extdata", "small_proteome_50_proteins.fasta",
@@ -75,4 +84,14 @@ batch[, c("protein_id", "composite_score", "verdict")]
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=summarize_batch]{summarize_batch()}},
 \code{\link[=triage_proteins]{triage_proteins()}}
+
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }
+\concept{evaluation}

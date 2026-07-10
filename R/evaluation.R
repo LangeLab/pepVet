@@ -277,12 +277,11 @@ recommend_enzyme <- function(sequence,
 
 #' Batch-evaluate multiple proteins
 #'
-#' `batch_evaluate()` calls [evaluate_digest()] independently for each protein
-#' in `sequences` and returns a flat tibble with one row per protein. Columns
-#' include `protein_id`, `protein_length`, all component scores,
-#'   `composite_score`,
-#' `verdict`, `n_peptides`, `n_valid_peptides`,
-#'   `median_peptide_length`, and four
+#' `batch_evaluate()` processes proteins in bulk, using one digest and score
+#' call per serial or parallel chunk, and returns a flat tibble with one row
+#' per protein. Columns include `protein_id`, `protein_length`, and all
+#' component scores, including `composite_score`, `verdict`, `n_peptides`,
+#' `n_valid_peptides`, and `median_peptide_length`, plus four
 #' sequence-level difficulty flags. Pass the result to [summarize_batch()] for
 #' aggregate statistics or to [triage_proteins()] for action recommendations.
 #'
@@ -293,7 +292,7 @@ recommend_enzyme <- function(sequence,
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param include_cleavage_efficiency Logical flag passed to
-#'   [evaluate_digest()] and ultimately [digest_protein()]. Defaults to `FALSE`.
+#'   [digest_protein()]. Defaults to `FALSE`.
 #'   When `TRUE`, each per-protein peptide table includes a
 #'   `cleavage_efficiency`
 #'   column (does not affect the flat batch tibble columns).

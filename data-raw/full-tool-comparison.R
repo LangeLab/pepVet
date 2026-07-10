@@ -273,7 +273,7 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
       ev <- evaluate_digest(path, enzyme = enz, missed_cleavages = 1L)
       peps <- ev$peptides
       names(peps)[2] <- "peptide"
-      peps$gravy <- .calculate_gravy_vec(peps$peptide)
+      peps$gravy <- .calculate_gravy(peps$peptide)
       peps$valid <- peps$length >= 7 & peps$length <= 25 &
         peps$gravy >= -1.0 & peps$gravy <= 0.6
 
@@ -355,7 +355,7 @@ for (pn in c("BSA", "H3", "BACE1")) {
   ev <- pepvet_results[[paste(pn, "trypsin", sep = "_")]]
   peps <- ev$peptides
   names(peps)[2] <- "peptide"
-  peps$gravy <- .calculate_gravy_vec(peps$peptide)
+  peps$gravy <- .calculate_gravy(peps$peptide)
   peps$pc_identifiable <- vapply(peps$peptide, simulate_pc_identifiable,
                                   logical(1))
   peps$pepvet_valid <- peps$length >= 7 & peps$length <= 25 &

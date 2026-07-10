@@ -34,7 +34,7 @@ cat(sprintf("ExPASy:   %d rows\n", nrow(expasy_raw)))
 ##
 peptides_seqs <- pepvet_raw$peptide
 
-pepvet_raw$gravy <- .calculate_gravy_vec(peptides_seqs)
+pepvet_raw$gravy <- .calculate_gravy(peptides_seqs)
 
 mass_mi <- calculate_peptide_mass(peptides_seqs, charge = 0L)
 mass_mh <- calculate_peptide_mass(peptides_seqs, charge = 1L)

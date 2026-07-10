@@ -156,7 +156,7 @@ score_diagnostics <- function(batch_result, weights = NULL) {
         next
       }
       formula_str <- paste(response, "~", paste(predictors, collapse = " + "))
-      fit <- lm(as.formula(formula_str), data = batch_result)
+      fit <- stats::lm(stats::as.formula(formula_str), data = batch_result)
       r_squared <- summary(fit)$r.squared
       vif_vals[i] <- if (abs(1 - r_squared) < .Machine$double.eps) {
         Inf
@@ -167,7 +167,9 @@ score_diagnostics <- function(batch_result, weights = NULL) {
   }
 
   ## PCA
-  pca_result <- prcomp(component_matrix, center = TRUE, scale. = TRUE)
+  pca_result <- stats::prcomp(
+    component_matrix, center = TRUE, scale. = TRUE
+  )
   var_exp <- pca_result$sdev^2 / sum(pca_result$sdev^2)
 
   ## Ablation: set each component to 0 and measure composite drop

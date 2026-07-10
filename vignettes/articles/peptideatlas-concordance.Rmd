@@ -214,7 +214,7 @@ the existing documentation.
 
 ## Reproducibility
 
-The full analysis script is at `scratch/peptideatlas-concordance.R`. It
+The full analysis script is at `data-raw/peptideatlas-concordance.R`. It
 requires the PeptideAtlas build FASTA (168 MB) and UniProt human reference
 proteome (14 MB), which are not shipped with the package. Pre-computed
 results are in `inst/extdata/peptideatlas-concordance/`.

@@ -82,7 +82,7 @@ batch_scores <- batch_evaluate(
 cat(sprintf("  batch_evaluate returned %d proteins\n", nrow(batch_scores)))
 
 ## Add GRAVY for every peptide using pepVet's internal function
-all_peptides$gravy <- .calculate_gravy_vec(all_peptides$peptide)
+all_peptides$gravy <- .calculate_gravy(all_peptides$peptide)
 
 ## Check observation status for each peptide (fast C-level matching)
 all_peptides$is_observed <- all_peptides$peptide %in% all_observed
@@ -101,11 +101,8 @@ valid_mask <- all_peptides$length >= default_length_range[1] &
               all_peptides$gravy >= default_gravy_range[1] &
               all_peptides$gravy <= default_gravy_range[2]
 
-first_idx <- match(protein_ids, all_peptides$protein_id)
-
 per_protein <- data.frame(
   protein_id               = protein_ids,
-  protein_length           = all_peptides$length[first_idx],
   n_theoretical            = as.integer(tapply(seq_len(nrow(all_peptides)), prot_idx, length)),
   n_observed               = as.integer(tapply(all_peptides$is_observed, prot_idx, sum)),
   n_pepVet_valid           = as.integer(tapply(valid_mask, prot_idx, sum)),
@@ -121,9 +118,31 @@ per_protein$detection_rate_invalid <- ifelse(
   per_protein$n_theoretical > per_protein$n_pepVet_valid,
   per_protein$n_observed_and_invalid / (per_protein$n_theoretical - per_protein$n_pepVet_valid), NA_real_)
 
-## Merge in composite scores and verdicts from batch_evaluate
-scores_sub <- batch_scores[, c("protein_id", "composite_score", "verdict")]
+## Merge the original sequence length, score, and verdict from batch_evaluate.
+## The first peptide length is not the protein length, especially for missed
+## cleavage digests.
+scores_sub <- batch_scores[, c(
+  "protein_id", "protein_length", "composite_score", "verdict"
+)]
 per_protein <- merge(per_protein, scores_sub, by = "protein_id", all.x = TRUE)
+
+## Validate the generated research artifact before writing it. These checks
+## belong here because the PeptideAtlas table is a data product, not part of
+## pepVet's runtime API.
+if (
+  nrow(per_protein) != length(selected_proteins) ||
+    anyNA(per_protein$protein_length) ||
+    any(per_protein$protein_length < 50L)
+) {
+  stop(
+    paste(
+      "PeptideAtlas artifact invariant failed:",
+      "expected one complete protein-length record per selected protein,",
+      "with all lengths >= 50 AA."
+    ),
+    call. = FALSE
+  )
+}
 
 cat(sprintf("  Proteins with observed peptides: %d / %d (%.1f%%)\n",
             sum(per_protein$n_observed > 0), n_prot,

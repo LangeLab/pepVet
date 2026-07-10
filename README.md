@@ -52,7 +52,7 @@ recommend_enzyme(bsa, enzymes = c("trypsin", "lysc"))
 
 ## Visualization
 
-pepVet provides 12 ggplot2-based plot functions for digest diagnostics, enzyme comparison, physicochemical distributions, and proteome-scale overviews. Every function returns a ggplot or patchwork object that can be customized further.
+pepVet provides 14 ggplot2-based plot functions for digest diagnostics, enzyme comparison, physicochemical distributions, and proteome-scale overviews. Every function returns a ggplot or patchwork object that can be customized further.
 
 **Single-protein diagnostic:** `plot_digest_profile()` called on BSA (`P02769.fasta`) digested with trypsin at one missed cleavage gives a four-panel figure showing length distribution, GRAVY hydrophobicity, sequence coverage, and component scores:
 
@@ -66,7 +66,7 @@ pepVet provides 12 ggplot2-based plot functions for digest diagnostics, enzyme c
   <img src="man/figures/batch_comparison_10_enzymes_50_proteins.png" alt="10-enzyme batch comparison on 50 proteins" width="90%">
 </p>
 
-See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/visualisation.html) article for a full walkthrough of all plot functions.
+See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/visualisation.html) article for the 12 general-purpose plots. The [Score Diagnostics](https://langelab.github.io/pepVet/articles/score-diagnostics.html) and [Weight Sensitivity Analysis](https://langelab.github.io/pepVet/articles/weight-sensitivity.html) articles cover the remaining two plots.
 
 ## Features
 

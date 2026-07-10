@@ -16,9 +16,11 @@ vignette: >
 
 ## Overview
 
-pepVet provides 11 visualisation functions organised by analytical scope.
-Every function returns a `ggplot` or `patchwork` object that can be
-further customised, combined, or saved with `pepvet_save_figure()`.
+This article covers pepVet's 12 general-purpose visualisation functions,
+organised by analytical scope. The score diagnostics and weight sensitivity
+plots are documented in their dedicated articles. Every function returns a
+`ggplot` or `patchwork` object that can be further customised, combined, or
+saved with `pepvet_save_figure()`.
 
 ```{r setup, eval = requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("patchwork", quietly = TRUE)}
 library(pepVet)

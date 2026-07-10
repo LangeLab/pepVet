@@ -1,17 +1,13 @@
-# ── Shared test fixtures ──────────────────────────────────────────────────────
+# Shared test fixtures.
 #
-# This file is sourced automatically by testthat before any test file runs.
-# All expensive evaluate_digest() and batch_evaluate() calls go here so they
-# execute ONCE per test-suite run, not once per test_that() block.
+# testthat sources this file before any test file runs. Expensive
+# evaluate_digest() and batch_evaluate() calls belong here so they run once per
+# test-suite run rather than once per test block.
 #
-# Naming convention:
-#   .fix_<protein>_<enzyme>[_mc<n>]
-#
-# Objects are prefixed with "." so they are invisible in the workspace and
-# unlikely to clash with test-local variables.
-# ─────────────────────────────────────────────────────────────────────────────
+# Fixture names use .fix_<protein>_<enzyme>[_mc<n>]. A leading dot keeps them
+# out of ordinary test output and reduces name collisions.
 
-# Path helpers: shared across all test files (previously local to each file)
+# Path helper shared across all test files.
 reference_fasta <- function(file_name) {
   system.file("extdata", file_name, package = "pepVet")
 }
@@ -25,17 +21,17 @@ reference_fasta <- function(file_name) {
   package = "pepVet"
 )
 
-# Single-protein evaluate_digest results ──────────────────────────────────────
+# Single-protein evaluate_digest results.
 .fix_bsa_trypsin <- evaluate_digest(.bsa_path, enzyme = "trypsin")
 .fix_h3_trypsin <- evaluate_digest(.h3_path, enzyme = "trypsin")
 .fix_bsa_lysc <- evaluate_digest(.bsa_path, enzyme = "lysc")
 .fix_h3_lysc <- evaluate_digest(.h3_path, enzyme = "lysc")
-# chymotrypsin-high cuts after F/Y/W/L: very different peptide size profile
+# Chymotrypsin-high cuts after F/Y/W/L and creates a different size profile.
 .fix_bsa_chymotryp <- evaluate_digest(.bsa_path, enzyme = "chymotrypsin-high")
 .fix_h3_chymotryp <- evaluate_digest(.h3_path, enzyme = "chymotrypsin-high")
-# asp-n endopeptidase cuts N-terminal to D: unique directionality
+# Asp-N cuts N-terminal to D and exercises the opposite direction.
 .fix_bsa_aspn <- evaluate_digest(.bsa_path, enzyme = "asp-n endopeptidase")
-# glutamyl endopeptidase cuts after D/E: moderate count, different than trypsin
+# Glutamyl endopeptidase cuts after D/E and differs from trypsin.
 .fix_bsa_glute <- evaluate_digest(.bsa_path, enzyme = "glutamyl endopeptidase")
 .fix_bsa_mc0 <- evaluate_digest(.bsa_path,
   enzyme = "trypsin",
@@ -58,41 +54,29 @@ reference_fasta <- function(file_name) {
   missed_cleavages = 1L
 )
 
-# Batch result ────────────────────────────────────────────────────────────────
-if (requireNamespace("Biostrings", quietly = TRUE)) {
-  .fix_batch_trypsin <- batch_evaluate(
-    c(
-      Biostrings::readAAStringSet(.bsa_path),
-      Biostrings::readAAStringSet(.h3_path)
-    ),
-    enzyme = "trypsin"
-  )
-  # Batch for evaluation tests
-  .fix_batch_small <- batch_evaluate(.small_path, enzyme = "trypsin")
-  .fix_batch_bsa <- batch_evaluate(.bsa_path, enzyme = "trypsin")
-  .fix_batch_bsa_mc1 <- batch_evaluate(.bsa_path,
-    enzyme = "trypsin",
-    missed_cleavages = 1L
-  )
-  .fix_batch_h3 <- batch_evaluate(.h3_path, enzyme = "trypsin")
-  .fix_batch_multi <- batch_evaluate(.multi_path)
-  # Non-trypsin batch fixtures for enzyme-diversity testing
-  .fix_batch_chymotryp <- batch_evaluate(
-    c(
-      Biostrings::readAAStringSet(.bsa_path),
-      Biostrings::readAAStringSet(.h3_path)
-    ),
-    enzyme = "chymotrypsin-high"
-  )
-} else {
-  .fix_batch_trypsin <- NULL
-  .fix_batch_small <- NULL
-  .fix_batch_bsa <- NULL
-  .fix_batch_bsa_mc1 <- NULL
-  .fix_batch_h3 <- NULL
-  .fix_batch_multi <- NULL
-  .fix_batch_chymotryp <- NULL
-}
+# Batch results.
+.fix_batch_trypsin <- batch_evaluate(
+  c(
+    Biostrings::readAAStringSet(.bsa_path),
+    Biostrings::readAAStringSet(.h3_path)
+  ),
+  enzyme = "trypsin"
+)
+.fix_batch_small <- batch_evaluate(.small_path, enzyme = "trypsin")
+.fix_batch_bsa <- batch_evaluate(.bsa_path, enzyme = "trypsin")
+.fix_batch_bsa_mc1 <- batch_evaluate(.bsa_path,
+  enzyme = "trypsin",
+  missed_cleavages = 1L
+)
+.fix_batch_h3 <- batch_evaluate(.h3_path, enzyme = "trypsin")
+.fix_batch_multi <- batch_evaluate(.multi_path)
+.fix_batch_chymotryp <- batch_evaluate(
+  c(
+    Biostrings::readAAStringSet(.bsa_path),
+    Biostrings::readAAStringSet(.h3_path)
+  ),
+  enzyme = "chymotrypsin-high"
+)
 
 # Plotting wrappers return cached fixtures for common missed-cleavage levels.
 .bsa_result <- function(mc = 0L) {

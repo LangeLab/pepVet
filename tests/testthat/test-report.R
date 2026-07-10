@@ -1,11 +1,7 @@
-reference_fasta <- function(file_name) {
-  system.file("extdata", file_name, package = "pepVet")
-}
-
 # Snapshot tests capture the exact console output.
 # Run testthat::snapshot_review("report") after intentional layout changes.
 
-# ── Single-protein bar reports ────────────────────────────────────────────
+# Single-protein bar reports.
 
 test_that("BSA trypsin report matches snapshot (Good/Moderate verdict)", {
   ev <- evaluate_digest(reference_fasta("P02769.fasta"),
@@ -42,7 +38,7 @@ test_that("report output uses the short S_charge label with clarified meaning", 
   expect_true(any(grepl("^  S_charge\\s", output)))
 })
 
-# ── Multi-enzyme comparison reports ───────────────────────────────────────────
+# Multi-enzyme comparison reports.
 
 test_that("multi-enzyme comparison report matches snapshot", {
   comp <- compare_digests(
@@ -63,7 +59,7 @@ test_that("Histone H3 multi-enzyme comparison report matches snapshot", {
   expect_snapshot(digest_report(comp))
 })
 
-# ── Behavioural invariants ───────────────────────────────────────────────────
+# Behavioural invariants.
 
 test_that("digest_report returns its input invisibly", {
   ev <- evaluate_digest(reference_fasta("P02769.fasta"))
@@ -85,7 +81,7 @@ test_that("custom title overrides the protein ID header", {
   expect_true(any(grepl("My Custom Title", output, fixed = TRUE)))
 })
 
-# ── Edge cases ───────────────────────────────────────────────────────────────
+# Edge cases.
 
 test_that("digest_report handles a single-peptide protein without error", {
   # MKWVTFISLLFLFSSAYSR has one tryptic peptide (no internal K/R)
@@ -104,7 +100,7 @@ test_that("digest_report rejects invalid input with a classed error", {
   )
 })
 
-# ── pepvet_check ──────────────────────────────────────────────────────────────
+# pepvet_check.
 
 test_that("pepvet_check returns evaluate_digest result invisibly and unchanged", {
   bsa_path <- reference_fasta("P02769.fasta")

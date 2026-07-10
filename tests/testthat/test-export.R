@@ -1,8 +1,4 @@
-reference_fasta <- function(file_name) {
-  system.file("extdata", file_name, package = "pepVet")
-}
-
-# ── export_peptide_list - skyline ────────────────────────────────────────────
+# export_peptide_list - Skyline.
 
 test_that("skyline format returns a tibble with the correct column names", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
@@ -58,7 +54,7 @@ test_that("skyline format returns empty tibble when no valid peptides exist", {
   )
 })
 
-# ── export_peptide_list - generic ────────────────────────────────────────────
+# export_peptide_list - generic.
 
 test_that("generic format returns all rows annotated with gravy, pI, and valid columns", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
@@ -79,7 +75,7 @@ test_that("generic valid column matches the length_range filter", {
   expect_equal(result$valid, expected_valid)
 })
 
-# ── export_peptide_list - fasta ──────────────────────────────────────────────
+# export_peptide_list - FASTA.
 
 test_that("fasta format returns two lines per valid peptide with > headers", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
@@ -109,7 +105,7 @@ test_that("fasta format returns empty character vector when no valid peptides", 
   expect_length(result, 0L)
 })
 
-# ── export_peptide_list - file argument ──────────────────────────────────────
+# export_peptide_list - file argument.
 
 test_that("skyline format writes a file and returns file path invisibly", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")
@@ -134,7 +130,7 @@ test_that("fasta format writes a file and returns file path invisibly", {
   unlink(tmp)
 })
 
-# ── export_peptide_list - error handling ─────────────────────────────────────
+# export_peptide_list - error handling.
 
 test_that("unsupported format raises a classed error", {
   bsa_peps <- digest_protein(reference_fasta("P02769.fasta"), enzyme = "trypsin")

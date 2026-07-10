@@ -1,4 +1,4 @@
-# ── Cross-function consistency ─────────────────────────────────────────────
+# Cross-function consistency.
 
 test_that("evaluate_digest gives the same result as manual pipeline", {
   result <- evaluate_digest(.bsa_path,
@@ -78,7 +78,7 @@ test_that("evaluate_digest can append peptide-level cleavage efficiency", {
   expect_identical(result$peptides$cleavage_efficiency, c("medium", "medium", "high"))
 })
 
-# ── Comparison & recommendation ────────────────────────────────────────────
+# Comparison and recommendation.
 
 test_that("compare_digests output is sorted by composite_score descending", {
   result <- compare_digests(.bsa_path, enzymes = c("trypsin", "lysc"))
@@ -141,7 +141,7 @@ test_that("recommend_enzyme does not select trypsin for Histone H3", {
 })
 
 test_that("recommend_enzyme returns all tied enzymes in alphabetical order", {
-  # A poly-alanine sequence has no trypsin or lysc cut sites; both return an
+  # A poly-alanine sequence has no trypsin or lysc cut sites. Both return an
   # identical single-peptide digest and receive the same composite score.
   poly_ala <- strrep("A", 20L)
   result <- suppressWarnings(
@@ -152,7 +152,7 @@ test_that("recommend_enzyme returns all tied enzymes in alphabetical order", {
   expect_identical(result, c("lysc", "trypsin"))
 })
 
-# ── Return structure ───────────────────────────────────────────────────────
+# Return structure.
 
 test_that("evaluate_digest returns named list with scores, peptides, params", {
   result <- .fix_bsa_trypsin
@@ -222,7 +222,7 @@ test_that("protein_id is preserved across scores, peptides, and params", {
   expect_true(all(result$peptides$protein_id %in% result$params$protein_ids))
 })
 
-# ── Error handling ─────────────────────────────────────────────────────────
+# Error handling.
 
 test_that("invalid sequence in batch_evaluate propagates a classed error", {
   expect_error(
@@ -238,7 +238,7 @@ test_that("empty AAStringSet in batch_evaluate raises a classed error", {
   )
 })
 
-# ── summarize_batch ─────────────────────────────────────────────────────────
+# summarize_batch.
 
 test_that("summarize_batch returns a list with expected element names", {
   batch <- .fix_batch_small
@@ -314,7 +314,7 @@ test_that("summarize_batch rejects an empty tibble with a classed error", {
   )
 })
 
-# ── triage_proteins ─────────────────────────────────────────────────────────
+# triage_proteins.
 
 test_that("triage_proteins returns a tibble with an action column", {
   batch <- .fix_batch_small
@@ -374,7 +374,7 @@ test_that("triage_proteins flat tibble contains expected score columns", {
   )
 })
 
-# ── Weight sensitivity analysis ──────────────────────────────────────────────
+# Weight sensitivity analysis.
 
 test_that("sensitivity_analysis returns correct structure for evaluate_digest input", {
   res <- .fix_bsa_trypsin
@@ -494,7 +494,7 @@ test_that("plot_weight_sensitivity returns a ggplot for single-protein input", {
   expect_s3_class(p, "ggplot")
 })
 
-# ── ... argument passthrough ──────────────────────────────────────────────
+# Argument passthrough.
 
 test_that("evaluate_digest passes ... to score_peptides", {
   bsa <- .bsa_path
@@ -551,7 +551,7 @@ test_that("pepvet_check passes ... to evaluate_digest", {
   expect_true(wider$scores$S_hydro >= default$scores$S_hydro)
 })
 
-# ── Error class tests ─────────────────────────────────────────────────────
+# Error class tests.
 
 test_that("batch_evaluate rejects invalid cores", {
   expect_error(

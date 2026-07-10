@@ -41,10 +41,6 @@ expected_enzymes <- c(
   "trypsin-simple"
 )
 
-reference_fasta <- function(file_name) {
-  system.file("extdata", file_name, package = "pepVet")
-}
-
 strict_ranges <- function(result) {
   result[result$missed_cleavages == 0L, , drop = FALSE]
 }

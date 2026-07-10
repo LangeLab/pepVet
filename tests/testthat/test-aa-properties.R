@@ -12,8 +12,8 @@ expected_free_mass <- c(
   K = 146.10553, L = 131.09463, M = 149.05105, N = 132.05349,
   P = 115.06333, Q = 146.06914, R = 174.11168, S = 105.04259,
   T = 119.05824, V = 117.07898, W = 204.08988, Y = 181.07389,
-  U = 168.96420, # C3H7NO2Se; 80Se monoisotopic (Unimod)
-  O = 255.15829 # C12H21N3O3; PubChem exact mass 255.15829154
+  U = 168.96420, # C3H7NO2Se, 80Se monoisotopic (Unimod)
+  O = 255.15829 # C12H21N3O3, PubChem exact mass 255.15829154
 )
 
 expected_residue_mass <- c(
@@ -35,7 +35,7 @@ expected_kd <- c(
 
 expected_pka <- c(
   C = 8.3, D = 3.9, E = 4.3, H = 6.0, K = 10.5, R = 12.5, Y = 10.1,
-  U = 5.2 # selenol pKa; analogous to selenocysteine
+  U = 5.2 # Selenol pKa, analogous to selenocysteine.
 )
 
 water_mass <- 18.01056
@@ -82,7 +82,7 @@ test_that("aa_properties has the expected schema and missingness", {
   expect_false(anyNA(aa_properties$amino_acid))
   expect_false(anyNA(aa_properties$molecular_weight))
   expect_false(anyNA(aa_properties$residue_monoisotopic_mass))
-  # O (pyrrolysine) has no validated Kyte-Doolittle value; all others have one
+  # O (pyrrolysine) has no validated Kyte-Doolittle value. All others have one.
   expect_equal(sum(is.na(aa_properties$hydrophobicity)), 1L)
   expect_true(is.na(
     aa_properties$hydrophobicity[aa_properties$amino_acid == "O"]
@@ -138,7 +138,7 @@ test_that(
 
     # Compare only the 20 standard AAs against the published KD scale
     expect_equal(observed_hydrophobicity[names(expected_kd)], expected_kd)
-    # U is assigned Cys-equivalent (2.5); no canonical KD entry exists
+    # U is assigned Cys-equivalent (2.5). No canonical KD entry exists.
     expect_equal(observed_hydrophobicity[["U"]], 2.5)
     # O has no validated KD value (scale predates pyrrolysine's discovery)
     expect_true(is.na(observed_hydrophobicity[["O"]]))

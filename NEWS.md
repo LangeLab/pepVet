@@ -6,11 +6,20 @@
 
 * Added *PeptideAtlas Concordance* article validating pepVet scoring parameters against the human PeptideAtlas build (5.3M observed peptides). Covers enrichment measurement with bootstrap CI, signal decomposition by filter, grid search over length/GRAVY boundaries, and threshold calibration.
 * Added empirical validation summary to the scoring-model article, cross-referencing the Score Diagnostics and PeptideAtlas Concordance articles.
+* Updated workflow, plotting, and tool-comparison documentation to reflect current thresholds, preset ranges, and cleavage-efficiency output.
+
+## Improvements
+
+* Unified GRAVY calculations across scoring, export, plotting, and comparison workflows for consistent results.
+* Made plot configuration changes propagate consistently to diagnostics, batch plots, distributions, and sensitivity plots.
 
 ## Bug fixes
 
-* Updated tracked data-generation scripts to use the current vectorized `.calculate_gravy()` helper name.
 * Corrected the PeptideAtlas per-protein artifact to record full protein lengths rather than the length of each protein's first peptide, then regenerated the checked-in concordance tables.
+* Fixed `recommend_enzyme()` tie handling so all enzymes within the documented tolerance are returned in alphabetical order.
+* Corrected charge scoring for single-residue peptides so they do not receive an internal basic-residue contribution.
+* Strengthened input validation for batch cores, sensitivity-analysis parameters, custom diagnostic weights, and plot configuration. Invalid values now produce clear errors without partially changing active plot settings.
+* Fixed repeated package initialization so plot configuration remains stable when the package is loaded more than once.
 
 # pepVet 0.1.6
 

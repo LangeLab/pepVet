@@ -76,12 +76,9 @@ expected_small_proteome_widths <- c(
 
 standard_amino_acids <- strsplit("ACDEFGHIKLMNPQRSTVWY", "", fixed = TRUE)[[1]]
 
-reference_fasta_path <- function(file_name) {
-  system.file("extdata", file_name, package = "pepVet")
-}
-
 read_reference_fasta <- function(file_name) {
-  Biostrings::readAAStringSet(reference_fasta_path(file_name))
+  path <- system.file("extdata", file_name, package = "pepVet")
+  Biostrings::readAAStringSet(path)
 }
 
 extract_accessions <- function(fasta_names) {
@@ -104,20 +101,6 @@ fasta_widths <- function(fasta_set) {
   unname(nchar(as.character(fasta_set), type = "chars"))
 }
 
-capture_messages <- function(expr) {
-  captured <- list()
-
-  withCallingHandlers(
-    expr,
-    message = function(cnd) {
-      captured[[length(captured) + 1L]] <<- cnd
-      invokeRestart("muffleMessage")
-    }
-  )
-
-  captured
-}
-
 test_that("reference FASTA inventory is exact and resolvable", {
   extdata_dir <- system.file("extdata", package = "pepVet")
 
@@ -129,7 +112,7 @@ test_that("reference FASTA inventory is exact and resolvable", {
   )
 
   for (file_name in expected_reference_fasta_files) {
-    path <- reference_fasta_path(file_name)
+    path <- reference_fasta(file_name)
     expect_true(nzchar(path), info = file_name)
     expect_true(file.exists(path), info = path)
     expect_match(basename(path), file_name, fixed = TRUE)
@@ -190,7 +173,7 @@ test_that("all committed FASTA fixtures use the standard amino-acid alphabet", {
 
     expect_true(all(fasta_widths(fasta) > 0L), info = file_name)
     expect_true(
-      setequal(alphabet, intersect(alphabet, standard_amino_acids)),
+      all(alphabet %in% standard_amino_acids),
       info = file_name
     )
   }

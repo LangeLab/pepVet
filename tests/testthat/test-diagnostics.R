@@ -1,15 +1,9 @@
 # Tests for score_diagnostics() and plot_score_diagnostics()
 
-small_fasta <- system.file(
-  "extdata", "small_proteome_50_proteins.fasta",
-  package = "pepVet"
-)
-batch_small <- batch_evaluate(small_fasta, enzyme = "trypsin")
-
 # ---- Happy path ----
 
 test_that("score_diagnostics returns correct structure", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_type(d, "list")
   expect_named(d, c("vif", "pca", "ablation", "n_proteins",
@@ -25,33 +19,33 @@ test_that("score_diagnostics returns correct structure", {
 })
 
 test_that("VIF values are finite and positive", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_true(all(is.finite(d$vif)))
   expect_true(all(d$vif > 0))
 })
 
 test_that("PCA variance sums to 1", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_equal(sum(d$pca$var_explained), 1, tolerance = 1e-10)
 })
 
 test_that("PCA loadings are a square matrix", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_equal(dim(d$pca$loadings), c(5, 5))
 })
 
 test_that("Ablation drops are non-negative", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_true(all(d$ablation$mean_drop >= 0))
   expect_true(all(d$ablation$max_drop >= 0))
 })
 
 test_that("Ablation rows match component count", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_equal(nrow(d$ablation), 5L)
 })
@@ -59,7 +53,7 @@ test_that("Ablation rows match component count", {
 # ---- Edge cases ----
 
 test_that("too-few-proteins produces NA VIF with warning", {
-  batch3 <- batch_small[1:3, ]
+  batch3 <- .fix_batch_small[1:3, ]
 
   expect_warning(
     d <- score_diagnostics(batch3),
@@ -70,7 +64,7 @@ test_that("too-few-proteins produces NA VIF with warning", {
 })
 
 test_that("single component column raises error", {
-  bad <- batch_small[, c("protein_id", "S_length"), drop = FALSE]
+  bad <- .fix_batch_small[, c("protein_id", "S_length"), drop = FALSE]
 
   expect_error(
     score_diagnostics(bad),
@@ -95,7 +89,7 @@ test_that("custom weights produce proportional ablation drops", {
   custom_weights <- c(
     S_length = 0.3, S_coverage = 0.3, S_count = 0.2,
     S_hydro = 0.1, S_charge = 0.1)
-  d <- score_diagnostics(batch_small, weights = custom_weights)
+  d <- score_diagnostics(.fix_batch_small, weights = custom_weights)
 
   expect_equal(d$weights, custom_weights / sum(custom_weights),
     tolerance = 1e-10)
@@ -104,12 +98,12 @@ test_that("custom weights produce proportional ablation drops", {
 
 test_that("score_diagnostics rejects invalid custom weights", {
   expect_error(
-    score_diagnostics(batch_small, weights = rep(0.2, 5L)),
+    score_diagnostics(.fix_batch_small, weights = rep(0.2, 5L)),
     class = "pepvet_error_invalid_weights"
   )
   expect_error(
     score_diagnostics(
-      batch_small,
+      .fix_batch_small,
       weights = c(
         S_length = 0.3, S_coverage = 0.3, S_count = 0.2,
         S_hydro = -0.1, S_charge = 0.3
@@ -119,7 +113,7 @@ test_that("score_diagnostics rejects invalid custom weights", {
   )
   expect_error(
     score_diagnostics(
-      batch_small,
+      .fix_batch_small,
       weights = c(
         S_length = 0.2, S_coverage = 0.2, S_count = 0.2,
         S_hydro = 0.2, S_other = 0.2
@@ -132,8 +126,8 @@ test_that("score_diagnostics rejects invalid custom weights", {
 # ---- Proteome-aware mode ----
 
 test_that("proteome-aware mode detects S_unique", {
-  prot_digest <- digest_protein(small_fasta, enzyme = "trypsin")
-  batch_pa <- batch_evaluate(small_fasta, enzyme = "trypsin",
+  prot_digest <- digest_protein(.small_path, enzyme = "trypsin")
+  batch_pa <- batch_evaluate(.small_path, enzyme = "trypsin",
     proteome = prot_digest)
   d <- score_diagnostics(batch_pa)
 
@@ -146,7 +140,7 @@ test_that("proteome-aware mode detects S_unique", {
 
 test_that("different enzyme produces valid diagnostics", {
   expect_warning(
-    batch_lysc <- batch_evaluate(small_fasta, enzyme = "lysc"),
+    batch_lysc <- batch_evaluate(.small_path, enzyme = "lysc"),
     class = "pepvet_warning_no_cleavage_sites"
   )
   d <- score_diagnostics(batch_lysc)
@@ -158,7 +152,7 @@ test_that("different enzyme produces valid diagnostics", {
 # ---- Plot function ----
 
 test_that("plot_score_diagnostics returns a patchwork", {
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
 
   expect_error(
     plot_score_diagnostics(NULL),
@@ -174,7 +168,7 @@ test_that("plot_score_diagnostics works with ggplot2 and patchwork", {
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("patchwork")
 
-  d <- score_diagnostics(batch_small)
+  d <- score_diagnostics(.fix_batch_small)
   p <- plot_score_diagnostics(d)
 
   expect_s3_class(p, "ggplot")
@@ -184,8 +178,8 @@ test_that("plot_score_diagnostics works with ggplot2 and patchwork", {
 # ---- Determinism ----
 
 test_that("score_diagnostics is deterministic", {
-  d1 <- score_diagnostics(batch_small)
-  d2 <- score_diagnostics(batch_small)
+  d1 <- score_diagnostics(.fix_batch_small)
+  d2 <- score_diagnostics(.fix_batch_small)
 
   expect_equal(d1$vif, d2$vif)
   expect_equal(d1$ablation$mean_drop, d2$ablation$mean_drop)

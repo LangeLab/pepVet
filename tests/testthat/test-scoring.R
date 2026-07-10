@@ -1,7 +1,3 @@
-reference_fasta <- function(file_name) {
-  system.file("extdata", file_name, package = "pepVet")
-}
-
 make_digest_result <- function(peptides,
                                starts = NULL,
                                protein_id = "sequence_1",
@@ -31,7 +27,7 @@ make_digest_result <- function(peptides,
 }
 
 combine_digest_results <- function(...) {
-  tibble::as_tibble(do.call(rbind, list(...)))
+  pepVet:::.bind_rows(list(...))
 }
 
 expected_protein_only_weights <- c(
@@ -587,7 +583,7 @@ test_that("fixture-backed scoring captures expected biological separation", {
   expect_lt(bace1$composite_score, bsa$composite_score)
 })
 
-# ── Error class tests ─────────────────────────────────────────────────────
+# Error class tests.
 
 test_that("score_peptides rejects invalid gravy_range", {
   d <- digest_protein(.bsa_path, enzyme = "trypsin")

@@ -383,16 +383,29 @@ write.csv(pc_tbl, file.path(out_dir, "sectionE-protein-cleaver.csv"),
 ## SUMMARY / EXECUTIVE COMPARISON TABLE
 ## ======================================================================
 cat("\nEXECUTIVE SUMMARY: Where pepVet fits\n\n")
-cat("| Dimension                          | pepVet alone | +PeptideRanger | +Protein Cleaver | MS-Digest/ExPASy |\n")
-cat("|------------------------------------|-------------|----------------|------------------|------------------|\n")
-cat("| Quick enzyme ranking               | Best        | Overkill       | Overkill         | Manual re-request |\n")
-cat("| Method development + presets       | Best        | Overkill       | Overkill         | Not possible      |\n")
-cat("| Manuscript-grade digest quality    | Best        | Adds depth     | Adds depth       | Not possible      |\n")
-cat("| Peptide-level detectability        | Not possible| Best           | Rules-based      | Not possible      |\n")
-cat("| 3D structural context              | Not possible| Not possible   | Best             | Not possible      |\n")
-cat("| Precise mass calculation           | Good        | Not relevant   | Not relevant     | Best              |\n")
-cat("| Proteome-scale batch analysis      | Best        | Impractical    | Yes (GUI)        | Not possible      |\n")
-cat("| Scriptable pipeline integration    | Best        | Best (R)       | Shiny only       | Web only          |\n")
+cat(
+  "| Dimension                          | pepVet alone | +PeptideRanger | ",
+  "+Protein Cleaver | MS-Digest/ExPASy |\n",
+  "|------------------------------------|-------------|----------------| ",
+  "------------------|------------------|\n",
+  "| Quick enzyme ranking               | Best        | Overkill       | ",
+  "Overkill         | Manual re-request |\n",
+  "| Method development + presets       | Best        | Overkill       | ",
+  "Overkill         | Not possible      |\n",
+  "| Manuscript-grade digest quality    | Best        | Adds depth     | ",
+  "Adds depth       | Not possible      |\n",
+  "| Peptide-level detectability        | Not possible| Best           | ",
+  "Rules-based      | Not possible      |\n",
+  "| 3D structural context              | Not possible| Not possible   | ",
+  "Best             | Not possible      |\n",
+  "| Precise mass calculation           | Good        | Not relevant   | ",
+  "Not relevant     | Best              |\n",
+  "| Proteome-scale batch analysis      | Best        | Impractical    | ",
+  "Yes (GUI)        | Not possible      |\n",
+  "| Scriptable pipeline integration    | Best        | Best (R)       | ",
+  "Shiny only       | Web only          |\n",
+  sep = ""
+)
 
 ##
 ## FIGURES
@@ -519,7 +532,10 @@ if (exists("pr_tbl")) {
     facet_grid(protein ~ ., scales = "free_y", space = "free_y") +
     labs(
       title = "PeptideRanger enrichment by pepVet validity filter",
-      subtitle = "Enrichment = difference in mean PR score between pepVet-valid and -invalid peptides",
+      subtitle = paste0(
+        "Enrichment = difference in mean PR score between ",
+        "pepVet-valid and -invalid peptides"
+      ),
       x = "Enrichment (delta PR score)", y = NULL, fill = NULL
     ) +
     theme_minimal(base_size = 10) +

@@ -1,3 +1,23 @@
+.validate_positive_integer <- function(value,
+                                       arg_name,
+                                       class = "pepvet_error_invalid_input") {
+  if (
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      !is.finite(value) ||
+      value < 1 ||
+      value > .Machine$integer.max ||
+      value != floor(value)
+  ) {
+    .abort(
+      "{.arg {arg_name}} must be a positive integer.",
+      class = class
+    )
+  }
+
+  as.integer(value)
+}
+
 #' Evaluate a proteolytic digest
 #'
 #' `evaluate_digest()` combines [digest_protein()] and [score_peptides()] into
@@ -345,13 +365,11 @@ batch_evaluate <- function(sequences,
                            weights = NULL,
                            cores = 1L,
                            ...) {
-  cores <- suppressWarnings(as.integer(cores))
-  if (is.na(cores) || cores < 1L) {
-    .abort(
-      "{.arg cores} must be a positive integer.",
-      class = "pepvet_error_invalid_cores"
-    )
-  }
+  cores <- .validate_positive_integer(
+    cores,
+    arg_name = "cores",
+    class = "pepvet_error_invalid_cores"
+  )
 
   normalized_input <- .read_input(sequences)
   extra_args <- list(...)
@@ -761,13 +779,11 @@ batch_compare_enzymes <- function(
     )
   }
 
-  cores <- suppressWarnings(as.integer(cores))
-  if (is.na(cores) || cores < 1L) {
-    .abort(
-      "{.arg cores} must be a positive integer.",
-      class = "pepvet_error_invalid_cores"
-    )
-  }
+  cores <- .validate_positive_integer(
+    cores,
+    arg_name = "cores",
+    class = "pepvet_error_invalid_cores"
+  )
 
   ## Parse input once. Each per-enzyme batch_evaluate() call receives the
   ## same in-memory AAStringSet, which fork workers share via copy-on-write.
@@ -960,6 +976,65 @@ triage_proteins <- function(batch_result) {
 
 ## Weight sensitivity analysis
 
+.validate_sensitivity_parameters <- function(nu,
+                                             n_iter,
+                                             chunk_size,
+                                             importance,
+                                             corner_cases) {
+  if (
+    !is.numeric(nu) ||
+      length(nu) != 1L ||
+      !is.finite(nu) ||
+      nu <= 0
+  ) {
+    .abort(
+      "{.arg nu} must be a single finite positive number.",
+      class = "pepvet_error_invalid_sensitivity_parameter"
+    )
+  }
+
+  n_iter <- .validate_positive_integer(
+    n_iter,
+    arg_name = "n_iter",
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+  chunk_size <- .validate_positive_integer(
+    chunk_size,
+    arg_name = "chunk_size",
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+
+  if (
+    !is.logical(importance) ||
+      length(importance) != 1L ||
+      is.na(importance)
+  ) {
+    .abort(
+      "{.arg importance} must be a single, non-missing logical value.",
+      class = "pepvet_error_invalid_sensitivity_parameter"
+    )
+  }
+
+  if (
+    !is.logical(corner_cases) ||
+      length(corner_cases) != 1L ||
+      is.na(corner_cases)
+  ) {
+    .abort(
+      "{.arg corner_cases} must be a single, non-missing logical value.",
+      class = "pepvet_error_invalid_sensitivity_parameter"
+    )
+  }
+
+  list(
+    nu = as.numeric(nu),
+    n_iter = n_iter,
+    chunk_size = chunk_size,
+    importance = importance,
+    corner_cases = corner_cases
+  )
+}
+
 #' Weight sensitivity analysis
 #'
 #' `sensitivity_analysis()` perturbs the default scoring weights using a
@@ -1009,6 +1084,15 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
                                  chunk_size = 10000L,
                                  importance = FALSE,
                                  corner_cases = FALSE) {
+  validated <- .validate_sensitivity_parameters(
+    nu, n_iter, chunk_size, importance, corner_cases
+  )
+  nu <- validated$nu
+  n_iter <- validated$n_iter
+  chunk_size <- validated$chunk_size
+  importance <- validated$importance
+  corner_cases <- validated$corner_cases
+
   if (is.data.frame(x)) {
     if ("enzyme" %in% names(x) && length(unique(x$protein_id)) == 1L) {
       .sensitivity_enzymes(x, nu, n_iter, importance, corner_cases)

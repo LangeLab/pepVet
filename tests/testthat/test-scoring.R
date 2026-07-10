@@ -313,7 +313,7 @@ test_that("score_peptides warns and zeros S_count for no-cleavage digests", {
 
   expect_warning(
     result <- score_peptides(digest_result, enzyme = "trypsin"),
-    "has no cleavage sites"
+    class = "pepvet_warning_no_cleavage_sites"
   )
 
   expect_identical(result$S_count, 0)
@@ -481,7 +481,7 @@ test_that("count scoring handles caps, ratios, and edge protein sizes", {
   expect_identical(pepVet:::.score_count(zero_valid), 0)
   expect_warning(
     expect_identical(pepVet:::.score_count(short_protein), 0),
-    "has no cleavage sites"
+    class = "pepvet_warning_no_cleavage_sites"
   )
 })
 

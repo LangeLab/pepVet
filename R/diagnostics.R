@@ -6,15 +6,45 @@
 ## digest-quality dimensions.
 
 ## Component color palette shared between diagnostics and visualization
-.diagnostics_comp_colors <- c(
-  S_length   = "#5D7B93",
-  S_coverage = "#3E787F",
-  S_count    = "#79B3B4",
-  S_hydro    = "#8B5E99",
-  S_charge   = "#E2A242",
-  S_unique   = "#B8B8B8"
-)
 
+.validate_diagnostic_weights <- function(weights, component_names) {
+  if (
+    !is.numeric(weights) ||
+      length(weights) != length(component_names) ||
+      is.null(names(weights)) ||
+      anyNA(weights) ||
+      any(!is.finite(weights))
+  ) {
+    .abort(
+      "{.arg weights} must be a named finite numeric vector.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  weight_names <- names(weights)
+  if (
+    anyNA(weight_names) ||
+      any(!nzchar(trimws(weight_names))) ||
+      anyDuplicated(weight_names) > 0L ||
+      !setequal(weight_names, component_names)
+  ) {
+    .abort(
+      "Named {.arg weights} must match the component score columns.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  normalized_weights <- as.numeric(weights[match(component_names, weight_names)])
+  if (any(normalized_weights < 0) || sum(normalized_weights) <= 0) {
+    .abort(
+      "{.arg weights} must contain non-negative values with a positive sum.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  names(normalized_weights) <- component_names
+  normalized_weights / sum(normalized_weights)
+}
 
 #' Score diagnostics for pepVet scoring models
 #'
@@ -125,9 +155,15 @@ score_diagnostics <- function(batch_result, weights = NULL) {
     } else {
       .default_scoring_weights$protein_only
     }
-    w_sub <- w0[intersect(names(w0), comp_cols)]
+    if (!all(comp_cols %in% names(w0))) {
+      .abort(
+        "{.arg batch_result} contains unknown component score columns.",
+        class = "pepvet_error_invalid_diagnostics_input"
+      )
+    }
+    w_sub <- w0[comp_cols]
   } else {
-    w_sub <- weights[intersect(names(weights), comp_cols)]
+    w_sub <- .validate_diagnostic_weights(weights, comp_cols)
   }
   w_sub <- w_sub / sum(w_sub)
 
@@ -398,7 +434,7 @@ plot_score_diagnostics <- function(x, title = NULL) {
         .data$mean_drop, .data$n_verdict_flipped, n_prot)),
       hjust = -0.15, size = 2.5,
       color = .pepvet_pal$text_dark, lineheight = 0.9) +
-    ggplot2::scale_fill_manual(values = .diagnostics_comp_colors,
+    ggplot2::scale_fill_manual(values = .pepvet_pal$component,
       guide = "none") +
     ggplot2::scale_x_continuous(
       expand = ggplot2::expansion(mult = c(0, 0.55))) +

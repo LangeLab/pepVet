@@ -93,3 +93,41 @@ if (requireNamespace("Biostrings", quietly = TRUE)) {
   .fix_batch_multi <- NULL
   .fix_batch_chymotryp <- NULL
 }
+
+# Plotting wrappers return cached fixtures for common missed-cleavage levels.
+.bsa_result <- function(mc = 0L) {
+  if (mc == 0L) {
+    return(.fix_bsa_mc0)
+  }
+  if (mc == 1L) {
+    return(.fix_bsa_mc1)
+  }
+  if (mc == 2L) {
+    return(.fix_bsa_mc2)
+  }
+  evaluate_digest(.bsa_path, enzyme = "trypsin", missed_cleavages = mc)
+}
+
+.h3_result <- function(mc = 0L) {
+  if (mc == 0L) {
+    return(.fix_h3_trypsin)
+  }
+  evaluate_digest(.h3_path, enzyme = "trypsin", missed_cleavages = mc)
+}
+
+.bsa_cs <- function() {
+  annotate_cleavage_sites(.bsa_path, enzyme = "trypsin")
+}
+
+.h3_cs <- function() {
+  annotate_cleavage_sites(.h3_path, enzyme = "trypsin")
+}
+
+.bsa_comparison <- function(
+  enzymes = c(
+    "trypsin", "lysc",
+    "glutamyl endopeptidase"
+  )
+) {
+  compare_digests(.bsa_path, enzymes = enzymes)
+}

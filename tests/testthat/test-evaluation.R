@@ -411,7 +411,12 @@ test_that("sensitivity_analysis corner_cases returns table", {
 
 test_that("sensitivity_analysis verdict matches expectation for zero-cleavage protein", {
   no_cleave <- "MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-  res <- evaluate_digest(no_cleave, enzyme = "trypsin", missed_cleavages = 1L)
+  expect_warning(
+    res <- evaluate_digest(
+      no_cleave, enzyme = "trypsin", missed_cleavages = 1L
+    ),
+    class = "pepvet_warning_no_cleavage_sites"
+  )
   expect_identical(res$scores$verdict, "Poor")
   expect_equal(res$scores$composite_score, 0)
 })
@@ -441,10 +446,35 @@ test_that("sensitivity_analysis on batch input returns per-protein instability",
   expect_named(sens$summary, c("total_instability", "mean_ci_width", "ci_width_quantiles"))
 })
 
+test_that("sensitivity_analysis rejects invalid tuning parameters", {
+  res <- .fix_bsa_trypsin
+
+  expect_error(
+    sensitivity_analysis(res, nu = 0),
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+  expect_error(
+    sensitivity_analysis(res, n_iter = 0L),
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+  expect_error(
+    sensitivity_analysis(res, chunk_size = 0L),
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+  expect_error(
+    sensitivity_analysis(res, importance = "yes"),
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+  expect_error(
+    sensitivity_analysis(res, corner_cases = NA),
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+})
+
 test_that("Dirichlet sampler produces correct mean and variance", {
   w0 <- c(a = 0.2, b = 0.3, c = 0.5)
   nu <- 100
-  set.seed(42)
+  withr::local_seed(42)
   samples <- .rdirichlet(10000, nu * w0)
   expect_equal(nrow(samples), 10000)
   expect_equal(ncol(samples), 3L)
@@ -499,9 +529,18 @@ test_that("batch_evaluate passes ... to score_peptides", {
 
 test_that("batch_compare_enzymes passes ... to batch_evaluate", {
   small <- .small_path
-  default <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
-  wider <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"),
-    gravy_range = c(-2.0, 2.0))
+  expect_warning(
+    default <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc")),
+    class = "pepvet_warning_no_cleavage_sites"
+  )
+  expect_warning(
+    wider <- batch_compare_enzymes(
+      small,
+      enzymes = c("trypsin", "lysc"),
+      gravy_range = c(-2.0, 2.0)
+    ),
+    class = "pepvet_warning_no_cleavage_sites"
+  )
   expect_true(wider$S_hydro[[1]] >= default$S_hydro[[1]])
 })
 
@@ -521,6 +560,14 @@ test_that("batch_evaluate rejects invalid cores", {
   )
   expect_error(
     batch_evaluate(.bsa_path, cores = -1L),
+    class = "pepvet_error_invalid_cores"
+  )
+  expect_error(
+    batch_evaluate(.bsa_path, cores = 1.5),
+    class = "pepvet_error_invalid_cores"
+  )
+  expect_error(
+    batch_compare_enzymes(.bsa_path, cores = 1.5),
     class = "pepvet_error_invalid_cores"
   )
 })

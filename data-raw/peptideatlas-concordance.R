@@ -106,8 +106,12 @@ per_protein <- data.frame(
   n_theoretical            = as.integer(tapply(seq_len(nrow(all_peptides)), prot_idx, length)),
   n_observed               = as.integer(tapply(all_peptides$is_observed, prot_idx, sum)),
   n_pepVet_valid           = as.integer(tapply(valid_mask, prot_idx, sum)),
-  n_observed_and_valid     = as.integer(tapply(valid_mask & all_peptides$is_observed, prot_idx, sum)),
-  n_observed_and_invalid   = as.integer(tapply(!valid_mask & all_peptides$is_observed, prot_idx, sum)),
+  n_observed_and_valid     = as.integer(
+    tapply(valid_mask & all_peptides$is_observed, prot_idx, sum)
+  ),
+  n_observed_and_invalid   = as.integer(
+    tapply(!valid_mask & all_peptides$is_observed, prot_idx, sum)
+  ),
   stringsAsFactors = FALSE
 )
 
@@ -116,7 +120,11 @@ per_protein$detection_rate_valid   <- ifelse(per_protein$n_pepVet_valid > 0L,
   per_protein$n_observed_and_valid / per_protein$n_pepVet_valid, NA_real_)
 per_protein$detection_rate_invalid <- ifelse(
   per_protein$n_theoretical > per_protein$n_pepVet_valid,
-  per_protein$n_observed_and_invalid / (per_protein$n_theoretical - per_protein$n_pepVet_valid), NA_real_)
+  per_protein$n_observed_and_invalid / (
+    per_protein$n_theoretical - per_protein$n_pepVet_valid
+  ),
+  NA_real_
+)
 
 ## Merge the original sequence length, score, and verdict from batch_evaluate.
 ## The first peptide length is not the protein length, especially for missed

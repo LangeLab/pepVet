@@ -203,4 +203,3 @@ test_that("key reference fixture widths remain biologically plausible", {
   expect_gt(fasta_widths(titin), 30000L)
   expect_identical(fasta_widths(isoforms), expected_isoform_widths)
 })
-

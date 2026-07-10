@@ -1115,6 +1115,140 @@ NULL
 
 ## Public API
 
+.validate_plot_palette <- function(palette, current_palette) {
+  if (!is.list(palette) || is.null(names(palette))) {
+    .abort(
+      "{.arg palette} must be a named list.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+
+  unknown <- setdiff(names(palette), names(current_palette))
+  if (length(unknown) > 0L) {
+    .abort(
+      "Unknown palette {.field {unknown}}.",
+      "i" = "Valid names: {.val {names(current_palette)}}.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+
+  for (name in names(palette)) {
+    value <- palette[[name]]
+    expected <- current_palette[[name]]
+    same_shape <- is.character(value) &&
+      length(value) == length(expected) &&
+      identical(names(value), names(expected)) &&
+      !anyNA(value)
+    if (!same_shape) {
+      .abort(
+        "Palette entry {.field {name}} must match its default shape and type.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+
+    valid_color <- tryCatch(
+      {
+        grDevices::col2rgb(value)
+        TRUE
+      },
+      error = function(error) FALSE
+    )
+    if (!valid_color) {
+      .abort(
+        "Palette entry {.field {name}} contains an invalid color.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+  }
+
+  updated_palette <- current_palette
+  updated_palette[names(palette)] <- palette
+  updated_palette
+}
+
+.validate_plot_params <- function(params, current_params) {
+  if (!is.list(params) || is.null(names(params))) {
+    .abort(
+      "{.arg params} must be a named list.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+
+  unknown <- setdiff(names(params), names(current_params))
+  if (length(unknown) > 0L) {
+    .abort(
+      "Unknown param {.field {unknown}}.",
+      "i" = "Valid names: {.val {names(current_params)}}.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+
+  integer_params <- c("length_lo", "length_hi", "scatter_max_pts")
+  validated <- params
+  for (name in names(params)) {
+    value <- params[[name]]
+    finite_scalar <- is.numeric(value) &&
+      length(value) == 1L &&
+      is.finite(value)
+    positive_integer <- finite_scalar &&
+      value >= 1 &&
+      value <= .Machine$integer.max &&
+      value == floor(value)
+    valid <- switch(
+      name,
+      verdict_good = finite_scalar && value >= 0 && value <= 1,
+      verdict_moderate = finite_scalar && value >= 0 && value <= 1,
+      length_lo = positive_integer,
+      length_hi = positive_integer,
+      gravy_lo = finite_scalar,
+      gravy_hi = finite_scalar,
+      scatter_alpha = finite_scalar && value >= 0 && value <= 1,
+      scatter_max_pts = positive_integer,
+      patchwork_title_size = finite_scalar && value > 0,
+      patchwork_tag_size = finite_scalar && value > 0,
+      sensitivity_bw = finite_scalar && value > 0,
+      pi_binwidth = finite_scalar && value > 0,
+      length_binwidth = finite_scalar && value > 0,
+      batch_score_binwidth = finite_scalar && value > 0,
+      FALSE
+    )
+    if (!isTRUE(valid)) {
+      .abort(
+        "Parameter {.field {name}} has an invalid value.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    if (name %in% integer_params) {
+      validated[[name]] <- as.integer(value)
+    } else {
+      validated[[name]] <- as.numeric(value)
+    }
+  }
+
+  proposed <- current_params
+  proposed[names(validated)] <- validated
+  if (proposed$verdict_good <= proposed$verdict_moderate) {
+    .abort(
+      "{.arg params} must set {.field verdict_good} above {.field verdict_moderate}.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+  if (proposed$length_lo > proposed$length_hi) {
+    .abort(
+      "{.arg params} must keep the length range in ascending order.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+  if (proposed$gravy_lo > proposed$gravy_hi) {
+    .abort(
+      "{.arg params} must keep the GRAVY range in ascending order.",
+      class = "pepvet_error_invalid_config"
+    )
+  }
+
+  validated
+}
+
 #' Configure pepVet plot appearance
 #'
 #' Override default colors, numeric parameters, and theme elements used by
@@ -1161,40 +1295,17 @@ pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
     )))
   }
 
+  new_palette <- env$pal
+  new_params <- env$params
+  new_theme <- env$theme_overrides
+
   if (!is.null(palette)) {
-    if (!is.list(palette) || is.null(names(palette))) {
-      .abort(
-        "{.arg palette} must be a named list.",
-        class = "pepvet_error_invalid_config"
-      )
-    }
-    unknown <- setdiff(names(palette), names(env$pal))
-    if (length(unknown) > 0L) {
-      .abort(
-        "Unknown palette {.field {unknown}}.",
-        "i" = "Valid names: {.val {names(env$pal)}}.",
-        class = "pepvet_error_invalid_config"
-      )
-    }
-    env$pal[names(palette)] <- palette
+    new_palette <- .validate_plot_palette(palette, new_palette)
   }
 
   if (!is.null(params)) {
-    if (!is.list(params) || is.null(names(params))) {
-      .abort(
-        "{.arg params} must be a named list.",
-        class = "pepvet_error_invalid_config"
-      )
-    }
-    unknown <- setdiff(names(params), names(env$params))
-    if (length(unknown) > 0L) {
-      .abort(
-        "Unknown param {.field {unknown}}.",
-        "i" = "Valid names: {.val {names(env$params)}}.",
-        class = "pepvet_error_invalid_config"
-      )
-    }
-    env$params[names(params)] <- params
+    validated_params <- .validate_plot_params(params, new_params)
+    new_params[names(validated_params)] <- validated_params
   }
 
   if (!is.null(theme)) {
@@ -1204,8 +1315,12 @@ pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
         class = "pepvet_error_invalid_config"
       )
     }
-    env$theme_overrides <- theme
+    new_theme <- theme
   }
+
+  env$pal <- new_palette
+  env$params <- new_params
+  env$theme_overrides <- new_theme
 
   invisible(list(
     palette = env$pal,

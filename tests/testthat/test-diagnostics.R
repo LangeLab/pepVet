@@ -102,6 +102,33 @@ test_that("custom weights produce proportional ablation drops", {
   expect_true(all(d$ablation$mean_drop >= 0))
 })
 
+test_that("score_diagnostics rejects invalid custom weights", {
+  expect_error(
+    score_diagnostics(batch_small, weights = rep(0.2, 5L)),
+    class = "pepvet_error_invalid_weights"
+  )
+  expect_error(
+    score_diagnostics(
+      batch_small,
+      weights = c(
+        S_length = 0.3, S_coverage = 0.3, S_count = 0.2,
+        S_hydro = -0.1, S_charge = 0.3
+      )
+    ),
+    class = "pepvet_error_invalid_weights"
+  )
+  expect_error(
+    score_diagnostics(
+      batch_small,
+      weights = c(
+        S_length = 0.2, S_coverage = 0.2, S_count = 0.2,
+        S_hydro = 0.2, S_other = 0.2
+      )
+    ),
+    class = "pepvet_error_invalid_weights"
+  )
+})
+
 # ---- Proteome-aware mode ----
 
 test_that("proteome-aware mode detects S_unique", {
@@ -118,7 +145,10 @@ test_that("proteome-aware mode detects S_unique", {
 # ---- Different enzyme ----
 
 test_that("different enzyme produces valid diagnostics", {
-  batch_lysc <- batch_evaluate(small_fasta, enzyme = "lysc")
+  expect_warning(
+    batch_lysc <- batch_evaluate(small_fasta, enzyme = "lysc"),
+    class = "pepvet_warning_no_cleavage_sites"
+  )
   d <- score_diagnostics(batch_lysc)
 
   expect_true(all(is.finite(d$vif)))

@@ -47,7 +47,11 @@ raw_expasy <- file.path("inst", "extdata", "tool-data", "expasy-bsa-trypsin.html
 if (file.exists(raw_expasy)) {
   html <- readLines(raw_expasy, warn = FALSE)
 
-  pat <- "<!-- ([0-9.]+)\\|([0-9]+)-([0-9]+)\\|([0-9]+)\\|([^|]*)\\|*\\|*\\|*\\|*\\|*([A-Z ]+)?.*-->"
+  pat <- paste0(
+    "<!-- ([0-9.]+)\\|([0-9]+)-([0-9]+)\\|",
+    "([0-9]+)\\|([^|]*)\\|*\\|*\\|*\\|*\\|*",
+    "([A-Z ]+)?.*-->"
+  )
   lines <- grep("<!-- [0-9.]+\\|[0-9]+-[0-9]+\\|[0-9]+\\|", html, value = TRUE)
 
   parse_one <- function(line) {

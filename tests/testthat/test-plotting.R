@@ -1,29 +1,6 @@
 # ── test-plotting.R ───────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Shared fixtures are pre-computed in helper-fixtures.R (sourced once).
-# .bsa_result() / .h3_result() are thin wrappers that return the cached
-# fixture, falling back to live computation for non-default MC levels.
-.bsa_result <- function(mc = 0L) {
-  if (mc == 0L) {
-    return(.fix_bsa_mc0)
-  }
-  if (mc == 1L) {
-    return(.fix_bsa_mc1)
-  }
-  if (mc == 2L) {
-    return(.fix_bsa_mc2)
-  }
-  evaluate_digest(.bsa_path, enzyme = "trypsin", missed_cleavages = mc)
-}
-
-.h3_result <- function(mc = 0L) {
-  if (mc == 0L) {
-    return(.fix_h3_trypsin)
-  }
-  evaluate_digest(.h3_path, enzyme = "trypsin", missed_cleavages = mc)
-}
-
 # ── plot_digest_profile ───────────────────────────────────────────────────────
 
 test_that("plot_digest_profile returns a patchwork object for BSA / trypsin", {
@@ -131,15 +108,6 @@ test_that("plot_digest_profile errors on missing required columns", {
 })
 
 # ── plot_coverage_map ─────────────────────────────────────────────────────────
-
-# Shared fixture helpers
-.bsa_cs <- function() {
-  annotate_cleavage_sites(.bsa_path, enzyme = "trypsin")
-}
-
-.h3_cs <- function() {
-  annotate_cleavage_sites(.h3_path, enzyme = "trypsin")
-}
 
 test_that("plot_coverage_map returns a ggplot for BSA / trypsin MC=0", {
   skip_if_not_installed("ggplot2")
@@ -300,16 +268,6 @@ test_that("plot_peptide_overlap_map overlap helper counts residue support", {
 
 
 # ── plot_enzyme_comparison ────────────────────────────────────────────────────
-
-# Shared fixture helper
-.bsa_comparison <- function(
-  enzymes = c(
-    "trypsin", "lysc",
-    "glutamyl endopeptidase"
-  )
-) {
-  compare_digests(.bsa_path, enzymes = enzymes)
-}
 
 test_that("plot_enzyme_comparison returns a patchwork object", {
   skip_if_not_installed("ggplot2")
@@ -732,6 +690,31 @@ test_that("pepvet_plot_config validates palette names", {
 test_that("pepvet_plot_config validates params names", {
   expect_error(
     pepvet_plot_config(params = list(nonexistent = 99)),
+    class = "pepvet_error_invalid_config"
+  )
+})
+
+test_that("pepvet_plot_config validates palette and parameter values", {
+  expect_error(
+    pepvet_plot_config(palette = list(brand = 1)),
+    class = "pepvet_error_invalid_config"
+  )
+  expect_error(
+    pepvet_plot_config(palette = list(brand = "not-a-color")),
+    class = "pepvet_error_invalid_config"
+  )
+  expect_error(
+    pepvet_plot_config(params = list(verdict_good = 1.1)),
+    class = "pepvet_error_invalid_config"
+  )
+  expect_error(
+    pepvet_plot_config(params = list(length_lo = 0L)),
+    class = "pepvet_error_invalid_config"
+  )
+  expect_error(
+    pepvet_plot_config(
+      params = list(verdict_good = 0.3, verdict_moderate = 0.4)
+    ),
     class = "pepvet_error_invalid_config"
   )
 })

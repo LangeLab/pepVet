@@ -168,9 +168,11 @@ ev <- evaluate_digest(
 valid <- ev$peptides
 valid <- valid[valid$length >= preset$length_range[1] &
                valid$length <= preset$length_range[2], ]
-pr_res <- PeptideRanger::peptide_predictions(
+pr_predict <- getExportedValue("PeptideRanger", "peptide_predictions")
+pr_model <- getExportedValue("PeptideRanger", "RFmodel_ProteomicsDB")
+pr_res <- pr_predict(
   valid$peptide,
-  prediction_model = PeptideRanger::RFmodel_ProteomicsDB
+  prediction_model = pr_model
 )
 head(pr_res)
 ```

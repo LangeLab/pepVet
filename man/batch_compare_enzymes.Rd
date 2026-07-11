@@ -20,8 +20,8 @@ batch_compare_enzymes(
 \code{\link[=digest_protein]{digest_protein()}}. Must resolve to at least one protein. If \code{NULL} or
 empty, raises an error.}
 
-\item{enzymes}{Character vector of enzyme names to compare. Each name must
-be one of pepVet's supported enzyme names. Defaults to a panel of five
+\item{enzymes}{Character vector of unique enzyme names to compare. Each name
+must be one of pepVet's supported enzyme names. Defaults to a panel of five
 commonly compared enzymes: trypsin, lysc, chymotrypsin-high,
 asp-n endopeptidase, and arg-c proteinase.}
 

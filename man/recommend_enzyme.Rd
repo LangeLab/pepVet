@@ -17,8 +17,8 @@ recommend_enzyme(
 \item{sequence}{A single-protein input passed to \code{\link[=compare_digests]{compare_digests()}}. If
 \code{NULL} or empty, raises an error.}
 
-\item{enzymes}{Character vector of enzyme names to compare. Defaults to
-\code{c("trypsin", "lysc")}.}
+\item{enzymes}{Character vector of unique enzyme names to compare. Defaults
+to \code{c("trypsin", "lysc")}.}
 
 \item{missed_cleavages}{Maximum missed cleavages. Defaults to \code{1L}.}
 

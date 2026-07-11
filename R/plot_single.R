@@ -1125,13 +1125,7 @@ plot_weight_sensitivity <- function(x, title = NULL) {
     reason = "to produce pepVet visualization plots"
   )
 
-  if (!is.list(x) || (!"per_protein" %in% names(x) &&
-      !all(c("iterations", "summary") %in% names(x)))) {
-    .abort(
-      "{.arg x} must be a {.fn sensitivity_analysis} result.",
-      class = "pepvet_error_invalid_input"
-    )
-  }
+  .validate_sensitivity_plot_result(x)
 
   if ("per_protein" %in% names(x)) {
     .plot_sensitivity_batch(x, title)
@@ -1140,11 +1134,107 @@ plot_weight_sensitivity <- function(x, title = NULL) {
   }
 }
 
+.sensitivity_plot_abort <- function(message) {
+  .abort(message, class = "pepvet_error_invalid_input")
+}
+
+.validate_sensitivity_plot_result <- function(x) {
+  if (!is.list(x)) {
+    .sensitivity_plot_abort("{.arg x} must be a sensitivity analysis result.")
+  }
+
+  if ("per_protein" %in% names(x)) {
+    per_protein <- x$per_protein
+    summary <- x$summary
+    required_cols <- c("protein_id", "verdict_instability")
+    if (!is.data.frame(per_protein) || nrow(per_protein) == 0L ||
+        !all(required_cols %in% names(per_protein)) ||
+        !is.list(summary) ||
+        !is.numeric(summary$total_instability) ||
+        length(summary$total_instability) != 1L ||
+        !is.finite(summary$total_instability) ||
+        summary$total_instability < 0 || summary$total_instability > 1) {
+      .sensitivity_plot_abort("{.arg x} has an invalid batch sensitivity result.")
+    }
+
+    if (!is.character(per_protein$protein_id) ||
+        anyNA(per_protein$protein_id) ||
+        any(!nzchar(trimws(per_protein$protein_id))) ||
+        !is.numeric(per_protein$verdict_instability) ||
+        anyNA(per_protein$verdict_instability) ||
+        any(!is.finite(per_protein$verdict_instability)) ||
+        any(
+          per_protein$verdict_instability < 0 |
+            per_protein$verdict_instability > 1
+        )) {
+      .sensitivity_plot_abort("{.arg x} has invalid batch sensitivity values.")
+    }
+
+    if ("enzyme" %in% names(per_protein)) {
+      enzyme_values <- per_protein$enzyme
+      if (!(is.character(enzyme_values) || is.factor(enzyme_values)) ||
+          anyNA(enzyme_values) ||
+          any(!nzchar(trimws(as.character(enzyme_values))))) {
+        .sensitivity_plot_abort(
+          "{.arg x} has invalid batch sensitivity enzyme values."
+        )
+      }
+    }
+
+    return(invisible(x))
+  }
+
+  iterations <- x$iterations
+  summary <- x$summary
+  required_cols <- c("composite_score", "verdict")
+  if (!is.data.frame(iterations) || nrow(iterations) == 0L ||
+      !all(required_cols %in% names(iterations)) || !is.list(summary)) {
+    .sensitivity_plot_abort(
+      "{.arg x} has an invalid single-protein sensitivity result."
+    )
+  }
+
+  if (!is.numeric(iterations$composite_score) ||
+      anyNA(iterations$composite_score) ||
+      any(!is.finite(iterations$composite_score)) ||
+      any(iterations$composite_score < 0 | iterations$composite_score > 1) ||
+      !(is.character(iterations$verdict) || is.factor(iterations$verdict)) ||
+      anyNA(iterations$verdict) ||
+      any(!as.character(iterations$verdict) %in%
+        c("Good", "Moderate", "Poor"))) {
+    .sensitivity_plot_abort(
+      "{.arg x} has invalid single-protein sensitivity values."
+    )
+  }
+
+  verdict_pct <- summary$verdict_pct
+  composite_ci <- summary$composite_ci
+  default_composite <- summary$reference_composite %||%
+    summary$composite_mean
+  if (!is.numeric(verdict_pct) ||
+      !identical(names(verdict_pct), c("Good", "Moderate", "Poor")) ||
+      length(verdict_pct) != 3L || anyNA(verdict_pct) ||
+      any(!is.finite(verdict_pct)) || any(verdict_pct < 0 | verdict_pct > 1) ||
+      !is.numeric(composite_ci) || length(composite_ci) != 2L ||
+      anyNA(composite_ci) || any(!is.finite(composite_ci)) ||
+      any(composite_ci < 0 | composite_ci > 1) ||
+      composite_ci[[1L]] > composite_ci[[2L]] ||
+      !is.numeric(default_composite) || length(default_composite) != 1L ||
+      !is.finite(default_composite) || default_composite < 0 ||
+      default_composite > 1) {
+    .sensitivity_plot_abort(
+      "{.arg x} has invalid single-protein sensitivity summary values."
+    )
+  }
+
+  invisible(x)
+}
+
 
 .plot_sensitivity_single <- function(x, title) {
   iter <- x$iterations
   summ <- x$summary
-  default_comp <- summ$composite_mean
+  default_comp <- summ$reference_composite %||% summ$composite_mean
   n_iter <- nrow(iter)
 
   auto_title <- title %||% "Weight Sensitivity Analysis"

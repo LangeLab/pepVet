@@ -264,3 +264,112 @@ test_that("plot_cleavage_map errors on invalid result", {
     class = "pepvet_error_invalid_digest_result"
   )
 })
+
+test_that("plot_weight_sensitivity renders batch instability semantics", {
+  skip_if_not_installed("ggplot2")
+  sensitivity <- sensitivity_analysis(
+    .fix_batch_small,
+    n_iter = 20L,
+    chunk_size = 17L
+  )
+  plot <- plot_weight_sensitivity(sensitivity)
+
+  expect_s3_class(plot, "ggplot")
+  expect_true("verdict_instability" %in% names(plot$data))
+  expect_true(any(vapply(
+    plot$layers,
+    function(layer) inherits(layer$geom, "GeomBar"),
+    logical(1)
+  )))
+})
+
+test_that("plot_weight_sensitivity rejects malformed sensitivity results", {
+  skip_if_not_installed("ggplot2")
+
+  expect_error(
+    plot_weight_sensitivity("not a sensitivity result"),
+    class = "pepvet_error_invalid_input"
+  )
+
+  expect_error(
+    plot_weight_sensitivity(
+      list(iterations = tibble::tibble(), summary = list())
+    ),
+    class = "pepvet_error_invalid_input"
+  )
+
+  malformed_batch <- list(
+    per_protein = tibble::tibble(
+      protein_id = "protein_1",
+      verdict_instability = 1.1
+    ),
+    summary = list(total_instability = 0.5)
+  )
+  expect_error(
+    plot_weight_sensitivity(malformed_batch),
+    class = "pepvet_error_invalid_input"
+  )
+
+  missing_batch_column <- list(
+    per_protein = tibble::tibble(protein_id = "protein_1"),
+    summary = list(total_instability = 0.5)
+  )
+  expect_error(
+    plot_weight_sensitivity(missing_batch_column),
+    class = "pepvet_error_invalid_input"
+  )
+
+  invalid_batch_enzyme <- malformed_batch
+  invalid_batch_enzyme$per_protein$verdict_instability <- 0.5
+  invalid_batch_enzyme$per_protein$enzyme <- NA_character_
+  expect_error(
+    plot_weight_sensitivity(invalid_batch_enzyme),
+    class = "pepvet_error_invalid_input"
+  )
+
+  invalid_batch_summary <- malformed_batch
+  invalid_batch_summary$per_protein$verdict_instability <- 0.5
+  invalid_batch_summary$summary$total_instability <- Inf
+  expect_error(
+    plot_weight_sensitivity(invalid_batch_summary),
+    class = "pepvet_error_invalid_input"
+  )
+
+  valid_single <- sensitivity_analysis(.fix_bsa_trypsin, n_iter = 5L)
+  invalid_single_values <- valid_single
+  invalid_single_values$iterations$composite_score[[1L]] <- Inf
+  expect_error(
+    plot_weight_sensitivity(invalid_single_values),
+    class = "pepvet_error_invalid_input"
+  )
+
+  invalid_single_summary <- valid_single
+  invalid_single_summary$summary$composite_ci <- c(0.9, 0.1)
+  expect_error(
+    plot_weight_sensitivity(invalid_single_summary),
+    class = "pepvet_error_invalid_input"
+  )
+})
+
+test_that("plot_weight_sensitivity facets batch enzyme results", {
+  skip_if_not_installed("ggplot2")
+  sequences <- Biostrings::AAStringSet(c(
+    alpha = "AKAAAAAAK",
+    beta = "AKRTPK"
+  ))
+  comparison <- suppressMessages(batch_compare_enzymes(
+    sequences,
+    enzymes = c("trypsin", "lysc"),
+    missed_cleavages = 0L
+  ))
+  sensitivity <- sensitivity_analysis(
+    comparison,
+    n_iter = 20L,
+    chunk_size = 2L
+  )
+  plot <- plot_weight_sensitivity(sensitivity)
+
+  expect_s3_class(plot, "ggplot")
+  expect_true("enzyme" %in% names(plot$data))
+  expect_true("enzyme_wrapped" %in% names(plot$data))
+})

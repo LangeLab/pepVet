@@ -18,8 +18,8 @@ compare_digests(
 \code{\link[=digest_protein]{digest_protein()}} but must resolve to exactly one protein. If \code{NULL} or
 empty, raises an error.}
 
-\item{enzymes}{Character vector of enzyme names to compare. Defaults to
-\code{c("trypsin", "lysc")}. Each name must be one of pepVet's supported
+\item{enzymes}{Character vector of unique enzyme names to compare. Defaults
+to \code{c("trypsin", "lysc")}. Each name must be one of pepVet's supported
 cleaver-compatible enzyme names.}
 
 \item{missed_cleavages}{Maximum missed cleavages passed to

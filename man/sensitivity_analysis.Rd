@@ -39,16 +39,20 @@ default and renormalised).}
 \value{
 A list.  For single-protein input: \code{iterations} (tibble of per-draw
 weights and composites), \code{convergence} (cumulative stability trace),
-\code{summary} (probabilistic verdict, composite CI, optional R squared values
-and corner-case table).  For multi-enzyme input: additionally reports
-\code{top1_stability} and Kendall rank correlation.  For batch input: returns
-\code{per_protein} (instability per protein) and \code{summary} aggregates.
+\code{summary} (probabilistic verdict, composite CI, reference score and
+weights, optional R squared values, and corner-case table). For
+multi-enzyme input, it also reports \code{top1_stability}, reference
+composites, and Kendall rank correlation. When requested, multi-enzyme
+output also includes per-enzyme weight-importance vectors and corner-case
+tables. For batch input, it returns
+\code{per_protein} (stored reference composite and instability per protein) and
+\code{summary} aggregates with the reference weights.
 }
 \description{
-\code{sensitivity_analysis()} perturbs the default scoring weights using a
-Dirichlet distribution and reports how often the verdict (or enzyme ranking)
-changes. This answers the question: "If the weights were slightly different,
-would the recommendation change?"
+\code{sensitivity_analysis()} perturbs the resolved scoring weights using a
+Dirichlet distribution and reports how often the verdict or enzyme ranking
+changes. It compares each perturbation with the stored reference score and
+applies the scoring hard-fail rule consistently.
 }
 \section{Limitations}{
 

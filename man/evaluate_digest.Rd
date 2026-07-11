@@ -55,7 +55,8 @@ and \code{n_low_efficiency_sites}.}
 peptide.}
 \item{\code{params}}{A list recording the resolved \code{enzyme} name,
 \code{missed_cleavages} count, \code{protein_ids} found in the input,
-and the resolved \code{preset_used} label from \code{\link[=score_peptides]{score_peptides()}}.}
+the resolved \code{preset_used} label, GRAVY and length ranges, active
+weights, proteome-aware mode, and pI mode.}
 }
 }
 \description{
@@ -70,9 +71,10 @@ lower-level functions together.
 returned object can be interpreted honestly outside the immediate scoring
 call. In particular, \code{params$preset_used} records whether the resolved
 scoring configuration matches one of pepVet's named presets or should be
-treated as \code{"custom"}. The cleavage-efficiency counts summarize annotated
-trypsin-family cleavage sites only; unsupported enzymes receive \code{NA} in
-these informational fields.
+treated as \code{"custom"}. \code{params} also stores the resolved GRAVY and length
+ranges, active weights, proteome-aware mode, and pI mode. The
+cleavage-efficiency counts summarize annotated trypsin-family cleavage
+sites only; unsupported enzymes receive \code{NA} in these informational fields.
 }
 \section{Limitations}{
 

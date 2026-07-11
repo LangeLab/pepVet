@@ -65,6 +65,13 @@ component scores, including \code{composite_score}, \code{verdict}, \code{n_pept
 sequence-level difficulty flags. Pass the result to \code{\link[=summarize_batch]{summarize_batch()}} for
 aggregate statistics or to \code{\link[=triage_proteins]{triage_proteins()}} for action recommendations.
 }
+\details{
+The returned tibble carries a \code{scoring_config} attribute containing the
+resolved ranges, weights, proteome-aware mode, and pI mode. Batch
+inputs must have unique protein identifiers. Difficulty flags use the
+active scoring ranges; \code{flag_short_protein} and \code{flag_low_complexity}
+remain sequence-level heuristics.
+}
 \section{Limitations}{
 
 Parallel execution only on Unix (\code{parallel::mclapply}). Windows falls

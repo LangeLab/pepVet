@@ -16,9 +16,9 @@ columns from the flat batch summary, plus an \code{action} column. Possible
 values:
 \describe{
 \item{\code{"proceed"}}{Good verdict. No intervention indicated.}
-\item{\code{"consider_alternative"}}{Moderate verdict with at least one
-component score below 0.5. A preset change or missed-cleavage
-adjustment may improve results.}
+\item{\code{"consider_alternative"}}{Moderate verdict without a
+sequence-level difficulty flag. Review component scores and consider a
+preset or missed-cleavage adjustment.}
 \item{\code{"try_other_enzyme"}}{Moderate or Poor verdict with
 \code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor
 verdict without an intrinsic complexity flag. An alternative enzyme

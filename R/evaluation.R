@@ -18,6 +18,67 @@
   as.integer(value)
 }
 
+.resolve_scoring_configuration <- function(proteome, weights, extra_args) {
+  has_proteome <- !is.null(proteome)
+  gravy_range <- if ("gravy_range" %in% names(extra_args)) {
+    extra_args[["gravy_range"]]
+  } else {
+    c(-1.0, 0.6)
+  }
+  length_range <- if ("length_range" %in% names(extra_args)) {
+    extra_args[["length_range"]]
+  } else {
+    c(7L, 25L)
+  }
+  include_pI <- if ("include_pI" %in% names(extra_args)) {
+    extra_args[["include_pI"]]
+  } else {
+    FALSE
+  }
+
+  list(
+    gravy_range = .validate_gravy_range(gravy_range),
+    length_range = .validate_length_range(length_range),
+    weights = .validate_weights(weights, has_proteome),
+    proteome_aware = has_proteome,
+    include_pI = .validate_include_pI(include_pI)
+  )
+}
+
+.validate_unique_batch_ids <- function(normalized_input) {
+  protein_ids <- names(normalized_input)
+
+  if (anyDuplicated(protein_ids) > 0L) {
+    .abort(
+      "Batch inputs must have unique protein identifiers.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  invisible(normalized_input)
+}
+
+.validate_unique_enzymes <- function(enzymes) {
+  if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
+    .abort(
+      "{.arg enzymes} must be a non-empty character vector with no missing values.",
+      class = "pepvet_error_invalid_enzymes"
+    )
+  }
+
+  normalized <- vapply(
+    enzymes, .normalize_enzyme, character(1L), USE.NAMES = FALSE
+  )
+  if (anyDuplicated(normalized) > 0L) {
+    .abort(
+      "{.arg enzymes} must contain unique enzyme names after normalization.",
+      class = "pepvet_error_invalid_enzymes"
+    )
+  }
+
+  normalized
+}
+
 #' Evaluate a proteolytic digest
 #'
 #' `evaluate_digest()` combines [digest_protein()] and [score_peptides()] into
@@ -54,9 +115,10 @@
 #' returned object can be interpreted honestly outside the immediate scoring
 #' call. In particular, `params$preset_used` records whether the resolved
 #' scoring configuration matches one of pepVet's named presets or should be
-#' treated as `"custom"`. The cleavage-efficiency counts summarize annotated
-#' trypsin-family cleavage sites only; unsupported enzymes receive `NA` in
-#' these informational fields.
+#' treated as `"custom"`. `params` also stores the resolved GRAVY and length
+#' ranges, active weights, proteome-aware mode, and pI mode. The
+#' cleavage-efficiency counts summarize annotated trypsin-family cleavage
+#' sites only; unsupported enzymes receive `NA` in these informational fields.
 #'
 #' @return A named list with three elements:
 #'   \describe{
@@ -67,7 +129,8 @@
 #'       peptide.}
 #'     \item{\code{params}}{A list recording the resolved \code{enzyme} name,
 #'       \code{missed_cleavages} count, \code{protein_ids} found in the input,
-#'       and the resolved \code{preset_used} label from [score_peptides()].}
+#'       the resolved \code{preset_used} label, GRAVY and length ranges, active
+#'       weights, proteome-aware mode, and pI mode.}
 #'   }
 #'
 #' @section Limitations:
@@ -96,18 +159,27 @@ evaluate_digest <- function(sequence,
                             weights = NULL,
                             ...) {
   normalized_input <- .read_input(sequence)
+  extra_args <- list(...)
+  scoring_config <- .resolve_scoring_configuration(
+    proteome, weights, extra_args
+  )
 
   peptides <- digest_protein(normalized_input,
     enzyme = enzyme,
     missed_cleavages = missed_cleavages,
     include_cleavage_efficiency = include_cleavage_efficiency
   )
-  scores <- score_peptides(
-    peptides,
-    proteome = proteome,
-    weights = weights,
-    ...,
-    enzyme = enzyme
+  scores <- do.call(
+    score_peptides,
+    c(
+      list(
+        digest_result = peptides,
+        proteome = proteome,
+        weights = weights,
+        enzyme = enzyme
+      ),
+      extra_args
+    )
   )
   normalized_enzyme <- .normalize_enzyme(enzyme)
   cleavage_counts <- lapply(
@@ -145,7 +217,12 @@ evaluate_digest <- function(sequence,
       enzyme = normalized_enzyme,
       missed_cleavages = as.integer(missed_cleavages),
       protein_ids = unique(peptides$protein_id),
-      preset_used = scores$preset_used[[1L]]
+      preset_used = scores$preset_used[[1L]],
+      gravy_range = scoring_config$gravy_range,
+      length_range = scoring_config$length_range,
+      weights = scoring_config$weights,
+      proteome_aware = scoring_config$proteome_aware,
+      include_pI = scoring_config$include_pI
     )
   )
 }
@@ -160,8 +237,8 @@ evaluate_digest <- function(sequence,
 #' @param sequence A single-protein input. Accepts the same forms as
 #'   [digest_protein()] but must resolve to exactly one protein. If `NULL` or
 #'   empty, raises an error.
-#' @param enzymes Character vector of enzyme names to compare. Defaults to
-#'   `c("trypsin", "lysc")`. Each name must be one of pepVet's supported
+#' @param enzymes Character vector of unique enzyme names to compare. Defaults
+#'   to `c("trypsin", "lysc")`. Each name must be one of pepVet's supported
 #'   cleaver-compatible enzyme names.
 #' @param missed_cleavages Maximum missed cleavages passed to
 #'   [digest_protein()] for every enzyme. Defaults to `1L`.
@@ -173,8 +250,6 @@ evaluate_digest <- function(sequence,
 #'   scoring arguments such as `gravy_range`, `length_range`, and
 #'   `include_pI`, plus `include_cleavage_efficiency` when peptide-level
 #'   cleavage annotations are requested during comparison.
-#'
-#' @inheritParams evaluate_digest
 #'
 #' @return A tibble with one row per enzyme and columns `enzyme` followed by
 #'   the score columns returned by [evaluate_digest()], sorted by
@@ -199,15 +274,12 @@ compare_digests <- function(sequence,
                             proteome = NULL,
                             weights = NULL,
                             ...) {
-  if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
-    .abort(
-      paste0("{.arg enzymes} must be a non-empty character vector ",
-        "with no missing values."),
-      class = "pepvet_error_invalid_enzymes"
-    )
-  }
-
+  normalized_enzymes <- .validate_unique_enzymes(enzymes)
   normalized_input <- .read_input(sequence)
+  extra_args <- list(...)
+  scoring_config <- .resolve_scoring_configuration(
+    proteome, weights, extra_args
+  )
 
   if (length(normalized_input) != 1L) {
     .abort(
@@ -217,20 +289,29 @@ compare_digests <- function(sequence,
     )
   }
 
-  scored_rows <- lapply(enzymes, function(enzyme) {
-    ev <- evaluate_digest(
-      normalized_input,
-      enzyme = enzyme,
-      missed_cleavages = missed_cleavages,
-      proteome = proteome,
-      weights = weights,
-      ...
+  scored_rows <- lapply(normalized_enzymes, function(enzyme) {
+    ev <- do.call(
+      evaluate_digest,
+      c(
+        list(
+          sequence = normalized_input,
+          enzyme = enzyme,
+          missed_cleavages = missed_cleavages,
+          proteome = proteome,
+          weights = weights
+        ),
+        extra_args
+      )
     )
     tibble::add_column(ev$scores, enzyme = ev$params$enzyme, .before = 1L)
   })
 
   result <- .bind_rows(scored_rows)
-  result[order(result$composite_score, decreasing = TRUE), , drop = FALSE]
+  result <- result[order(result$composite_score, decreasing = TRUE), ,
+    drop = FALSE
+  ]
+  attr(result, "scoring_config") <- scoring_config
+  result
 }
 # nolint end
 
@@ -244,8 +325,8 @@ compare_digests <- function(sequence,
 #'
 #' @param sequence A single-protein input passed to [compare_digests()]. If
 #'   `NULL` or empty, raises an error.
-#' @param enzymes Character vector of enzyme names to compare. Defaults to
-#'   `c("trypsin", "lysc")`.
+#' @param enzymes Character vector of unique enzyme names to compare. Defaults
+#'   to `c("trypsin", "lysc")`.
 #' @param missed_cleavages Maximum missed cleavages. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble for uniqueness scoring.
 #'   When `NULL` (default), no uniqueness scoring.
@@ -253,8 +334,6 @@ compare_digests <- function(sequence,
 #'   pepVet's default scoring weights.
 #' @param ... Additional scoring arguments passed to [compare_digests()] and
 #'   ultimately to [evaluate_digest()] and [score_peptides()].
-#'
-#' @inheritParams compare_digests
 #'
 #' @return A character vector of one or more enzyme names. Length greater than
 #'   one only when top scores are tied within floating-point tolerance.
@@ -294,6 +373,10 @@ recommend_enzyme <- function(sequence,
   sort(tied)
 }
 # nolint end
+
+.batch_parallel_map <- function(index_list, worker, cores) {
+  parallel::mclapply(index_list, worker, mc.cores = cores)
+}
 
 #' Batch-evaluate multiple proteins
 #'
@@ -337,6 +420,13 @@ recommend_enzyme <- function(sequence,
 #'   `flag_short_protein`, `flag_hydrophobic`, `flag_low_complexity`,
 #'   `flag_no_valid_peptides`.
 #'
+#' @details
+#'   The returned tibble carries a `scoring_config` attribute containing the
+#'   resolved ranges, weights, proteome-aware mode, and pI mode. Batch
+#'   inputs must have unique protein identifiers. Difficulty flags use the
+#'   active scoring ranges; `flag_short_protein` and `flag_low_complexity`
+#'   remain sequence-level heuristics.
+#'
 #' @section Limitations:
 #' Parallel execution only on Unix (`parallel::mclapply`). Windows falls
 #' back to serial silently. If a worker crashes, the failed chunk is retried
@@ -371,8 +461,12 @@ batch_evaluate <- function(sequences,
     class = "pepvet_error_invalid_cores"
   )
 
-  normalized_input <- .read_input(sequences)
   extra_args <- list(...)
+  normalized_input <- .read_input(sequences)
+  .validate_unique_batch_ids(normalized_input)
+  scoring_config <- .resolve_scoring_configuration(
+    proteome, weights, extra_args
+  )
   n_proteins <- length(normalized_input)
 
   ## On Windows mclapply is unavailable; silently run serial.
@@ -384,12 +478,14 @@ batch_evaluate <- function(sequences,
 
   if (effective_cores > 1L) {
     idx_list <- parallel::splitIndices(n_proteins, effective_cores)
-    results <- parallel::mclapply(idx_list, function(idx) {
+    worker <- function(idx) {
       .batch_evaluate_inner(
         normalized_input[idx], enzyme, missed_cleavages,
-        include_cleavage_efficiency, proteome, weights, extra_args
+        include_cleavage_efficiency, proteome, weights, extra_args,
+        scoring_config
       )
-    }, mc.cores = effective_cores)
+    }
+    results <- .batch_parallel_map(idx_list, worker, effective_cores)
 
     ## Check for worker failures (mclapply returns try-error on crash).
     ## Retry failed chunks sequentially. Slower but correct.
@@ -404,18 +500,24 @@ batch_evaluate <- function(sequences,
       for (i in which(failed)) {
         results[[i]] <- .batch_evaluate_inner(
           normalized_input[idx_list[[i]]], enzyme, missed_cleavages,
-          include_cleavage_efficiency, proteome, weights, extra_args
+          include_cleavage_efficiency, proteome, weights, extra_args,
+          scoring_config
         )
       }
     }
 
-    return(.bind_rows(results))
+    result <- .bind_rows(results)
+    attr(result, "scoring_config") <- scoring_config
+    return(result)
   }
 
-  .batch_evaluate_inner(
+  result <- .batch_evaluate_inner(
     normalized_input, enzyme, missed_cleavages,
-    include_cleavage_efficiency, proteome, weights, extra_args
+    include_cleavage_efficiency, proteome, weights, extra_args,
+    scoring_config
   )
+  attr(result, "scoring_config") <- scoring_config
+  result
 }
 # nolint end
 
@@ -426,7 +528,7 @@ batch_evaluate <- function(sequences,
 ## arguments as a captured list (extra_args) so they survive fork serialization.
 .batch_evaluate_inner <- function(normalized_input, enzyme, missed_cleavages,
                                   include_cleavage_efficiency, proteome,
-                                  weights, extra_args) {
+                                  weights, extra_args, scoring_config) {
   protein_ids <- names(normalized_input)
 
   all_peptides <- digest_protein(
@@ -457,7 +559,12 @@ batch_evaluate <- function(sequences,
     )
   )
 
-  flags <- .batch_difficulty_flags(all_peptides, protein_ids)
+  flags <- .batch_difficulty_flags(
+    all_peptides,
+    protein_ids,
+    length_range = scoring_config$length_range,
+    gravy_range = scoring_config$gravy_range
+  )
 
   scores_reordered <- all_scores[
     match(protein_ids, all_scores$protein_id),
@@ -498,7 +605,8 @@ batch_evaluate <- function(sequences,
   }
 
   required_cols <- c(
-    "protein_id", "composite_score", "verdict",
+    "protein_id", "S_length", "S_coverage", "S_count", "S_hydro",
+    "S_charge", "composite_score", "verdict",
     "flag_short_protein", "flag_hydrophobic",
     "flag_low_complexity", "flag_no_valid_peptides"
   )
@@ -515,23 +623,102 @@ batch_evaluate <- function(sequences,
     )
   }
 
+  numeric_cols <- c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+    "composite_score"
+  )
+  if ("S_unique" %in% names(batch_result)) {
+    numeric_cols <- c(numeric_cols, "S_unique")
+  }
+  if (!is.character(batch_result$protein_id) ||
+      !is.character(batch_result$verdict)) {
+    .abort(
+      "{.arg batch_result} has invalid protein or verdict column types.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  if (anyNA(batch_result$protein_id) ||
+      any(!nzchar(trimws(batch_result$protein_id))) ||
+      anyDuplicated(batch_result$protein_id) > 0L) {
+    .abort(
+      "{.arg batch_result} must contain unique, non-empty protein identifiers.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  if (!all(vapply(batch_result[numeric_cols], is.numeric, logical(1)))) {
+    .abort(
+      "{.arg batch_result} score columns must be numeric.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  flag_cols <- c(
+    "flag_short_protein", "flag_hydrophobic",
+    "flag_low_complexity", "flag_no_valid_peptides"
+  )
+  if (!all(vapply(batch_result[flag_cols], is.logical, logical(1)))) {
+    .abort(
+      "{.arg batch_result} difficulty flags must be logical.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  has_invalid_score <- vapply(
+    batch_result[numeric_cols],
+    function(values) {
+      anyNA(values) || any(!is.finite(values)) ||
+        any(values < 0 | values > 1)
+    },
+    logical(1)
+  )
+  if (any(has_invalid_score) || anyNA(batch_result$verdict) ||
+      any(!batch_result$verdict %in% c("Good", "Moderate", "Poor")) ||
+      any(vapply(batch_result[flag_cols], anyNA, logical(1)))) {
+    .abort(
+      "{.arg batch_result} contains invalid score, verdict, or flag values.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  expected_verdict <- .classify_verdict(batch_result$composite_score)
+  if (any(batch_result$verdict != expected_verdict)) {
+    .abort(
+      "{.arg batch_result} verdicts must agree with composite_score thresholds.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
+  hard_fail <- batch_result$S_count == 0 & batch_result$S_coverage == 0
+  if (any(hard_fail & batch_result$composite_score != 0)) {
+    .abort(
+      "{.arg batch_result} violates the zero-cleavage hard-fail rule.",
+      class = "pepvet_error_invalid_batch_result"
+    )
+  }
+
   batch_result
 }
 
 ## Vectorized difficulty flags for a full multi-protein peptide tibble.
 ## Returns a named list of vectors, each of length == length(protein_ids),
 ## in the same order as protein_ids.
-.batch_difficulty_flags <- function(all_peptides, protein_ids) {
+.batch_difficulty_flags <- function(all_peptides, protein_ids,
+                                    length_range = c(7L, 25L),
+                                    gravy_range = c(-1.0, 0.6)) {
+  length_range <- .validate_length_range(length_range)
+  gravy_range <- .validate_gravy_range(gravy_range)
   pid_factor <- factor(all_peptides$protein_id, levels = protein_ids)
 
   ## protein_length and n_peptides
   protein_length <- as.integer(tapply(all_peptides$end, pid_factor, max))
   n_peptides <- as.integer(tabulate(pid_factor))
 
-  ## valid peptide mask (length 7-25)
+  ## Valid peptide mask follows the active scoring configuration.
   valid_mask <-
-    all_peptides$length >= .get_param("length_lo") &
-      all_peptides$length <= .get_param("length_hi")
+    all_peptides$length >= length_range[[1L]] &
+      all_peptides$length <= length_range[[2L]]
   n_valid_peptides <- as.integer(tabulate(pid_factor[valid_mask],
     nbins = length(protein_ids)))
 
@@ -539,13 +726,21 @@ batch_evaluate <- function(sequences,
   flag_short_protein <- protein_length < 100L
   flag_no_valid_peptides <- n_valid_peptides == 0L
 
-  ## flag_hydrophobic: median GRAVY of valid peptides > 0.6 per protein
+  ## flag_hydrophobic: median GRAVY of valid peptides > active upper bound
   flag_hydrophobic <- logical(length(protein_ids))
   if (any(valid_mask)) {
     gravy_vals <- .calculate_gravy(all_peptides$peptide[valid_mask])
-    median_gravy <- tapply(gravy_vals, pid_factor[valid_mask], stats::median)
+    median_gravy <- tapply(
+      gravy_vals,
+      pid_factor[valid_mask],
+      function(values) {
+        if (all(is.na(values))) NA_real_ else stats::median(
+          values, na.rm = TRUE
+        )
+      }
+    )
     flag_hydrophobic[match(names(median_gravy), protein_ids)] <-
-      median_gravy > 0.6
+      !is.na(median_gravy) & median_gravy > gravy_range[[2L]]
   }
 
   ## flag_low_complexity: dominant AA > 50% in reconstructed MC=0 sequence.
@@ -658,7 +853,7 @@ summarize_batch <- function(batch_result) {
   score_distribution <- c(
     mean   = mean(scores),
     median = stats::median(scores),
-    sd     = stats::sd(scores),
+    sd     = if (length(scores) > 1L) stats::sd(scores) else 0,
     q25    = stats::quantile(scores, 0.25, names = FALSE),
     q75    = stats::quantile(scores, 0.75, names = FALSE),
     min    = min(scores),
@@ -713,8 +908,8 @@ summarize_batch <- function(batch_result) {
 #' @param sequences Multi-protein input. Accepts the same forms as
 #'   [digest_protein()]. Must resolve to at least one protein. If `NULL` or
 #'   empty, raises an error.
-#' @param enzymes Character vector of enzyme names to compare. Each name must
-#'   be one of pepVet's supported enzyme names. Defaults to a panel of five
+#' @param enzymes Character vector of unique enzyme names to compare. Each name
+#'   must be one of pepVet's supported enzyme names. Defaults to a panel of five
 #'   commonly compared enzymes: trypsin, lysc, chymotrypsin-high,
 #'   asp-n endopeptidase, and arg-c proteinase.
 #' @param cores Number of parallel workers passed to [batch_evaluate()] for
@@ -730,8 +925,6 @@ summarize_batch <- function(batch_result) {
 #'   When `NULL` (default), uses pepVet's default scoring weights.
 #' @param ... Additional scoring arguments passed to [batch_evaluate()], such
 #'   as `gravy_range` and `length_range`.
-#'
-#' @inheritParams batch_evaluate
 #'
 #' @return A tibble of class `pepvet_batch_comparison` with one row per
 #'   protein-enzyme pair. Columns: `protein_id`, `enzyme` (factor ordered
@@ -772,13 +965,7 @@ batch_compare_enzymes <- function(
   weights = NULL,
   ...
 ) {
-  if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
-    .abort(
-      "{.arg enzymes} must be a non-empty character vector with no NAs.",
-      class = "pepvet_error_invalid_enzymes"
-    )
-  }
-
+  normalized_enzymes <- .validate_unique_enzymes(enzymes)
   cores <- .validate_positive_integer(
     cores,
     arg_name = "cores",
@@ -788,8 +975,10 @@ batch_compare_enzymes <- function(
   ## Parse input once. Each per-enzyme batch_evaluate() call receives the
   ## same in-memory AAStringSet, which fork workers share via copy-on-write.
   normalized_input <- .read_input(sequences)
-  normalized_enzymes <- vapply(enzymes, .normalize_enzyme, character(1L),
-    USE.NAMES = FALSE
+  .validate_unique_batch_ids(normalized_input)
+  extra_args <- list(...)
+  scoring_config <- .resolve_scoring_configuration(
+    proteome, weights, extra_args
   )
   n_proteins <- length(normalized_input)
   n_enzymes <- length(normalized_enzymes)
@@ -798,8 +987,6 @@ batch_compare_enzymes <- function(
     "Scoring {n_proteins} protein{?s} against {n_enzymes} enzyme{?s}.",
     class = "pepvet_message_batch_scoring"
   )
-
-  extra_args <- list(...)
 
   results <- lapply(normalized_enzymes, function(enz) {
     row <- do.call(
@@ -827,6 +1014,7 @@ batch_compare_enzymes <- function(
   attr(result, "n_proteins") <- n_proteins
   attr(result, "n_enzymes") <- n_enzymes
   attr(result, "enzymes") <- normalized_enzymes
+  attr(result, "scoring_config") <- scoring_config
   result
 }
 # nolint end
@@ -902,9 +1090,9 @@ print.pepvet_batch_comparison <- function(x, ...) {
 #'   values:
 #'   \describe{
 #'     \item{\code{"proceed"}}{Good verdict. No intervention indicated.}
-#'     \item{\code{"consider_alternative"}}{Moderate verdict with at least one
-#'       component score below 0.5. A preset change or missed-cleavage
-#'       adjustment may improve results.}
+#'     \item{\code{"consider_alternative"}}{Moderate verdict without a
+#'       sequence-level difficulty flag. Review component scores and consider a
+#'       preset or missed-cleavage adjustment.}
 #'     \item{\code{"try_other_enzyme"}}{Moderate or Poor verdict with
 #'       \code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor
 #'       verdict without an intrinsic complexity flag. An alternative enzyme
@@ -937,19 +1125,6 @@ triage_proteins <- function(batch_result) {
   .validate_batch_result(batch_result)
   flat <- batch_result
 
-  score_cols <- intersect(
-    names(flat),
-    c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge", "S_unique")
-  )
-
-  ## Fully vectorized: avoids row-by-row subsetting via vapply.
-  ## any_component_low: TRUE when at least one component score < 0.5.
-  any_component_low <- if (length(score_cols) > 0L) {
-    rowSums(as.matrix(flat[score_cols]) < 0.5, na.rm = TRUE) > 0L
-  } else {
-    rep(FALSE, nrow(flat))
-  }
-
   action <- ifelse(
     flat$verdict == "Good",
     "proceed",
@@ -960,11 +1135,7 @@ triage_proteins <- function(batch_result) {
         flat$flag_hydrophobic | flat$flag_short_protein |
           flat$verdict == "Poor",
         "try_other_enzyme",
-        ifelse(
-          any_component_low,
-          "consider_alternative",
-          "consider_alternative"
-        )
+        "consider_alternative"
       )
     )
   )
@@ -1026,6 +1197,13 @@ triage_proteins <- function(batch_result) {
     )
   }
 
+  if (isTRUE(importance) && n_iter < 2L) {
+    .abort(
+      "{.arg n_iter} must be at least 2 when {.arg importance} is TRUE.",
+      class = "pepvet_error_invalid_sensitivity_parameter"
+    )
+  }
+
   list(
     nu = as.numeric(nu),
     n_iter = n_iter,
@@ -1035,12 +1213,167 @@ triage_proteins <- function(batch_result) {
   )
 }
 
+.validate_sensitivity_score_table <- function(score_table, single = FALSE) {
+  if (!is.data.frame(score_table) || nrow(score_table) == 0L) {
+    .abort(
+      "{.arg x} must contain at least one valid scoring row.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  if (isTRUE(single) && nrow(score_table) != 1L) {
+    .abort(
+      "{.arg x} must contain exactly one protein for single-protein sensitivity.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  required_cols <- c(
+    "protein_id", "S_length", "S_coverage", "S_count", "S_hydro",
+    "S_charge", "composite_score", "verdict"
+  )
+  missing_cols <- setdiff(required_cols, names(score_table))
+  if (length(missing_cols) > 0L) {
+    .abort(
+      c(
+        "{.arg x} is missing required scoring columns.",
+        "i" = "Missing: {.val {missing_cols}}"
+      ),
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  if (!is.character(score_table$protein_id) ||
+      !is.character(score_table$verdict)) {
+    .abort(
+      "{.arg x} has invalid protein or verdict column types.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  if (anyNA(score_table$protein_id) ||
+      any(!nzchar(trimws(score_table$protein_id)))) {
+    .abort(
+      "{.arg x} must contain non-empty protein identifiers.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  if ("enzyme" %in% names(score_table)) {
+    enzyme_values <- score_table$enzyme
+    if (!(is.character(enzyme_values) || is.factor(enzyme_values))) {
+      .abort(
+        "{.arg x} enzyme values must be character or factor.",
+        class = "pepvet_error_invalid_input"
+      )
+    }
+    enzyme_values <- as.character(enzyme_values)
+    if (anyNA(enzyme_values) || any(!nzchar(trimws(enzyme_values)))) {
+      .abort(
+        "{.arg x} must contain non-empty enzyme identifiers.",
+        class = "pepvet_error_invalid_input"
+      )
+    }
+    row_keys <- data.frame(
+      protein_id = score_table$protein_id,
+      enzyme = enzyme_values,
+      stringsAsFactors = FALSE
+    )
+    if (anyDuplicated(row_keys) > 0L) {
+      .abort(
+        "{.arg x} must contain one row per protein-enzyme pair.",
+        class = "pepvet_error_invalid_input"
+      )
+    }
+  } else if (anyDuplicated(score_table$protein_id) > 0L) {
+    .abort(
+      "{.arg x} must contain one row per protein.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  numeric_cols <- c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+    "composite_score"
+  )
+  if ("S_unique" %in% names(score_table)) {
+    numeric_cols <- c(numeric_cols, "S_unique")
+  }
+  if (!all(vapply(score_table[numeric_cols], is.numeric, logical(1)))) {
+    .abort(
+      "{.arg x} score columns must be numeric.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  if (any(vapply(
+    score_table[numeric_cols],
+    function(values) {
+      anyNA(values) || any(!is.finite(values)) ||
+        any(values < 0 | values > 1)
+    },
+    logical(1)
+  )) || anyNA(score_table$verdict) ||
+      any(!score_table$verdict %in% c("Good", "Moderate", "Poor"))) {
+    .abort(
+      "{.arg x} contains invalid score or verdict values.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  expected_verdict <- .classify_verdict(score_table$composite_score)
+  if (any(score_table$verdict != expected_verdict)) {
+    .abort(
+      "{.arg x} verdicts must agree with composite_score thresholds.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  hard_fail <- score_table$S_count == 0 & score_table$S_coverage == 0
+  if (any(hard_fail & score_table$composite_score != 0)) {
+    .abort(
+      "{.arg x} violates the zero-cleavage hard-fail rule.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  invisible(score_table)
+}
+
+.sensitivity_weights <- function(score_table, scoring_config = NULL) {
+  has_unique <- "S_unique" %in% names(score_table)
+  if (!is.null(scoring_config) && !is.list(scoring_config)) {
+    .abort(
+      "Scoring metadata must be a list when supplied.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  weights <- if (!is.null(scoring_config) &&
+      !is.null(scoring_config$weights)) {
+    scoring_config$weights
+  } else if (has_unique) {
+    .default_scoring_weights$proteome_aware
+  } else {
+    .default_scoring_weights$protein_only
+  }
+
+  .validate_weights(weights, has_unique)
+}
+
+.safe_squared_correlation <- function(x, y) {
+  if (length(x) < 2L || stats::sd(x) == 0 || stats::sd(y) == 0) {
+    return(0)
+  }
+
+  stats::cor(x, y)^2
+}
+
 #' Weight sensitivity analysis
 #'
-#' `sensitivity_analysis()` perturbs the default scoring weights using a
-#' Dirichlet distribution and reports how often the verdict (or enzyme ranking)
-#' changes. This answers the question: "If the weights were slightly different,
-#' would the recommendation change?"
+#' `sensitivity_analysis()` perturbs the resolved scoring weights using a
+#' Dirichlet distribution and reports how often the verdict or enzyme ranking
+#' changes. It compares each perturbation with the stored reference score and
+#' applies the scoring hard-fail rule consistently.
 #'
 #' @param x An [evaluate_digest()], [compare_digests()], or [batch_evaluate()]
 #'   result.
@@ -1061,10 +1394,14 @@ triage_proteins <- function(batch_result) {
 #'
 #' @return A list.  For single-protein input: `iterations` (tibble of per-draw
 #'   weights and composites), `convergence` (cumulative stability trace),
-#'   `summary` (probabilistic verdict, composite CI, optional R squared values
-#'   and corner-case table).  For multi-enzyme input: additionally reports
-#'   `top1_stability` and Kendall rank correlation.  For batch input: returns
-#'   `per_protein` (instability per protein) and `summary` aggregates.
+#'   `summary` (probabilistic verdict, composite CI, reference score and
+#'   weights, optional R squared values, and corner-case table). For
+#'   multi-enzyme input, it also reports `top1_stability`, reference
+#'   composites, and Kendall rank correlation. When requested, multi-enzyme
+#'   output also includes per-enzyme weight-importance vectors and corner-case
+#'   tables. For batch input, it returns
+#'   `per_protein` (stored reference composite and instability per protein) and
+#'   `summary` aggregates with the reference weights.
 #'
 #' @section Limitations:
 #' Monte Carlo estimates are approximate. Stability depends on `n_iter`.
@@ -1094,12 +1431,26 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   corner_cases <- validated$corner_cases
 
   if (is.data.frame(x)) {
+    .validate_sensitivity_score_table(x)
     if ("enzyme" %in% names(x) && length(unique(x$protein_id)) == 1L) {
-      .sensitivity_enzymes(x, nu, n_iter, importance, corner_cases)
+      .sensitivity_enzymes(
+        x, nu, n_iter, importance, corner_cases,
+        attr(x, "scoring_config")
+      )
     } else {
-      .sensitivity_batch(x, nu, n_iter, chunk_size, importance)
+      .sensitivity_batch(
+        x, nu, n_iter, chunk_size, importance,
+        attr(x, "scoring_config")
+      )
     }
   } else if (is.list(x) && "scores" %in% names(x)) {
+    .validate_sensitivity_score_table(x$scores, single = TRUE)
+    if (!is.null(x$params) && !is.list(x$params)) {
+      .abort(
+        "{.arg x} params must be a list when supplied.",
+        class = "pepvet_error_invalid_input"
+      )
+    }
     .sensitivity_single(
       x$scores, x$params, nu, n_iter, importance, corner_cases
     )
@@ -1116,32 +1467,53 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 ## Single-protein sensitivity
 
 .sensitivity_single <- function(scores, params, nu, n_iter,
-                                importance, corner_cases) {
-  score_row <- as.list(scores[1L, , drop = FALSE])
-  has_unique <- "S_unique" %in% names(score_row)
-  w0 <- if (has_unique) {
-    .default_scoring_weights$proteome_aware
-  } else {
-    .default_scoring_weights$protein_only
-  }
+                                importance, corner_cases,
+                                weight_draws = NULL) {
+  w0 <- .sensitivity_weights(scores, params)
 
   comp_names <- names(w0)
-  s_vec <- unlist(score_row[comp_names], use.names = FALSE)
+  s_vec <- as.numeric(scores[1L, comp_names, drop = TRUE])
 
   alpha <- nu * w0
-  W <- .rdirichlet(as.integer(n_iter), alpha)
+  W <- if (is.null(weight_draws)) {
+    .rdirichlet(as.integer(n_iter), alpha)
+  } else {
+    if (!is.matrix(weight_draws) ||
+        nrow(weight_draws) != n_iter ||
+        ncol(weight_draws) != length(comp_names) ||
+        !is.numeric(weight_draws) ||
+        anyNA(weight_draws) ||
+        any(!is.finite(weight_draws)) ||
+        any(weight_draws < 0) ||
+        any(abs(rowSums(weight_draws) - 1) > 1e-8)) {
+      .abort(
+        "Sensitivity weight draws must be finite non-negative rows that sum to one.",
+        class = "pepvet_error_invalid_sensitivity_parameter"
+      )
+    }
+    weight_draws
+  }
   colnames(W) <- comp_names
 
   composites <- drop(W %*% s_vec)
+  hard_fail <- scores$S_count[[1L]] == 0 &&
+    scores$S_coverage[[1L]] == 0
+  if (hard_fail) {
+    composites[] <- 0
+  }
   verdicts <- ifelse(
     composites >= .get_param("verdict_good"), "Good",
     ifelse(composites >= .get_param("verdict_moderate"), "Moderate", "Poor")
   )
 
-  default_comp <- sum(w0 * s_vec)
+  reference_composite <- scores$composite_score[[1L]]
   default_verdict <- ifelse(
-    default_comp >= .get_param("verdict_good"), "Good",
-    ifelse(default_comp >= .get_param("verdict_moderate"), "Moderate", "Poor")
+    reference_composite >= .get_param("verdict_good"), "Good",
+    ifelse(
+      reference_composite >= .get_param("verdict_moderate"),
+      "Moderate",
+      "Poor"
+    )
   )
 
   iter_df <- as.data.frame(W)
@@ -1157,7 +1529,9 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     mc_se = sqrt(stab * (1 - stab) / seq_len(n_iter))
   )
 
-  vtab <- table(verdicts)
+  vtab <- table(factor(verdicts,
+    levels = c("Good", "Moderate", "Poor")
+  ))
   verdict_pct <- as.numeric(prop.table(vtab))
   names(verdict_pct) <- names(vtab)
   qi <- stats::quantile(composites, c(0.025, 0.975), na.rm = TRUE)
@@ -1168,14 +1542,17 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     summary = list(
       verdict_pct      = verdict_pct,
       composite_ci     = unname(qi),
-      composite_mean   = mean(composites, na.rm = TRUE)
+      composite_mean   = mean(composites, na.rm = TRUE),
+      reference_composite = reference_composite,
+      reference_weights = w0,
+      reference_verdict = default_verdict
     )
   )
 
   if (importance) {
     zW <- scale(W)
     r2 <- vapply(seq_len(ncol(zW)), function(j) {
-      stats::cor(zW[, j], composites)^2
+      .safe_squared_correlation(zW[, j], composites)
     }, numeric(1))
     names(r2) <- comp_names
     out$summary$weight_importance <- r2
@@ -1198,12 +1575,12 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       w_lo <- w0
       w_lo[i] <- lo[i]
       w_lo <- w_lo / sum(w_lo)
-      cc$composite_at_lo[i] <- sum(w_lo * s_vec)
+      cc$composite_at_lo[i] <- if (hard_fail) 0 else sum(w_lo * s_vec)
 
       w_hi <- w0
       w_hi[i] <- hi[i]
       w_hi <- w_hi / sum(w_hi)
-      cc$composite_at_hi[i] <- sum(w_hi * s_vec)
+      cc$composite_at_hi[i] <- if (hard_fail) 0 else sum(w_hi * s_vec)
     }
     out$summary$corner_cases <- tibble::as_tibble(cc)
   }
@@ -1215,12 +1592,23 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 ## Multi-enzyme sensitivity
 
 .sensitivity_enzymes <- function(enzyme_tbl, nu, n_iter,
-                                 importance, corner_cases) {
-  enzymes <- unique(enzyme_tbl$enzyme)
+                                 importance, corner_cases,
+                                 scoring_config = NULL) {
+  enzymes <- unique(as.character(enzyme_tbl$enzyme))
+  w0 <- .sensitivity_weights(enzyme_tbl, scoring_config)
+  weight_draws <- .rdirichlet(as.integer(n_iter), nu * w0)
   res_list <- lapply(enzymes, function(enz) {
-    sub <- enzyme_tbl[enzyme_tbl$enzyme == enz, , drop = FALSE]
-    params <- list(enzyme = enz, protein_ids = sub$protein_id[[1L]])
-    .sensitivity_single(sub, params, nu, n_iter, importance, corner_cases)
+    sub <- enzyme_tbl[as.character(enzyme_tbl$enzyme) == enz, ,
+      drop = FALSE
+    ]
+    params <- list(
+      enzyme = enz,
+      protein_ids = sub$protein_id[[1L]],
+      weights = w0
+    )
+    .sensitivity_single(
+      sub, params, nu, n_iter, importance, corner_cases, weight_draws
+    )
   })
 
   n_enz <- length(enzymes)
@@ -1228,43 +1616,67 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   for (k in seq_len(n_enz)) {
     rank_matrix[, k] <- res_list[[k]]$iterations$composite_score
   }
-  top1 <- apply(rank_matrix, 1, function(row) enzymes[which.max(row)])
-  top1_stab <- prop.table(table(top1))
+  top1 <- vapply(seq_len(nrow(rank_matrix)), function(i) {
+    enzymes[which.max(rank_matrix[i, ])]
+  }, character(1))
+  top1_stab <- prop.table(table(factor(top1, levels = enzymes)))
 
   default_composites <- vapply(
-    res_list, function(r) r$summary$composite_mean,
+    res_list, function(r) r$summary$reference_composite,
     numeric(1)
   )
-  default_rank <- order(default_composites, decreasing = TRUE)
-  kendalls <- apply(rank_matrix, 1, function(row) {
-    iter_rank <- order(row, decreasing = TRUE)
-    stats::cor(default_rank, iter_rank, method = "kendall")
-  })
+  default_rank <- rank(-default_composites, ties.method = "average")
+  kendalls <- vapply(seq_len(nrow(rank_matrix)), function(i) {
+    iter_rank <- rank(-rank_matrix[i, ], ties.method = "average")
+    if (length(unique(default_rank)) < 2L ||
+        length(unique(iter_rank)) < 2L) {
+      1
+    } else {
+      stats::cor(default_rank, iter_rank, method = "kendall")
+    }
+  }, numeric(1))
   kendall_mean <- mean(kendalls, na.rm = TRUE)
 
-  list(
+  out <- list(
     summary = list(
       top1_stability = top1_stab,
-      kendall_mean   = kendall_mean
+      kendall_mean   = kendall_mean,
+      reference_composites = stats::setNames(default_composites, enzymes)
     )
   )
+
+  if (importance) {
+    importance_by_enzyme <- lapply(
+      res_list,
+      function(result) result$summary$weight_importance
+    )
+    names(importance_by_enzyme) <- enzymes
+    out$summary$weight_importance <- importance_by_enzyme
+  }
+
+  if (corner_cases) {
+    corner_cases_by_enzyme <- lapply(
+      res_list,
+      function(result) result$summary$corner_cases
+    )
+    names(corner_cases_by_enzyme) <- enzymes
+    out$summary$corner_cases <- corner_cases_by_enzyme
+  }
+
+  out
 }
 
 
 ## Batch sensitivity
 
 .sensitivity_batch <- function(batch_tbl, nu, n_iter, chunk_size,
-                               importance) {
-  has_unique <- "S_unique" %in% names(batch_tbl)
-  w0 <- if (has_unique) {
-    .default_scoring_weights$proteome_aware
-  } else {
-    .default_scoring_weights$protein_only
-  }
+                               importance, scoring_config = NULL) {
+  w0 <- .sensitivity_weights(batch_tbl, scoring_config)
   comp_names <- names(w0)
 
   S <- as.matrix(batch_tbl[, comp_names, drop = FALSE])
   n_prot <- nrow(S)
+  hard_fail <- batch_tbl$S_count == 0 & batch_tbl$S_coverage == 0
 
   alpha <- nu * w0
   W <- .rdirichlet(as.integer(n_iter), alpha)
@@ -1278,12 +1690,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     idx <- chunk_starts[ci]:min(chunk_starts[ci] + chunk_size - 1L, n_prot)
     S_chunk <- S[idx, , drop = FALSE]
     C_chunk <- S_chunk %*% t(W)
+    C_chunk[hard_fail[idx], ] <- 0
 
-    def <- drop(S_chunk %*% w0)
-    def_verdict <- ifelse(
-      def >= .get_param("verdict_good"), "Good",
-      ifelse(def >= .get_param("verdict_moderate"), "Moderate", "Poor")
-    )
+    def <- batch_tbl$composite_score[idx]
+    def_verdict <- batch_tbl$verdict[idx]
 
     ## Compare each iteration verdict with the default verdict using full 3-level
     ## classification (not just Good vs not-Good like the previous
@@ -1296,14 +1706,18 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     instability <- 1 - rowMeans(same, na.rm = TRUE)
 
     ## Empirical quantiles (one pass per row for both tails)
-    ci_mat <- apply(C_chunk, 1L, stats::quantile,
-      probs = c(0.025, 0.975), na.rm = TRUE)
-    ci_lo <- ci_mat[1L, ]
-    ci_hi <- ci_mat[2L, ]
+    ci_mat <- t(vapply(seq_len(nrow(S_chunk)), function(i) {
+      stats::quantile(
+        C_chunk[i, ], probs = c(0.025, 0.975), na.rm = TRUE
+      )
+    }, numeric(2)))
+    ci_lo <- ci_mat[, 1L]
+    ci_hi <- ci_mat[, 2L]
     comp_mean <- rowMeans(C_chunk, na.rm = TRUE)
 
     per_protein_list[[ci]] <- tibble::tibble(
       protein_id          = batch_tbl$protein_id[idx],
+      reference_composite = def,
       verdict_instability = instability,
       composite_mean      = comp_mean,
       composite_lo        = ci_lo,
@@ -1341,7 +1755,8 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       ci_width_quantiles = stats::quantile(ci_widths,
         c(0, 0.25, 0.5, 0.75, 1),
         na.rm = TRUE
-      )
+      ),
+      reference_weights = w0
     )
   )
 
@@ -1349,7 +1764,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     ## C_all is n_prot x n_iter, W is n_iter x n_comp
     r2_per_prot <- vapply(seq_len(n_prot), function(i) {
       vapply(seq_along(comp_names), function(j) {
-        stats::cor(W[, j], C_all[i, ])^2
+        .safe_squared_correlation(W[, j], C_all[i, ])
       }, numeric(1))
     }, numeric(length(comp_names)))
 

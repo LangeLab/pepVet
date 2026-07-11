@@ -16,20 +16,27 @@ digest_protein(
 character vector of sequences, a \code{Biostrings::AAString}, a
 \code{Biostrings::AAStringSet}, or a path to a FASTA file. File extension is
 not used to detect FASTA input; any existing file that
-\code{Biostrings::readAAStringSet()} can parse as FASTA is accepted. If
-\code{NULL} or empty, raises an error.}
+\code{Biostrings::readAAStringSet()} can parse as FASTA is accepted. \code{NULL},
+length-zero, and wrong-type inputs raise
+\code{pepvet_error_invalid_input}; \code{NA} or an empty string raises
+\code{pepvet_error_invalid_sequence}. Malformed FASTA files raise a classed
+\code{pepvet_error_invalid_input} error.}
 
 \item{enzyme}{Cleavage rule name. Defaults to \code{"trypsin"}. pepVet validates
 this against its hard-coded registry of cleaver-compatible enzyme names,
-including \code{trypsin}, \code{lysc}, \verb{glutamyl endopeptidase}, \verb{asp-n endopeptidase}, \code{chymotrypsin-high}, and \code{thermolysin}.}
+including \code{trypsin}, \code{lysc}, \verb{glutamyl endopeptidase}, \verb{asp-n endopeptidase}, \code{chymotrypsin-high}, and \code{thermolysin}. Missing, empty,
+wrong-type, and unsupported values raise \code{pepvet_error_invalid_enzyme}.}
 
 \item{missed_cleavages}{Maximum number of missed cleavages to include.
-Defaults to \code{1L}.}
+Must be a single non-negative integer. Defaults to \code{1L}. Invalid values
+raise \code{pepvet_error_invalid_missed_cleavages}.}
 
 \item{include_cleavage_efficiency}{Logical flag indicating whether to append
 a \code{cleavage_efficiency} column to the peptide output. Defaults to \code{FALSE}.
 Trypsin-family digests receive sequence-local high/medium/low annotations;
-unsupported enzymes return \code{NA} in this optional column.}
+unsupported enzymes return \code{NA} in this optional column. The flag must be
+a single non-missing logical value; invalid values raise
+\code{pepvet_error_invalid_include_cleavage_efficiency}.}
 }
 \value{
 A tibble with one row per peptide and the columns \code{protein_id},

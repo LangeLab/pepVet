@@ -75,7 +75,6 @@
   }
   efficiency <- as.character(efficiency)
   known <- efficiency[!is.na(efficiency)]
-  if (length(known) == 0L) return(NA_character_)
   severity <- c(low = 1L, medium = 2L, high = 3L)
   known[[which.min(severity[known])]]
 }
@@ -113,12 +112,17 @@
 #'
 #' @param sequence Protein input supplied as a single sequence, a named
 #'   character vector of length 1, a `Biostrings::AAString`, or a FASTA file
-#'   path resolving to exactly one protein. If `NULL` or empty, raises an
-#'   error.
+#'   path resolving to exactly one protein. `NULL`, length-zero, and wrong-type
+#'   inputs raise `pepvet_error_invalid_input`; `NA` and empty strings raise
+#'   `pepvet_error_invalid_sequence`. Malformed FASTA files raise a classed
+#'   `pepvet_error_invalid_input` error.
 #' @param enzyme Cleavage rule name. Defaults to `"trypsin"`.
 #'   Cleavage-efficiency annotations are implemented for the trypsin family
 #'   only: `trypsin`, `trypsin-high`, `trypsin-low`, and `trypsin-simple`.
-#'   Unsupported enzymes raise an error.
+#'   Supported non-trypsin names raise
+#'   `pepvet_error_unsupported_cleavage_annotation`;
+#'   missing, empty, wrong-type, and unrecognized values raise
+#'   `pepvet_error_invalid_enzyme`.
 #'
 #' @details The current annotations are sequence-local and based on P1-P1'
 #'   context only. They do not model higher-order structural accessibility,
@@ -183,18 +187,25 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #'   character vector of sequences, a `Biostrings::AAString`, a
 #'   `Biostrings::AAStringSet`, or a path to a FASTA file. File extension is
 #'   not used to detect FASTA input; any existing file that
-#'   `Biostrings::readAAStringSet()` can parse as FASTA is accepted. If
-#'   `NULL` or empty, raises an error.
+#'   `Biostrings::readAAStringSet()` can parse as FASTA is accepted. `NULL`,
+#'   length-zero, and wrong-type inputs raise
+#'   `pepvet_error_invalid_input`; `NA` or an empty string raises
+#'   `pepvet_error_invalid_sequence`. Malformed FASTA files raise a classed
+#'   `pepvet_error_invalid_input` error.
 #' @param enzyme Cleavage rule name. Defaults to `"trypsin"`. pepVet validates
 #'   this against its hard-coded registry of cleaver-compatible enzyme names,
 #'   including `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n
-#'   endopeptidase`, `chymotrypsin-high`, and `thermolysin`.
+#'   endopeptidase`, `chymotrypsin-high`, and `thermolysin`. Missing, empty,
+#'   wrong-type, and unsupported values raise `pepvet_error_invalid_enzyme`.
 #' @param missed_cleavages Maximum number of missed cleavages to include.
-#'   Defaults to `1L`.
+#'   Must be a single non-negative integer. Defaults to `1L`. Invalid values
+#'   raise `pepvet_error_invalid_missed_cleavages`.
 #' @param include_cleavage_efficiency Logical flag indicating whether to append
 #'   a `cleavage_efficiency` column to the peptide output. Defaults to `FALSE`.
 #'   Trypsin-family digests receive sequence-local high/medium/low annotations;
-#'   unsupported enzymes return `NA` in this optional column.
+#'   unsupported enzymes return `NA` in this optional column. The flag must be
+#'   a single non-missing logical value; invalid values raise
+#'   `pepvet_error_invalid_include_cleavage_efficiency`.
 #'
 #' @details FASTA record names are preserved as `protein_id` values when they
 #'   are present, including irregular headers that do not use UniProt pipe
@@ -274,10 +285,9 @@ digest_protein <- function(sequence,
     col_length <- integer(total_rows)
     col_mc <- integer(total_rows)
 
-    for (index in seq_along(sequence_strings)) {
+    for (index in which(n_per_protein > 0L)) {
       k <- offsets[[index]] + 1L
       e <- offsets[[index + 1L]]
-      if (k > e) next
       dr <- all_digest_ranges[[index]]
       col_protein_id[k:e] <- protein_ids[[index]]
       col_peptide[k:e] <- substring(sequence_strings[[index]], dr$start, dr$end)

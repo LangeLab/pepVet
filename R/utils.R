@@ -738,7 +738,19 @@ pepvet_preset <- function(type = "standard") {
       .abort(input_error, class = "pepvet_error_invalid_input")
     }
 
-    if (length(sequence) == 1L && !is.na(sequence) && file.exists(sequence)) {
+    directory_as_sequence <- FALSE
+    if (length(sequence) == 1L && !is.na(sequence) && dir.exists(sequence)) {
+      residues <- strsplit(toupper(sequence), split = "", fixed = TRUE)[[1]]
+      directory_as_sequence <- nzchar(trimws(sequence)) &&
+        all(residues %in% .get_aa_properties()$amino_acid)
+    }
+
+    if (
+      length(sequence) == 1L &&
+        !is.na(sequence) &&
+        file.exists(sequence) &&
+        !directory_as_sequence
+    ) {
       if (dir.exists(sequence)) {
         .abort(
           c(
@@ -749,7 +761,21 @@ pepvet_preset <- function(type = "standard") {
         )
       }
 
-      fasta_sequences <- Biostrings::readAAStringSet(sequence, format = "fasta")
+      fasta_sequences <- tryCatch(
+        Biostrings::readAAStringSet(sequence, format = "fasta"),
+        error = function(error) {
+          .abort(
+            c(
+              "Could not parse {.arg sequence} as a FASTA file.",
+              "i" = paste0(
+                "Check the FASTA header and sequence records. Parser detail: ",
+                conditionMessage(error)
+              )
+            ),
+            class = "pepvet_error_invalid_input"
+          )
+        }
+      )
       raw_sequences <- as.character(fasta_sequences)
       raw_names <- names(fasta_sequences)
     } else {

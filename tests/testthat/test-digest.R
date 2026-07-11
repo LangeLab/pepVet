@@ -49,6 +49,42 @@ test_that("supported enzyme registry is pinned exactly", {
   expect_identical(pepVet:::.supported_digest_enzymes, expected_enzymes)
 })
 
+test_that("registered enzymes normalize and dispatch through digest_protein", {
+  normalized <- vapply(
+    expected_enzymes,
+    function(enzyme) {
+      pepVet:::.normalize_enzyme(paste0(" ", toupper(enzyme), " "))
+    },
+    character(1),
+    USE.NAMES = FALSE
+  )
+  expect_identical(normalized, expected_enzymes)
+
+  digests <- lapply(
+    expected_enzymes,
+    function(enzyme) {
+      digest_protein(
+        "MKWVTFISLLFLFSSAYSR",
+        enzyme = enzyme,
+        missed_cleavages = 0L
+      )
+    }
+  )
+  expected_columns <- c(
+    "protein_id", "peptide", "start", "end", "length",
+    "missed_cleavages"
+  )
+
+  expect_true(
+    all(vapply(digests, nrow, integer(1)) > 0L)
+  )
+  expect_true(
+    all(vapply(digests, function(result) {
+      identical(names(result), expected_columns) && !anyNA(result)
+    }, logical(1)))
+  )
+})
+
 test_that("digest_protein returns the documented schema and column types", {
   result <- digest_protein("MKWVTFISLLFLFSSAYSR")
 
@@ -91,12 +127,201 @@ test_that("annotate_cleavage_sites classifies tryptic motifs correctly", {
   expect_identical(default_site$residue, "K")
   expect_identical(default_site$efficiency, "high")
   expect_identical(default_site$rule_applied, "default_trypsin_site")
+
+  synthetic <- annotate_cleavage_sites("AKRDKPRA")
+  expect_identical(synthetic$position, c(2L, 3L, 5L, 7L))
+  expect_identical(synthetic$residue, c("K", "R", "K", "R"))
+  expect_identical(
+    synthetic$flanking_context,
+    c("AKRD", "AKRDK", "RDKPR", "KPRA")
+  )
+  expect_identical(
+    synthetic$efficiency,
+    c("medium", "low", "low", "high")
+  )
+  expect_identical(
+    synthetic$rule_applied,
+    c(
+      "adjacent_basic_residues", "acidic_p1_prime", "proline_block",
+      "default_trypsin_site"
+    )
+  )
+
+  lowercase <- annotate_cleavage_sites("akr", enzyme = " TRYPSIN ")
+  expect_identical(lowercase$position, 2L)
+  expect_identical(lowercase$efficiency, "medium")
+
+  first_site <- annotate_cleavage_sites("KAAA")
+  expect_identical(first_site$position, 1L)
+  expect_identical(first_site$flanking_context, "KAA")
+  expect_identical(first_site$efficiency, "high")
+  expect_identical(first_site$rule_applied, "default_trypsin_site")
+
+  expected_alias_output <- annotate_cleavage_sites("AKRTPK")
+  for (enzyme in pepVet:::.cleavage_annotation_trypsin_enzymes) {
+    expect_identical(
+      annotate_cleavage_sites("AKRTPK", enzyme = enzyme),
+      expected_alias_output,
+      info = enzyme
+    )
+  }
 })
 
 test_that("annotate_cleavage_sites rejects unsupported annotation enzymes", {
   expect_error(
     annotate_cleavage_sites("MKWVTFISLLFLFSSAYSR", enzyme = "lysc"),
     class = "pepvet_error_unsupported_cleavage_annotation"
+  )
+})
+
+test_that("annotate_cleavage_sites accepts input forms and empty sites", {
+  sequence <- "AKRTPK"
+  temp_root <- withr::local_tempdir("pepVet annotation ")
+  fasta_path <- file.path(temp_root, "single protein.fasta")
+  writeLines(c(">annotation_fixture", sequence), fasta_path)
+
+  expected <- annotate_cleavage_sites(sequence)
+  expect_identical(
+    annotate_cleavage_sites(c(annotation_fixture = sequence)),
+    expected
+  )
+  expect_identical(
+    annotate_cleavage_sites(Biostrings::AAString(sequence)),
+    expected
+  )
+  expect_identical(annotate_cleavage_sites(fasta_path), expected)
+
+  empty <- annotate_cleavage_sites("AAAA")
+  expect_s3_class(empty, "tbl_df")
+  expect_identical(names(empty), names(expected))
+  expect_identical(nrow(empty), 0L)
+  expect_type(empty$position, "integer")
+  expect_type(empty$efficiency, "character")
+})
+
+test_that("annotate_cleavage_sites rejects invalid sequence inputs", {
+  invalid_inputs <- list(
+    null = NULL,
+    empty = character(0),
+    wrong_type = 42,
+    multiple = c(first = "AK", second = "RK")
+  )
+  for (input_name in names(invalid_inputs)) {
+    expect_error(
+      annotate_cleavage_sites(invalid_inputs[[input_name]]),
+      class = "pepvet_error_invalid_input",
+      info = input_name
+    )
+  }
+
+  expect_error(
+    annotate_cleavage_sites(NA_character_),
+    class = "pepvet_error_invalid_sequence"
+  )
+  expect_error(
+    annotate_cleavage_sites(""),
+    class = "pepvet_error_invalid_sequence"
+  )
+
+  temp_root <- withr::local_tempdir("pepVet annotation errors ")
+  malformed_path <- file.path(temp_root, "malformed.fasta")
+  writeLines(c("not a FASTA header", "AKR"), malformed_path)
+  expect_error(
+    annotate_cleavage_sites(malformed_path),
+    class = "pepvet_error_invalid_input",
+    regexp = "FASTA"
+  )
+
+  multi_path <- file.path(temp_root, "multiple.fasta")
+  writeLines(c(">first", "AKR", ">second", "TPK"), multi_path)
+  expect_error(
+    annotate_cleavage_sites(multi_path),
+    class = "pepvet_error_invalid_input"
+  )
+
+  expect_error(
+    annotate_cleavage_sites(file.path(temp_root, "missing.fasta")),
+    class = "pepvet_error_missing_file"
+  )
+})
+
+test_that("annotate_cleavage_sites rejects invalid enzyme values", {
+  sequence <- "AKRTPK"
+  invalid_enzymes <- list(
+    null = NULL,
+    missing = NA_character_,
+    wrong_type = 42,
+    empty = "",
+    unrecognized = "not-an-enzyme"
+  )
+  for (enzyme_name in names(invalid_enzymes)) {
+    expect_error(
+      annotate_cleavage_sites(
+        sequence,
+        enzyme = invalid_enzymes[[enzyme_name]]
+      ),
+      class = "pepvet_error_invalid_enzyme",
+      info = enzyme_name
+    )
+  }
+})
+
+test_that("cleavage annotation helpers preserve classification and severity", {
+  annotations <- pepVet:::.annotate_trypsin_cleavage_sites("AKRDKPRA")
+
+  expect_identical(
+    vapply(
+      c("trypsin", "trypsin-high", "trypsin-low", "trypsin-simple", "lysc"),
+      pepVet:::.supports_cleavage_efficiency_annotations,
+      logical(1),
+      USE.NAMES = FALSE
+    ),
+    c(TRUE, TRUE, TRUE, TRUE, FALSE)
+  )
+  expect_identical(
+    pepVet:::.least_efficient_class(c("high", "medium", "low")),
+    "low"
+  )
+  expect_identical(
+    pepVet:::.least_efficient_class(c(NA_character_, "medium")),
+    "medium"
+  )
+  expect_identical(
+    pepVet:::.least_efficient_class(character(0)),
+    NA_character_
+  )
+  expect_identical(
+    pepVet:::.least_efficient_class(NA_character_),
+    NA_character_
+  )
+
+  expect_identical(
+    pepVet:::.map_peptide_cleavage_efficiency(1L, 4L, annotations),
+    "low"
+  )
+  expect_identical(
+    pepVet:::.map_peptide_cleavage_efficiency(5L, 7L, annotations),
+    "low"
+  )
+  expect_identical(
+    pepVet:::.map_peptide_cleavage_efficiency(1L, 1L, annotations),
+    NA_character_
+  )
+
+  expect_identical(
+    pepVet:::.cleavage_efficiency_summary("AKRDKPRA", "trypsin"),
+    list(n_high_efficiency_sites = 1L, n_low_efficiency_sites = 2L)
+  )
+  expect_identical(
+    pepVet:::.cleavage_efficiency_summary("AAAA", "trypsin"),
+    list(n_high_efficiency_sites = 0L, n_low_efficiency_sites = 0L)
+  )
+  expect_identical(
+    pepVet:::.cleavage_efficiency_summary("AKRDKPRA", "lysc"),
+    list(
+      n_high_efficiency_sites = NA_integer_,
+      n_low_efficiency_sites = NA_integer_
+    )
   )
 })
 
@@ -112,6 +337,11 @@ test_that("single protein digestion roundtrips and preserves positions", {
     mc0$peptide,
     substring(sequence, first = mc0$start, last = mc0$end)
   )
+  expect_true(all(
+    mc0$start >= 1L,
+    mc0$start <= mc0$end,
+    mc0$end <= nchar(sequence)
+  ))
   expect_identical(mc0$length, as.integer(nchar(mc0$peptide)))
   expect_identical(mc0$length, mc0$end - mc0$start + 1L)
   expect_identical(IRanges::start(coverage), 1L)
@@ -132,6 +362,66 @@ test_that("enzyme normalization accepts case and surrounding whitespace", {
     digest_protein("mkwvtfisllflfssaysr", enzyme = " Trypsin "),
     digest_protein("MKWVTFISLLFLFSSAYSR", enzyme = "trypsin")
   )
+})
+
+test_that("enzyme families follow independent cleavage oracles", {
+  cases <- list(
+    trypsin = list(
+      sequence = "AKRTPK",
+      enzyme = "trypsin",
+      peptides = c("AK", "R", "TPK")
+    ),
+    trypsin_blocks_rp = list(
+      sequence = "AKPR",
+      enzyme = "trypsin",
+      peptides = "AKPR"
+    ),
+    lysc = list(
+      sequence = "AKRTPK",
+      enzyme = "lysc",
+      peptides = c("AK", "RTPK")
+    ),
+    cnbr = list(
+      sequence = "AMAKMAGT",
+      enzyme = "cnbr",
+      peptides = c("AM", "AKM", "AGT")
+    ),
+    aspn = list(
+      sequence = "AADDK",
+      enzyme = "asp-n endopeptidase",
+      peptides = c("AA", "D", "DK")
+    ),
+    glutamyl = list(
+      sequence = "ADEEAK",
+      enzyme = "glutamyl endopeptidase",
+      peptides = c("ADE", "E", "AK")
+    ),
+    chymotrypsin = list(
+      sequence = "AFYWLPA",
+      enzyme = "chymotrypsin-high",
+      peptides = c("AF", "Y", "W", "LPA")
+    )
+  )
+
+  for (case_name in names(cases)) {
+    case <- cases[[case_name]]
+    result <- digest_protein(
+      case$sequence,
+      enzyme = case$enzyme,
+      missed_cleavages = 0L
+    )
+    expect_identical(result$peptide, case$peptides, info = case_name)
+    expect_identical(
+      result$length,
+      as.integer(nchar(result$peptide)),
+      info = case_name
+    )
+    expect_identical(
+      result$peptide,
+      substring(case$sequence, result$start, result$end),
+      info = case_name
+    )
+  }
 })
 
 test_that("named character vectors preserve their names as protein ids", {
@@ -266,6 +556,22 @@ test_that("no-cleavage and single-residue edge cases stay stable", {
   expect_identical(single$start, 1L)
   expect_identical(single$end, 1L)
   expect_identical(single$length, 1L)
+
+  collision_root <- withr::local_tempdir("pepVet sequence collision ")
+  dir.create(file.path(collision_root, "R"))
+  withr::local_dir(collision_root)
+
+  collision_digest <- digest_protein(
+    "R",
+    enzyme = "trypsin",
+    missed_cleavages = 0L
+  )
+  expect_identical(collision_digest$peptide, "R")
+  expect_identical(collision_digest$start, 1L)
+  expect_identical(collision_digest$end, 1L)
+
+  collision_annotations <- annotate_cleavage_sites("R")
+  expect_identical(nrow(collision_annotations), 0L)
 })
 
 test_that(
@@ -285,25 +591,45 @@ test_that(
     expect_gt(nrow(result), nrow(mc0))
     expect_identical(mc1$start, c(1L, 3L))
     expect_identical(mc1$end, c(3L, 6L))
+    expect_identical(
+      result$peptide,
+      substring("AKRTPK", result$start, result$end)
+    )
+    expect_true(all(
+      result$start >= 1L,
+      result$start <= result$end,
+      result$end <= nchar("AKRTPK")
+    ))
+    expect_identical(result$length, as.integer(nchar(result$peptide)))
+    expect_true(all(result$missed_cleavages %in% 0:1))
+    expect_identical(
+      nrow(result),
+      nrow(unique(result[c("start", "end", "missed_cleavages")]))
+    )
   }
 )
 
 test_that("digest_protein can append peptide-level cleavage efficiency", {
-  result <- digest_protein(
-    "AKRTPK",
-    enzyme = "trypsin",
-    missed_cleavages = 0L,
-    include_cleavage_efficiency = TRUE
+  expected_columns <- c(
+    "protein_id", "peptide", "start", "end", "length", "missed_cleavages",
+    "cleavage_efficiency"
   )
 
-  expect_identical(
-    names(result),
-    c(
-      "protein_id", "peptide", "start", "end", "length", "missed_cleavages",
-      "cleavage_efficiency"
+  for (enzyme in pepVet:::.cleavage_annotation_trypsin_enzymes) {
+    result <- digest_protein(
+      "AKRTPK",
+      enzyme = enzyme,
+      missed_cleavages = 0L,
+      include_cleavage_efficiency = TRUE
     )
-  )
-  expect_identical(result$cleavage_efficiency, c("medium", "medium", "high"))
+
+    expect_identical(names(result), expected_columns, info = enzyme)
+    expect_identical(
+      result$cleavage_efficiency,
+      c("medium", "medium", "high"),
+      info = enzyme
+    )
+  }
 })
 
 test_that("unsupported enzymes get NA peptide-level cleavage efficiency", {
@@ -314,6 +640,19 @@ test_that("unsupported enzymes get NA peptide-level cleavage efficiency", {
   )
 
   expect_true("cleavage_efficiency" %in% names(result))
+  expect_type(result$cleavage_efficiency, "character")
+  expect_true(all(is.na(result$cleavage_efficiency)))
+})
+
+test_that("no-site trypsin efficiency stays typed missing", {
+  result <- digest_protein(
+    "AAAA",
+    enzyme = "trypsin",
+    include_cleavage_efficiency = TRUE
+  )
+
+  expect_identical(result$peptide, "AAAA")
+  expect_type(result$cleavage_efficiency, "character")
   expect_true(all(is.na(result$cleavage_efficiency)))
 })
 
@@ -323,9 +662,16 @@ test_that("missing and invalid FASTA paths raise a classed file error", {
     class = "pepvet_error_missing_file"
   )
 
-  temp_dir <- tempfile()
-  dir.create(temp_dir)
+  temp_dir <- withr::local_tempdir("pepVet digest path ")
   expect_error(digest_protein(temp_dir), class = "pepvet_error_missing_file")
+
+  malformed_path <- file.path(temp_dir, "malformed.fasta")
+  writeLines(c("not a FASTA header", "MKWV"), malformed_path)
+  expect_error(
+    digest_protein(malformed_path),
+    class = "pepvet_error_invalid_input",
+    regexp = "FASTA"
+  )
 })
 
 test_that("invalid enzyme names raise a classed error with supported names", {
@@ -356,7 +702,7 @@ test_that("invalid enzyme names raise a classed error with supported names", {
 })
 
 test_that("invalid sequence content is rejected with offending characters", {
-    expect_error(
+  expect_error(
     digest_protein("MXBZ123", enzyme = "trypsin"),
     regexp = "unsupported amino acid code",
     class = "pepvet_error_invalid_sequence"
@@ -371,6 +717,14 @@ test_that("invalid sequence content is rejected with offending characters", {
 test_that("invalid input types and missed cleavage values are rejected", {
   expect_error(digest_protein(NULL), class = "pepvet_error_invalid_input")
   expect_error(digest_protein(12345), class = "pepvet_error_invalid_input")
+  expect_error(
+    digest_protein(character(0)),
+    class = "pepvet_error_invalid_input"
+  )
+  expect_error(
+    digest_protein(NA_character_),
+    class = "pepvet_error_invalid_sequence"
+  )
   expect_error(
     digest_protein(Biostrings::AAStringSet()),
     class = "pepvet_error_invalid_input"
@@ -431,11 +785,4 @@ test_that("unnamed character inputs receive stable generated protein ids", {
   )
 
   expect_identical(unique(result$protein_id), c("sequence_1", "sequence_2"))
-})
-
-test_that("annotate_cleavage_sites rejects non-trypsin enzymes", {
-  expect_error(
-    annotate_cleavage_sites("MKWVTFISLLFLFSSAYSR", enzyme = "lysc"),
-    class = "pepvet_error_unsupported_cleavage_annotation"
-  )
 })

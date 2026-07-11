@@ -9,13 +9,18 @@ annotate_cleavage_sites(sequence, enzyme = "trypsin")
 \arguments{
 \item{sequence}{Protein input supplied as a single sequence, a named
 character vector of length 1, a \code{Biostrings::AAString}, or a FASTA file
-path resolving to exactly one protein. If \code{NULL} or empty, raises an
-error.}
+path resolving to exactly one protein. \code{NULL}, length-zero, and wrong-type
+inputs raise \code{pepvet_error_invalid_input}; \code{NA} and empty strings raise
+\code{pepvet_error_invalid_sequence}. Malformed FASTA files raise a classed
+\code{pepvet_error_invalid_input} error.}
 
 \item{enzyme}{Cleavage rule name. Defaults to \code{"trypsin"}.
 Cleavage-efficiency annotations are implemented for the trypsin family
 only: \code{trypsin}, \code{trypsin-high}, \code{trypsin-low}, and \code{trypsin-simple}.
-Unsupported enzymes raise an error.}
+Supported non-trypsin names raise
+\code{pepvet_error_unsupported_cleavage_annotation};
+missing, empty, wrong-type, and unrecognized values raise
+\code{pepvet_error_invalid_enzyme}.}
 }
 \value{
 A tibble with one row per candidate cleavage site and the columns

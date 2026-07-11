@@ -17,7 +17,8 @@ table with the best enzyme highlighted.}
 If \code{NULL} or an unrecognised type, raises an error.}
 
 \item{title}{Optional character string printed as a section header above
-the report. When \code{NULL} (default), the protein ID is used as the header.}
+the report. When \code{NULL} (default), the protein ID is used as the header.
+A non-\code{NULL} value must be a single character string.}
 }
 \value{
 \code{x}, invisibly.

@@ -1,5 +1,13 @@
+.report_component_columns <- c(
+  "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
+)
+
 .verdict_bullet <- function(verdict) {
-  switch(verdict,
+  if (length(verdict) != 1L || is.na(verdict)) {
+    return(cli::symbol$info)
+  }
+
+  switch(as.character(verdict),
     Good     = cli::col_green(cli::symbol$tick),
     Moderate = cli::col_yellow(cli::symbol$warning),
     Poor     = cli::col_red(cli::symbol$cross),
@@ -8,7 +16,11 @@
 }
 
 .verdict_colour <- function(verdict, text) {
-  switch(verdict,
+  if (length(verdict) != 1L || is.na(verdict)) {
+    return(text)
+  }
+
+  switch(as.character(verdict),
     Good     = cli::col_green(text),
     Moderate = cli::col_yellow(text),
     Poor     = cli::col_red(text),
@@ -17,16 +29,256 @@
 }
 
 .format_score <- function(x) {
-  formatC(x, format = "f", digits = 3)
+  result <- formatC(x, format = "f", digits = 3)
+  result[is.na(x)] <- "NA"
+  result
 }
 
 .format_component_bar <- function(value, width = 10L) {
-  filled <- max(0L, min(width, round(value * width)))
+  if (!is.numeric(value) || length(value) != 1L || is.nan(value)) {
+    .abort(
+      "Component bar values must be a single numeric value.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (
+    !is.numeric(width) ||
+      length(width) != 1L ||
+      is.na(width) ||
+      !is.finite(width) ||
+      width < 0 ||
+      width != floor(width)
+  ) {
+    .abort(
+      "Component bar width must be a non-negative integer.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  width <- as.integer(width)
+
+  if (is.na(value)) {
+    return(paste0(
+      cli::col_silver(strrep("\u2591", width)),
+      " NA"
+    ))
+  }
+
+  filled <- if (is.infinite(value)) {
+    if (value > 0) width else 0L
+  } else {
+    max(0L, min(width, round(value * width)))
+  }
+
   paste0(
     cli::col_blue(strrep("\u2588", filled)),
     cli::col_silver(strrep("\u2591", width - filled)),
     sprintf(" %s", .format_score(value))
   )
+}
+
+.validate_report_title <- function(title) {
+  if (
+    !is.null(title) &&
+      (!is.character(title) || length(title) != 1L || is.na(title))
+  ) {
+    .abort(
+      "{.arg title} must be a single character string or {.val NULL}.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  invisible(title)
+}
+
+.validate_report_score_table <- function(scores) {
+  if (!inherits(scores, "data.frame") || nrow(scores) == 0L) {
+    .abort(
+      "A report score table must be a non-empty data frame.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (anyDuplicated(names(scores)) > 0L) {
+    .abort(
+      "The report score table must have unique column names.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  required <- c(
+    "protein_id", .report_component_columns,
+    "composite_score", "verdict"
+  )
+  missing_columns <- setdiff(required, names(scores))
+
+  if (length(missing_columns) > 0L) {
+    .abort(
+      c(
+        "The report score table is missing required columns.",
+        "i" = "Missing: {.val {missing_columns}}"
+      ),
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (
+    !is.character(scores$protein_id) ||
+      anyNA(scores$protein_id) ||
+      any(!nzchar(trimws(scores$protein_id)))
+  ) {
+    .abort(
+      "The report score table must contain non-empty character protein IDs.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  numeric_columns <- c(
+    .report_component_columns,
+    "composite_score",
+    if ("S_unique" %in% names(scores)) "S_unique"
+  )
+
+  if (!all(vapply(scores[numeric_columns], is.numeric, logical(1)))) {
+    .abort(
+      "The report score table must contain numeric score columns.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (any(vapply(
+    scores[numeric_columns],
+    function(values) anyNA(values) || any(!is.finite(values)),
+    logical(1)
+  ))) {
+    .abort(
+      "The report score table must contain finite score values.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (any(vapply(
+    scores[numeric_columns],
+    function(values) any(values < 0) || any(values > 1),
+    logical(1)
+  ))) {
+    .abort(
+      "The report score table must contain scores between 0 and 1.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (
+    !is.character(scores$verdict) ||
+      anyNA(scores$verdict) ||
+      any(!scores$verdict %in% c("Good", "Moderate", "Poor"))
+  ) {
+    .abort(
+      "The report score table must contain valid verdict labels.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  invisible(scores)
+}
+
+.validate_report_evaluate <- function(result) {
+  if (
+    !is.data.frame(result$scores) ||
+      !is.data.frame(result$peptides) ||
+      !is.list(result$params)
+  ) {
+    .abort(
+      "The evaluation result does not contain valid scores, peptides, and parameters.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  .validate_report_score_table(result$scores)
+
+  required_params <- c(
+    "protein_ids", "enzyme", "missed_cleavages"
+  )
+  missing_params <- setdiff(required_params, names(result$params))
+
+  if (length(missing_params) > 0L) {
+    .abort(
+      c(
+        "The evaluation result is missing report parameters.",
+        "i" = "Missing: {.val {missing_params}}"
+      ),
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  protein_ids <- result$params$protein_ids
+  missed_cleavages <- result$params$missed_cleavages
+
+  if (
+    !is.character(protein_ids) ||
+      length(protein_ids) == 0L ||
+      anyNA(protein_ids) ||
+      any(!nzchar(trimws(protein_ids))) ||
+      !is.character(result$params$enzyme) ||
+      length(result$params$enzyme) != 1L ||
+      is.na(result$params$enzyme) ||
+      !nzchar(trimws(result$params$enzyme)) ||
+      !is.numeric(missed_cleavages) ||
+      length(missed_cleavages) != 1L ||
+      is.na(missed_cleavages) ||
+      !is.finite(missed_cleavages) ||
+      missed_cleavages < 0 ||
+      missed_cleavages != floor(missed_cleavages)
+  ) {
+    .abort(
+      "The evaluation result contains invalid report parameters.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  if (any(!result$scores$protein_id %in% protein_ids)) {
+    .abort(
+      "The evaluation scores contain an unknown protein identifier.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  invisible(result)
+}
+
+.validate_report_comparison <- function(comparison) {
+  required <- c(
+    "enzyme", "protein_id", .report_component_columns,
+    "composite_score", "verdict"
+  )
+  missing_columns <- setdiff(required, names(comparison))
+
+  if (length(missing_columns) > 0L) {
+    .abort(
+      c(
+        "The comparison result is missing report columns.",
+        "i" = "Missing: {.val {missing_columns}}"
+      ),
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  .validate_report_score_table(comparison)
+
+  if (
+    !is.character(comparison$enzyme) ||
+      anyNA(comparison$enzyme) ||
+      any(!nzchar(trimws(comparison$enzyme))) ||
+      length(unique(comparison$protein_id)) != 1L
+  ) {
+    .abort(
+      "The comparison result must contain one protein and non-empty enzyme names.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
+
+  invisible(comparison)
 }
 
 .print_single_result <- function(scores_row, protein_id = NULL) {
@@ -69,7 +321,8 @@
 
 .print_comparison_table <- function(comparison, protein_id = NULL) {
   pid <- if (!is.null(protein_id)) protein_id else comparison$protein_id[[1]]
-  best_enzyme <- comparison$enzyme[[1]]
+  best_index <- which.max(comparison$composite_score)
+  best_enzyme <- comparison$enzyme[[best_index]]
 
   cli::cat_rule(
     left = cli::style_bold(pid),
@@ -87,7 +340,7 @@
 
   for (i in seq_len(nrow(comparison))) {
     row <- comparison[i, , drop = FALSE]
-    mark <- if (i == 1L) cli::col_green(">") else " "
+    mark <- if (i == best_index) cli::col_green(">") else " "
     verb <- sprintf("%-8s", row$verdict)
 
     cli::cat_line(sprintf(
@@ -123,6 +376,7 @@
 #'   If `NULL` or an unrecognised type, raises an error.
 #' @param title Optional character string printed as a section header above
 #'   the report. When `NULL` (default), the protein ID is used as the header.
+#'   A non-`NULL` value must be a single character string.
 #'
 #' @family report
 #' @section Limitations:
@@ -142,14 +396,18 @@
 #' @export
 # nolint start: object_usage_linter.
 digest_report <- function(x, title = NULL) {
+  .validate_report_title(title)
+
   is_evaluate_result <- is.list(x) && !is.data.frame(x) &&
-    all(c("scores", "peptides", "params") %in% names(x))
+    any(c("scores", "peptides", "params") %in% names(x))
   is_comparison_result <- is.data.frame(x) &&
-    "enzyme" %in% names(x) && "composite_score" %in% names(x)
+    any(c("enzyme", "composite_score") %in% names(x))
 
   if (is_evaluate_result) {
+    .validate_report_evaluate(x)
     .report_evaluate(x, title)
   } else if (is_comparison_result) {
+    .validate_report_comparison(x)
     .report_comparison(x, title)
   } else {
     .abort(

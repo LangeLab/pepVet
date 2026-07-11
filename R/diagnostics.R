@@ -7,6 +7,128 @@
 
 ## Component color palette shared between diagnostics and visualization
 
+.diagnostic_known_components <- function() {
+  unique(c(
+    names(.default_scoring_weights$protein_only),
+    names(.default_scoring_weights$proteome_aware)
+  ))
+}
+
+.validate_diagnostic_batch_result <- function(batch_result) {
+  if (!inherits(batch_result, "data.frame")) {
+    .abort(
+      "{.arg batch_result} must be a tibble from {.fn batch_evaluate}.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (nrow(batch_result) < 2L) {
+    .abort(
+      "{.arg batch_result} must contain at least two proteins.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  comp_cols <- grep("^S_", names(batch_result), value = TRUE)
+
+  if (length(comp_cols) < 2L) {
+    .abort(
+      paste0(
+        "{.arg batch_result} must contain at least two ",
+        "component score columns (S_*)."
+      ),
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (anyDuplicated(comp_cols) > 0L) {
+    .abort(
+      "Component score columns in {.arg batch_result} must be unique.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  unknown_components <- setdiff(
+    comp_cols, .diagnostic_known_components()
+  )
+
+  if (length(unknown_components) > 0L) {
+    .abort(
+      c(
+        "{.arg batch_result} contains unknown component score columns.",
+        "i" = "Unknown: {.val {unknown_components}}"
+      ),
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (!all(vapply(batch_result[comp_cols], is.numeric, logical(1)))) {
+    .abort(
+      "Component score columns in {.arg batch_result} must be numeric.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (any(vapply(
+    batch_result[comp_cols],
+    function(values) {
+      anyNA(values) ||
+        any(!is.finite(values)) ||
+        any(values < 0) ||
+        any(values > 1)
+    },
+    logical(1)
+  ))) {
+    .abort(
+      "Component scores in {.arg batch_result} must be finite values between 0 and 1.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (any(vapply(
+    batch_result[comp_cols],
+    function(values) length(unique(values)) < 2L,
+    logical(1)
+  ))) {
+    .abort(
+      "Component score columns in {.arg batch_result} must vary across proteins.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if ("composite_score" %in% names(batch_result)) {
+    composite <- batch_result$composite_score
+    if (
+      !is.numeric(composite) ||
+        anyNA(composite) ||
+        any(!is.finite(composite)) ||
+        any(composite < 0) ||
+        any(composite > 1)
+    ) {
+      .abort(
+        "{.arg batch_result} contains invalid composite scores.",
+        class = "pepvet_error_invalid_diagnostics_input"
+      )
+    }
+  }
+
+  if ("verdict" %in% names(batch_result)) {
+    verdict <- batch_result$verdict
+    if (
+      !is.character(verdict) ||
+        anyNA(verdict) ||
+        any(!verdict %in% c("Good", "Moderate", "Poor"))
+    ) {
+      .abort(
+        "{.arg batch_result} contains invalid verdict labels.",
+        class = "pepvet_error_invalid_diagnostics_input"
+      )
+    }
+  }
+
+  comp_cols
+}
+
 .validate_diagnostic_weights <- function(weights, component_names) {
   if (
     !is.numeric(weights) ||
@@ -55,8 +177,8 @@
 #' and that each contributes meaningfully to the composite.
 #'
 #' @param batch_result A tibble returned by [batch_evaluate()]. Must contain
-#'   at least two component-score columns (prefixed `S_`). If `NULL` or
-#'   missing required columns, raises an error.
+#'   at least two rows and two component-score columns (prefixed `S_`). If
+#'   `NULL`, too few rows, or missing required columns, raises an error.
 #' @param weights Optional named numeric vector of component weights.
 #'   When `NULL` (default), weights are inferred from the detected
 #'   component columns using pepVet's default scoring weights
@@ -69,8 +191,10 @@
 #' regression is fit using all other components as predictors. VIF =
 #' 1 / (1 - R^2). VIF < 5 is acceptable. VIF > 10 indicates problematic
 #' collinearity that may warrant component removal or merger. VIF
-#' requires more observations than predictors; when this condition is
-#' not met, NA values are returned with a warning.
+#' requires more than `n_components + 1` observations; when this condition is
+#' not met for an input with at least two rows, NA values are returned with a
+#' warning. Perfect collinearity is
+#' represented by `Inf` rather than an unclassed regression warning.
 #'
 #' **PCA (Principal Component Analysis):** Centered and scaled PCA on
 #' the component-score matrix. The proportion of variance explained
@@ -96,7 +220,8 @@
 #' @return A named list with six elements:
 #' \describe{
 #'   \item{\code{vif}}{A named numeric vector of VIF values, one per
-#'     component. `NA` when too few proteins for reliable estimation.}
+#'     component. `NA` when too few proteins for reliable estimation and
+#'     `Inf` for perfect collinearity.}
 #'   \item{\code{pca}}{A list with \code{var_explained} (numeric vector),
 #'     \code{loadings} (rotation matrix), \code{sdev} (standard deviations),
 #'     and \code{x} (PCA scores matrix).}
@@ -131,35 +256,13 @@
 #' diag_pa$vif
 #' @export
 score_diagnostics <- function(batch_result, weights = NULL) {
-  if (!inherits(batch_result, "data.frame")) {
-    .abort(
-      "{.arg batch_result} must be a tibble from {.fn batch_evaluate}.",
-      class = "pepvet_error_invalid_diagnostics_input"
-    )
-  }
-
-  comp_cols <- grep("^S_", names(batch_result), value = TRUE)
-  if (length(comp_cols) < 2L) {
-    .abort(
-      paste0(
-        "{.arg batch_result} must contain at least two ",
-        "component score columns (S_*)."
-      ),
-      class = "pepvet_error_invalid_diagnostics_input"
-    )
-  }
+  comp_cols <- .validate_diagnostic_batch_result(batch_result)
 
   if (is.null(weights)) {
     w0 <- if ("S_unique" %in% comp_cols) {
       .default_scoring_weights$proteome_aware
     } else {
       .default_scoring_weights$protein_only
-    }
-    if (!all(comp_cols %in% names(w0))) {
-      .abort(
-        "{.arg batch_result} contains unknown component score columns.",
-        class = "pepvet_error_invalid_diagnostics_input"
-      )
     }
     w_sub <- w0[comp_cols]
   } else {
@@ -187,24 +290,30 @@ score_diagnostics <- function(batch_result, weights = NULL) {
     for (i in seq_along(comp_cols)) {
       response <- comp_cols[i]
       predictors <- comp_cols[-i]
-      if (length(predictors) < 1L) {
-        vif_vals[i] <- NA_real_
-        next
-      }
       formula_str <- paste(response, "~", paste(predictors, collapse = " + "))
-      fit <- stats::lm(stats::as.formula(formula_str), data = batch_result)
-      r_squared <- summary(fit)$r.squared
-      vif_vals[i] <- if (abs(1 - r_squared) < .Machine$double.eps) {
+      fit <- suppressWarnings(
+        stats::lm(stats::as.formula(formula_str), data = batch_result)
+      )
+      r_squared <- suppressWarnings(summary(fit)$r.squared)
+      vif_vals[i] <- if (!is.finite(r_squared)) {
+        NA_real_
+      } else if (r_squared >= 1 - .Machine$double.eps) {
         Inf
       } else {
-        1 / (1 - r_squared)
+        1 / (1 - max(0, r_squared))
       }
     }
   }
 
   ## PCA
-  pca_result <- stats::prcomp(
-    component_matrix, center = TRUE, scale. = TRUE
+  pca_result <- tryCatch(
+    stats::prcomp(component_matrix, center = TRUE, scale. = TRUE),
+    error = function(error) {
+      .abort(
+        "{.arg batch_result} could not be decomposed by PCA.",
+        class = "pepvet_error_invalid_diagnostics_input"
+      )
+    }
   )
   var_exp <- pca_result$sdev^2 / sum(pca_result$sdev^2)
 
@@ -269,6 +378,179 @@ score_diagnostics <- function(batch_result, weights = NULL) {
 }
 
 
+.validate_diagnostic_title <- function(title) {
+  if (
+    !is.null(title) &&
+      (!is.character(title) || length(title) != 1L || is.na(title))
+  ) {
+    .abort(
+      "{.arg title} must be a single character string or {.val NULL}.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  invisible(title)
+}
+
+.validate_diagnostic_result <- function(x) {
+  required <- c(
+    "vif", "pca", "ablation", "n_proteins", "n_components", "weights"
+  )
+
+  if (!is.list(x) || !all(required %in% names(x))) {
+    .abort(
+      "{.arg x} must be a list returned by {.fn score_diagnostics}.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (
+      !is.numeric(x$n_proteins) ||
+      length(x$n_proteins) != 1L ||
+      is.na(x$n_proteins) ||
+      !is.finite(x$n_proteins) ||
+      x$n_proteins < 2 ||
+      x$n_proteins > .Machine$integer.max ||
+      x$n_proteins != floor(x$n_proteins) ||
+      !is.numeric(x$n_components) ||
+      length(x$n_components) != 1L ||
+      is.na(x$n_components) ||
+      !is.finite(x$n_components) ||
+      x$n_components < 2 ||
+      x$n_components > .Machine$integer.max ||
+      x$n_components != floor(x$n_components)
+  ) {
+    .abort(
+      "The diagnostics result contains invalid dimensions.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  n_prot <- as.integer(x$n_proteins)
+  n_comp <- as.integer(x$n_components)
+
+  if (
+      !is.numeric(x$vif) ||
+      length(x$vif) != n_comp ||
+      is.null(names(x$vif)) ||
+      anyNA(names(x$vif)) ||
+      any(!nzchar(names(x$vif))) ||
+      anyDuplicated(names(x$vif)) > 0L ||
+      any(!names(x$vif) %in% .diagnostic_known_components()) ||
+      any(is.nan(x$vif)) ||
+      any(!is.na(x$vif) & x$vif < 0)
+  ) {
+    .abort(
+      "The diagnostics result contains invalid VIF values.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (
+    !is.numeric(x$weights) ||
+      length(x$weights) != n_comp ||
+      is.null(names(x$weights)) ||
+      !identical(names(x$weights), names(x$vif)) ||
+      anyNA(x$weights) ||
+      any(!is.finite(x$weights)) ||
+      any(x$weights < 0) ||
+      !isTRUE(all.equal(sum(x$weights), 1, tolerance = 1e-10))
+  ) {
+    .abort(
+      "The diagnostics result contains invalid resolved weights.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  if (!is.list(x$pca) ||
+      !all(c("var_explained", "loadings", "sdev", "x") %in% names(x$pca))) {
+    .abort(
+      "The diagnostics result contains an invalid PCA result.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  var_explained <- x$pca$var_explained
+  loadings <- x$pca$loadings
+  sdev <- x$pca$sdev
+  scores <- x$pca$x
+
+  if (
+    !is.numeric(var_explained) ||
+      length(var_explained) < 2L ||
+      anyNA(var_explained) ||
+      any(!is.finite(var_explained)) ||
+      any(var_explained < 0) ||
+      !isTRUE(all.equal(sum(var_explained), 1, tolerance = 1e-10)) ||
+      !is.matrix(loadings) ||
+      nrow(loadings) != n_comp ||
+      ncol(loadings) != length(var_explained) ||
+      !is.numeric(loadings) ||
+      anyNA(loadings) ||
+      any(!is.finite(loadings)) ||
+      !is.numeric(sdev) ||
+      length(sdev) != length(var_explained) ||
+      anyNA(sdev) ||
+      any(!is.finite(sdev)) ||
+      any(sdev < 0) ||
+      !is.matrix(scores) ||
+      nrow(scores) != n_prot ||
+      ncol(scores) != length(var_explained) ||
+      !is.numeric(scores) ||
+      anyNA(scores) ||
+      any(!is.finite(scores))
+  ) {
+    .abort(
+      "The diagnostics result contains invalid PCA dimensions or values.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  required_ablation <- c(
+    "component", "weight", "mean_drop", "sd_drop", "max_drop",
+    "n_verdict_flipped"
+  )
+
+  if (
+    !inherits(x$ablation, "data.frame") ||
+      !all(required_ablation %in% names(x$ablation)) ||
+      nrow(x$ablation) != n_comp ||
+      !is.character(x$ablation$component) ||
+      !identical(x$ablation$component, names(x$vif)) ||
+      !is.numeric(x$ablation$weight) ||
+      !is.numeric(x$ablation$mean_drop) ||
+      !is.numeric(x$ablation$sd_drop) ||
+      !is.numeric(x$ablation$max_drop) ||
+      !is.numeric(x$ablation$n_verdict_flipped) ||
+      anyNA(x$ablation[c(
+        "weight", "mean_drop", "sd_drop", "max_drop", "n_verdict_flipped"
+      )]) ||
+      any(!is.finite(x$ablation$weight)) ||
+      any(!is.finite(x$ablation$mean_drop)) ||
+      any(!is.finite(x$ablation$sd_drop)) ||
+      any(!is.finite(x$ablation$max_drop)) ||
+      any(!is.finite(x$ablation$n_verdict_flipped)) ||
+      any(x$ablation$weight < 0) ||
+      any(x$ablation$mean_drop < 0) ||
+      any(x$ablation$sd_drop < 0) ||
+      any(x$ablation$max_drop < 0) ||
+      any(x$ablation$n_verdict_flipped < 0) ||
+      any(x$ablation$n_verdict_flipped > n_prot) ||
+      any(x$ablation$n_verdict_flipped != floor(x$ablation$n_verdict_flipped)) ||
+      !isTRUE(all.equal(
+        unname(x$ablation$weight), unname(x$weights), tolerance = 1e-10
+      ))
+  ) {
+    .abort(
+      "The diagnostics result contains invalid ablation values.",
+      class = "pepvet_error_invalid_diagnostics_input"
+    )
+  }
+
+  invisible(x)
+}
+
+
 #' Plot score diagnostics
 #'
 #' `plot_score_diagnostics()` visualises the result of
@@ -309,19 +591,15 @@ score_diagnostics <- function(batch_result, weights = NULL) {
 #' }
 #' @export
 plot_score_diagnostics <- function(x, title = NULL) {
+  .validate_diagnostic_title(title)
+  .validate_diagnostic_result(x)
+
   rlang::check_installed("ggplot2",
     reason = "to produce score diagnostics plots"
   )
   rlang::check_installed("patchwork",
     reason = "to assemble score diagnostics panels"
   )
-
-  if (!is.list(x) || !all(c("vif", "pca", "ablation") %in% names(x))) {
-    .abort(
-      "{.arg x} must be a list returned by {.fn score_diagnostics}.",
-      class = "pepvet_error_invalid_diagnostics_input"
-    )
-  }
 
   n_prot <- x$n_proteins
   n_comp <- x$n_components
@@ -331,9 +609,25 @@ plot_score_diagnostics <- function(x, title = NULL) {
   )
 
   ## Panel A: VIF bar chart with severity coloring
+  finite_vif <- x$vif[is.finite(x$vif)]
+  vif_cap <- if (length(finite_vif) == 0L) {
+    10
+  } else {
+    max(10, finite_vif)
+  }
+  plot_vif <- x$vif
+  plot_vif[is.na(plot_vif)] <- 0
+  plot_vif[is.infinite(plot_vif)] <- vif_cap * 1.1
+  vif_label <- ifelse(
+    is.na(x$vif), "N/A",
+    ifelse(is.infinite(x$vif), "Inf", sprintf("%.1f", x$vif))
+  )
+
   vif_df <- data.frame(
     component = factor(names(x$vif), levels = rev(names(x$vif))),
     vif       = x$vif,
+    plot_vif  = plot_vif,
+    vif_label = vif_label,
     severity  = ifelse(is.na(x$vif), "unknown",
                   ifelse(x$vif >= 10, "high",
                     ifelse(x$vif >= 5, "moderate", "low"))),
@@ -350,7 +644,7 @@ plot_score_diagnostics <- function(x, title = NULL) {
   )
 
   pa <- ggplot2::ggplot(vif_df,
-      ggplot2::aes(y = .data$component, x = .data$vif)) +
+      ggplot2::aes(y = .data$component, x = .data$plot_vif)) +
     ggplot2::geom_vline(xintercept = 5,
       linetype = "dashed", color = severity_colors[["moderate"]],
       linewidth = 0.4) +
@@ -360,7 +654,7 @@ plot_score_diagnostics <- function(x, title = NULL) {
     ggplot2::geom_col(ggplot2::aes(fill = .data$severity),
       alpha = 0.85, width = 0.6) +
     ggplot2::geom_text(
-      ggplot2::aes(label = sprintf("%.1f", .data$vif)),
+      ggplot2::aes(label = .data$vif_label),
       hjust = -0.1, size = 2.5) +
     ggplot2::scale_fill_manual(
       values = severity_colors,

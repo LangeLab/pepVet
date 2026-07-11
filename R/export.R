@@ -71,22 +71,15 @@ export_peptide_list <- function(peptides,
                                 charges = 2:3,
                                 length_range = c(7L, 25L),
                                 file = NULL) {
-  .validate_export_peptides(peptides)
   normalized_format <- .validate_export_format(format)
+  .validate_export_peptides(peptides, normalized_format)
   normalized_length_range <- .validate_length_range(length_range)
+  normalized_file <- .validate_export_file(file)
 
-  if (identical(normalized_format, "skyline")) {
+  normalized_charges <- if (identical(normalized_format, "skyline")) {
     .validate_export_charges(charges)
-  }
-
-  if (
-    !is.null(file) &&
-      (!is.character(file) || length(file) != 1L || is.na(file))
-  ) {
-    .abort(
-      "{.arg file} must be a single file path string or {.val NULL}.",
-      class = "pepvet_error_invalid_file"
-    )
+  } else {
+    NULL
   }
 
   valid_mask <- peptides$length >= normalized_length_range[[1]] &
@@ -94,34 +87,54 @@ export_peptide_list <- function(peptides,
   valid_peps <- peptides[valid_mask, , drop = FALSE]
 
   result <- switch(normalized_format,
-    skyline = .export_skyline(valid_peps, as.integer(charges)),
+    skyline = .export_skyline(valid_peps, normalized_charges),
     generic = .export_generic(peptides, valid_mask),
     fasta   = .export_fasta(valid_peps)
   )
 
-  if (is.null(file)) {
+  if (is.null(normalized_file)) {
     return(result)
   }
 
-  if (identical(normalized_format, "fasta")) {
-    writeLines(result, file)
-  } else {
-    utils::write.csv(result, file, row.names = FALSE)
-  }
+  tryCatch(
+    suppressWarnings(
+      if (identical(normalized_format, "fasta")) {
+        writeLines(result, normalized_file)
+      } else {
+        utils::write.csv(result, normalized_file, row.names = FALSE)
+      }
+    ),
+    error = function(error) {
+      .abort(
+        c(
+          "Could not write the export file.",
+          "i" = conditionMessage(error)
+        ),
+        class = "pepvet_error_invalid_file"
+      )
+    }
+  )
 
-  invisible(file)
+  invisible(normalized_file)
 }
 # nolint end
 
 ## Private export helpers
 
-.validate_export_peptides <- function(peptides) {
+.validate_export_peptides <- function(peptides, format = NULL) {
   if (!inherits(peptides, "data.frame")) {
     .abort(
       paste0(
         "{.arg peptides} must be a peptide tibble from ",
         "{.fn digest_protein} or {.fn evaluate_digest}{.code $peptides}."
       ),
+      class = "pepvet_error_invalid_export_input"
+    )
+  }
+
+  if (anyDuplicated(names(peptides)) > 0L) {
+    .abort(
+      "{.arg peptides} must have unique column names.",
       class = "pepvet_error_invalid_export_input"
     )
   }
@@ -138,6 +151,127 @@ export_peptide_list <- function(peptides,
       class = "pepvet_error_invalid_export_input"
     )
   }
+
+  if (
+    !is.character(peptides$protein_id) ||
+      !is.character(peptides$peptide) ||
+    !is.numeric(peptides$length)
+  ) {
+    .abort(
+      paste0(
+        "{.arg peptides} must contain character identifiers and sequences ",
+        "plus a numeric length column."
+      ),
+      class = "pepvet_error_invalid_export_input"
+    )
+  }
+
+  if (
+    anyNA(peptides$protein_id) ||
+      anyNA(peptides$peptide) ||
+      anyNA(peptides$length) ||
+      any(!is.finite(peptides$length)) ||
+      any(peptides$length < 1) ||
+      any(peptides$length > .Machine$integer.max) ||
+      any(peptides$length != floor(peptides$length))
+  ) {
+    .abort(
+      "{.arg peptides} contains missing, non-finite, or invalid peptide lengths.",
+      class = "pepvet_error_invalid_export_input"
+    )
+  }
+
+  if (
+    any(!nzchar(peptides$protein_id)) ||
+      any(!nzchar(peptides$peptide))
+  ) {
+    .abort(
+      "{.arg peptides} must not contain empty protein identifiers or peptide sequences.",
+      class = "pepvet_error_invalid_export_input"
+    )
+  }
+
+  if (nrow(peptides) > 0L) {
+    tryCatch(
+      .normalize_peptide_sequences(peptides$peptide, arg_name = "peptides"),
+      error = function(error) {
+        .abort(
+          "{.arg peptides} contains an invalid amino-acid sequence.",
+          class = "pepvet_error_invalid_export_input"
+        )
+      }
+    )
+
+    if (any(as.integer(peptides$length) != nchar(peptides$peptide))) {
+      .abort(
+        "{.arg peptides} has lengths that do not match its peptide sequences.",
+        class = "pepvet_error_invalid_export_input"
+      )
+    }
+  }
+
+  if (identical(format, "fasta")) {
+    coordinate_columns <- c("start", "end")
+    missing_coordinates <- setdiff(coordinate_columns, names(peptides))
+
+    if (length(missing_coordinates) > 0L) {
+      .abort(
+        c(
+          "{.arg peptides} is missing FASTA coordinate columns.",
+          "i" = "Missing: {.val {missing_coordinates}}"
+        ),
+        class = "pepvet_error_invalid_export_input"
+      )
+    }
+
+    if (
+      !is.numeric(peptides$start) ||
+        !is.numeric(peptides$end) ||
+        anyNA(peptides$start) ||
+        anyNA(peptides$end) ||
+        any(!is.finite(peptides$start)) ||
+        any(!is.finite(peptides$end)) ||
+        any(peptides$start < 1) ||
+        any(peptides$end < peptides$start) ||
+        any(peptides$start != floor(peptides$start)) ||
+        any(peptides$end != floor(peptides$end))
+    ) {
+      .abort(
+        "{.arg peptides} contains invalid FASTA coordinates.",
+        class = "pepvet_error_invalid_export_input"
+      )
+    }
+
+    if (any(peptides$length != peptides$end - peptides$start + 1L)) {
+      .abort(
+        "{.arg peptides} has coordinates that do not match its lengths.",
+        class = "pepvet_error_invalid_export_input"
+      )
+    }
+  }
+
+  invisible(peptides)
+}
+
+.validate_export_file <- function(file) {
+  if (is.null(file)) {
+    return(NULL)
+  }
+
+  if (
+    !is.character(file) ||
+      length(file) != 1L ||
+      is.na(file) ||
+      !nzchar(trimws(file)) ||
+      any(as.integer(charToRaw(file)) == 0L)
+  ) {
+    .abort(
+      "{.arg file} must be a non-empty file path string or {.val NULL}.",
+      class = "pepvet_error_invalid_file"
+    )
+  }
+
+  file
 }
 
 .validate_export_format <- function(format) {
@@ -169,8 +303,10 @@ export_peptide_list <- function(peptides,
     !is.numeric(charges) ||
       length(charges) == 0L ||
       anyNA(charges) ||
+      any(!is.finite(charges)) ||
       any(charges < 1L) ||
-      any(charges != as.integer(charges))
+      any(charges > .Machine$integer.max) ||
+      any(charges != floor(charges))
   ) {
     .abort(
       paste0(
@@ -180,6 +316,8 @@ export_peptide_list <- function(peptides,
       class = "pepvet_error_invalid_charges"
     )
   }
+
+  as.integer(charges)
 }
 
 .export_skyline <- function(valid_peps, charges) {
@@ -212,7 +350,11 @@ export_peptide_list <- function(peptides,
 .export_generic <- function(peptides, valid_mask) {
   result <- peptides
   result$gravy <- .calculate_gravy(peptides$peptide)
-  result$pI <- as.numeric(calculate_pI(peptides$peptide))
+  result$pI <- if (nrow(peptides) == 0L) {
+    numeric(0)
+  } else {
+    as.numeric(calculate_pI(peptides$peptide))
+  }
   result$valid <- valid_mask
   result
 }

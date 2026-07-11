@@ -8,8 +8,8 @@ score_diagnostics(batch_result, weights = NULL)
 }
 \arguments{
 \item{batch_result}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}. Must contain
-at least two component-score columns (prefixed \code{S_}). If \code{NULL} or
-missing required columns, raises an error.}
+at least two rows and two component-score columns (prefixed \code{S_}). If
+\code{NULL}, too few rows, or missing required columns, raises an error.}
 
 \item{weights}{Optional named numeric vector of component weights.
 When \code{NULL} (default), weights are inferred from the detected
@@ -21,7 +21,8 @@ component columns using pepVet's default scoring weights
 A named list with six elements:
 \describe{
 \item{\code{vif}}{A named numeric vector of VIF values, one per
-component. \code{NA} when too few proteins for reliable estimation.}
+component. \code{NA} when too few proteins for reliable estimation and
+\code{Inf} for perfect collinearity.}
 \item{\code{pca}}{A list with \code{var_explained} (numeric vector),
 \code{loadings} (rotation matrix), \code{sdev} (standard deviations),
 and \code{x} (PCA scores matrix).}
@@ -47,8 +48,10 @@ Three analyses are performed:
 regression is fit using all other components as predictors. VIF =
 1 / (1 - R^2). VIF < 5 is acceptable. VIF > 10 indicates problematic
 collinearity that may warrant component removal or merger. VIF
-requires more observations than predictors; when this condition is
-not met, NA values are returned with a warning.
+requires more than \code{n_components + 1} observations; when this condition is
+not met for an input with at least two rows, NA values are returned with a
+warning. Perfect collinearity is
+represented by \code{Inf} rather than an unclassed regression warning.
 
 \strong{PCA (Principal Component Analysis):} Centered and scaled PCA on
 the component-score matrix. The proportion of variance explained

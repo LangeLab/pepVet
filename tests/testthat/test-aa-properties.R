@@ -82,12 +82,63 @@ test_that("aa_properties has the expected schema and missingness", {
   expect_false(anyNA(aa_properties$amino_acid))
   expect_false(anyNA(aa_properties$molecular_weight))
   expect_false(anyNA(aa_properties$residue_monoisotopic_mass))
+  expect_true(all(is.finite(aa_properties$molecular_weight)))
+  expect_true(all(is.finite(aa_properties$residue_monoisotopic_mass)))
   # O (pyrrolysine) has no validated Kyte-Doolittle value. All others have one.
   expect_equal(sum(is.na(aa_properties$hydrophobicity)), 1L)
   expect_true(is.na(
     aa_properties$hydrophobicity[aa_properties$amino_acid == "O"]
   ))
+  expect_true(all(is.finite(aa_properties$hydrophobicity[!is.na(
+    aa_properties$hydrophobicity
+  )])))
+  expect_true(all(is.finite(aa_properties$pKa_side_chain[!is.na(
+    aa_properties$pKa_side_chain
+  )])))
   expect_false(anyNA(aa_properties$is_basic))
+})
+
+test_that("shipped amino-acid data loads into an isolated environment", {
+  data_path <- system.file(
+    "data", "aa_properties.rda", package = "pepVet"
+  )
+  expect_true(nzchar(data_path))
+  expect_true(file.exists(data_path))
+
+  isolated <- new.env(parent = emptyenv())
+  loaded_names <- load(data_path, envir = isolated)
+
+  expect_identical(loaded_names, "aa_properties")
+  expect_true(exists("aa_properties", envir = isolated, inherits = FALSE))
+  expect_identical(isolated$aa_properties, aa_properties)
+})
+
+test_that("amino-acid properties are cached after the first lookup", {
+  cache <- get(".pepvet_cache", envir = asNamespace("pepVet"))
+  had_cached_properties <- exists(
+    "aa_properties", envir = cache, inherits = FALSE
+  )
+  previous_properties <- if (had_cached_properties) {
+    cache$aa_properties
+  } else {
+    NULL
+  }
+  withr::defer({
+    if (had_cached_properties) {
+      cache$aa_properties <- previous_properties
+    } else {
+      rm(list = "aa_properties", envir = cache)
+    }
+  })
+
+  rm(list = "aa_properties", envir = cache)
+  first <- pepVet:::.get_aa_properties()
+  cached_properties <- cache$aa_properties
+  second <- pepVet:::.get_aa_properties()
+
+  expect_true(exists("aa_properties", envir = cache, inherits = FALSE))
+  expect_identical(first, cached_properties)
+  expect_identical(second, cached_properties)
 })
 
 test_that(
@@ -211,13 +262,29 @@ test_that(".calculate_gravy vectorises over multiple sequences", {
   expect_equal(pepVet:::.calculate_gravy(input), expected)
 })
 
-test_that("calculate_peptide_mass returns the expected neutral mass and m/z", {
-  expect_equal(calculate_peptide_mass("PEPTIDE"), 799.35994, tolerance = 1e-3)
-  expect_equal(
-    calculate_peptide_mass("PEPTIDE", charge = 2L),
-    400.68725,
-    tolerance = 1e-3
+test_that("calculate_peptide_mass follows neutral and charged mass equations", {
+  sequences <- c(PEPTIDE = "PEPTIDE", non_standard = "UO")
+  expected_neutral <- vapply(
+    strsplit(sequences, split = "", fixed = TRUE),
+    function(residues) sum(expected_residue_mass[residues]) + water_mass,
+    numeric(1)
   )
+
+  observed_neutral <- calculate_peptide_mass(sequences)
+  expect_type(observed_neutral, "double")
+  expect_identical(names(observed_neutral), names(sequences))
+  expect_equal(observed_neutral, expected_neutral, tolerance = 1e-4)
+  expect_equal(observed_neutral[["PEPTIDE"]], 799.35994, tolerance = 1e-3)
+
+  charges <- c(1L, 2L)
+  expected_mz <- (
+    expected_neutral + charges * 1.007276
+  ) / charges
+  observed_mz <- calculate_peptide_mass(sequences, charge = charges)
+
+  expect_equal(observed_mz, expected_mz, tolerance = 1e-4)
+  expect_true(all(is.finite(observed_neutral)))
+  expect_true(all(is.finite(observed_mz)))
 })
 
 test_that("calculate_peptide_mass is vectorized and validates charge", {
@@ -233,9 +300,46 @@ test_that("calculate_peptide_mass is vectorized and validates charge", {
     calculate_peptide_mass("PEPTIDE", charge = 1.5),
     class = "pepvet_error_invalid_charge"
   )
+  expect_error(
+    calculate_peptide_mass("PEPTIDE", charge = c(1L, 2L, 3L)),
+    class = "pepvet_error_invalid_charge"
+  )
 })
 
-test_that("calculate_pI returns chemically plausible values", {
+test_that("calculate_peptide_mass rejects invalid sequence inputs", {
+  invalid_inputs <- list(
+    empty = character(0),
+    null = NULL,
+    missing = NA_character_,
+    blank = "",
+    unsupported = "Z",
+    wrong_type = 42
+  )
+
+  for (input_name in names(invalid_inputs)) {
+    expect_error(
+      calculate_peptide_mass(invalid_inputs[[input_name]]),
+      class = "pepvet_error_invalid_sequence",
+      info = input_name
+    )
+  }
+})
+
+test_that("calculate_pI returns bounded deterministic named values", {
+  input <- c(
+    mixed = "ACDEFGHIKLMNPQRSTVWY",
+    non_standard = "UO",
+    lowercase = "aaaaa"
+  )
+  first <- calculate_pI(input)
+  second <- calculate_pI(input)
+
+  expect_type(first, "double")
+  expect_identical(names(first), names(input))
+  expect_true(all(is.finite(first)))
+  expect_true(all(first >= 0 & first <= 14))
+  expect_identical(first, second)
+
   mixed_pi <- calculate_pI("ACDEFGHIKLMNPQRSTVWY")
   basic_pi <- calculate_pI("AAAAAAAR")
 
@@ -251,5 +355,35 @@ test_that("calculate_pI is vectorized and rejects bad peptide input", {
   expect_error(
     calculate_pI(c("PEPTIDE", NA_character_)),
     class = "pepvet_error_invalid_sequence"
+  )
+})
+
+test_that("calculate_pI rejects empty and malformed peptide inputs", {
+  invalid_inputs <- list(
+    empty = character(0),
+    null = NULL,
+    missing = NA_character_,
+    blank = "",
+    unsupported = "Z",
+    wrong_type = 42
+  )
+
+  for (input_name in names(invalid_inputs)) {
+    expect_error(
+      calculate_pI(invalid_inputs[[input_name]]),
+      class = "pepvet_error_invalid_sequence",
+      info = input_name
+    )
+  }
+})
+
+test_that("calculate_pI reports progress only above the configured threshold", {
+  expect_no_message(
+    calculate_pI(rep("A", 5000L)),
+    class = "pepvet_message_calculating_pi"
+  )
+  expect_message(
+    calculate_pI(rep("A", 5001L)),
+    class = "pepvet_message_calculating_pi"
   )
 })

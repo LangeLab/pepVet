@@ -74,6 +74,13 @@ treated as \code{"custom"}. The cleavage-efficiency counts summarize annotated
 trypsin-family cleavage sites only; unsupported enzymes receive \code{NA} in
 these informational fields.
 }
+\section{Limitations}{
+
+Cleavage efficiency annotations only work for trypsin-family enzymes.
+Unsupported enzymes receive \code{NA} counts. The scoring model is rule-based;
+see \code{\link[=score_peptides]{score_peptides()}} for scope details.
+}
+
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 result <- evaluate_digest(bsa_path, enzyme = "trypsin")
@@ -84,4 +91,14 @@ result$params$preset_used
 \seealso{
 \code{\link[=digest_protein]{digest_protein()}}, \code{\link[=score_peptides]{score_peptides()}}, \code{\link[=compare_digests]{compare_digests()}},
 \code{\link[=batch_evaluate]{batch_evaluate()}}
+
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }
+\concept{evaluation}

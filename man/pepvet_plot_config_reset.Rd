@@ -7,7 +7,8 @@
 pepvet_plot_config_reset()
 }
 \value{
-Invisibly returns a list with current \code{palette}, \code{params}, and \code{theme}.
+Invisibly returns a list with current \code{palette}, \code{params},
+and \code{theme}.
 }
 \description{
 Restores all colors, parameters, and theme overrides to the package defaults.

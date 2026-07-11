@@ -5,7 +5,7 @@
 #' stores free amino acid monoisotopic masses rather than peptide residue
 #' masses. Subtract the mass of water (18.01056 Da) to get residue-level
 #' masses. The `pKa_side_chain` column stores conventional reference values for
-#' the ionizable side chains C, D, E, H, K, R, and Y. Non-ionizable residues
+#' the ionizable side chains C, D, E, H, K, R, Y, and U. Non-ionizable residues
 #' are recorded as `NA`.
 #'
 #' @format A tibble with 22 rows and 6 variables:

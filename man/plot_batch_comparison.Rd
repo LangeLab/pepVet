@@ -34,21 +34,33 @@ by descending Good\%, and the top-performing enzyme is marked with a star.
 showing the full distribution of composite scores.  An IQR boxplot is
 overlaid on each violin.  Violin fill color reflects the enzyme's median
 verdict.
-\item \strong{(C) Component heatmap:} median component scores in an enzyme-by-component
+\item \strong{(C) Component heatmap:} median component scores in an
+enzyme-by-component
 grid, filled by the verdict gradient (red to amber to green). Reveals which
 digest quality dimension differentiates the enzymes.
 \item \strong{(D) Per-protein win rate:} bar chart showing the proportion of proteins
-for which each enzyme achieves the highest composite score. The starred enzyme
+for which each enzyme achieves the highest composite score. The starred
+enzyme
 matches the recommendation in panel A.
 }
 }
+\section{Limitations}{
+
+At proteome sizes exceeding 2000 proteins the figure panels become dense
+and text labels may overlap. Consider filtering the comparison to a
+representative subset or increasing the output dimensions.
+}
+
 \examples{
-small <- system.file(
-  "extdata", "small_proteome_50_proteins.fasta",
-  package = "pepVet"
-)
-comp <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
-plot_batch_comparison(comp)
+if (requireNamespace("ggplot2", quietly = TRUE) &&
+  requireNamespace("patchwork", quietly = TRUE)) {
+  small <- system.file(
+    "extdata", "small_proteome_50_proteins.fasta",
+    package = "pepVet"
+  )
+  comp <- batch_compare_enzymes(small, enzymes = c("trypsin", "lysc"))
+  plot_batch_comparison(comp)
+}
 }
 \seealso{
 \code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}} for the upstream comparison step.

@@ -69,6 +69,14 @@ typical export widths); shorter bars are left unlabelled.
 The \code{color_by = "hydrophobicity"} mode calls the internal Kyte-Doolittle
 GRAVY calculator and requires no additional input columns.
 }
+\section{Limitations}{
+
+The interval-packing algorithm requires consistent, non-overlapping
+MC=0 peptide boundaries. Incomplete or conflicting peptide coordinates
+may produce suboptimal track layouts or raise an error during sequence
+reconstruction.
+}
+
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")

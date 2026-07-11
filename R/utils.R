@@ -31,7 +31,8 @@ NULL
   H = 6.0,
   K = 10.5,
   R = 12.5,
-  Y = 10.1
+  Y = 10.1,
+  U = 5.2
 )
 
 .supported_digest_enzymes <- c(
@@ -252,9 +253,9 @@ NULL
       c(
         paste0(
           "{.arg gravy_range} must contain finite ",
-          "values in ascending order."
+          "values in non-decreasing order."
         ),
-        "i" = "Use c(lower, upper) where lower < upper, e.g. c(-1.0, 0.6)."
+        "i" = "Use c(lower, upper) where lower <= upper, e.g. c(-1.0, 0.6)."
       ),
       class = "pepvet_error_invalid_gravy_range"
     )
@@ -275,26 +276,45 @@ NULL
     )
   }
 
-  normalized_range <- as.integer(length_range)
-
-  if (
-    any(normalized_range < 1L) ||
-      normalized_range[[1]] > normalized_range[[2]] ||
-      !isTRUE(all.equal(as.numeric(length_range), as.numeric(normalized_range)))
-  ) {
+  if (!all(is.finite(length_range))) {
     .abort(
-      "{.arg length_range} must contain positive integers in ascending order.",
+      paste0(
+        "{.arg length_range} must contain finite positive integers in ",
+        "non-decreasing order."
+      ),
       class = "pepvet_error_invalid_length_range"
     )
   }
 
-  normalized_range
+  if (
+    any(length_range < 1) ||
+      any(length_range > .Machine$integer.max) ||
+      length_range[[1]] > length_range[[2]] ||
+      !isTRUE(all.equal(as.numeric(length_range), floor(length_range)))
+  ) {
+    .abort(
+      paste0(
+        "{.arg length_range} must contain positive integers in ",
+        "non-decreasing order."
+      ),
+      class = "pepvet_error_invalid_length_range"
+    )
+  }
+
+  as.integer(length_range)
 }
 
 .normalize_weights <- function(weights, defaults) {
-  if (!is.numeric(weights) || anyNA(weights)) {
+  if (!is.numeric(weights) || anyNA(weights) || !all(is.finite(weights))) {
     .abort(
-      "{.arg weights} must be a numeric vector with no missing values.",
+      "{.arg weights} must be a finite numeric vector with no missing values.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  if (length(weights) != length(defaults)) {
+    .abort(
+      "{.arg weights} must have the expected number of scoring components.",
       class = "pepvet_error_invalid_weights"
     )
   }
@@ -312,6 +332,13 @@ NULL
   if (anyNA(observed_names) || any(!nzchar(observed_names))) {
     .abort(
       "Named {.arg weights} entries must all have non-empty names.",
+      class = "pepvet_error_invalid_weights"
+    )
+  }
+
+  if (anyDuplicated(observed_names) > 0L) {
+    .abort(
+      "Named {.arg weights} must have unique names.",
       class = "pepvet_error_invalid_weights"
     )
   }
@@ -598,23 +625,26 @@ pepvet_preset <- function(type = "standard") {
     )
   }
 
-  if (is.na(missed_cleavages) || missed_cleavages < 0) {
+  if (
+    is.na(missed_cleavages) ||
+      !is.finite(missed_cleavages) ||
+      missed_cleavages < 0
+  ) {
     .abort(
       "{.arg missed_cleavages} must be a single non-negative integer.",
       class = "pepvet_error_invalid_missed_cleavages"
     )
   }
 
-  missed_cleavages_int <- as.integer(missed_cleavages)
-
-  if (!isTRUE(all.equal(missed_cleavages, missed_cleavages_int))) {
+  if (missed_cleavages > .Machine$integer.max ||
+      !isTRUE(all.equal(missed_cleavages, floor(missed_cleavages)))) {
     .abort(
       "{.arg missed_cleavages} must be a single non-negative integer.",
       class = "pepvet_error_invalid_missed_cleavages"
     )
   }
 
-  missed_cleavages_int
+  as.integer(missed_cleavages)
 }
 
 .validate_include_cleavage_efficiency <- function(include_cleavage_efficiency) {
@@ -820,14 +850,22 @@ pepvet_preset <- function(type = "standard") {
 
 ## Compute GRAVY scores for a character vector of peptide sequences.
 ## Caller is responsible for passing a validated, non-empty character vector of
-## uppercase, 20-standard-AA sequences (as produced by digest_protein output).
+## supported amino-acid sequences (as produced by digest_protein output). Case
+## is normalized here, and a sequence with no known hydrophobicity returns NA.
+## Mixed sequences average known residue values and ignore unknown values.
 ## Uses the cached hydrophobicity lookup; skips per-call validation.
 .calculate_gravy <- function(peptide_vector) {
   hydro_lookup <- .get_hydro_lookup()
   res_lists <- strsplit(peptide_vector, "", fixed = TRUE)
   vapply(
     res_lists,
-    function(res) mean(hydro_lookup[res], na.rm = TRUE),
+    function(res) {
+      values <- hydro_lookup[toupper(res)]
+      if (all(is.na(values))) {
+        return(NA_real_)
+      }
+      mean(values, na.rm = TRUE)
+    },
     numeric(1)
   )
 }
@@ -865,7 +903,7 @@ pepvet_preset <- function(type = "standard") {
 }
 
 .validate_charge <- function(charge, sequence_count) {
-  if (!is.numeric(charge) || anyNA(charge)) {
+  if (!is.numeric(charge) || anyNA(charge) || !all(is.finite(charge))) {
     .abort(
       "{.arg charge} must be a numeric vector of non-missing integers.",
       class = "pepvet_error_invalid_charge"
@@ -879,17 +917,18 @@ pepvet_preset <- function(type = "standard") {
     )
   }
 
-  normalized_charge <- as.integer(charge)
-
   if (
-    any(normalized_charge < 0L) ||
-      !isTRUE(all.equal(as.numeric(charge), as.numeric(normalized_charge)))
+    any(charge < 0) ||
+      any(charge > .Machine$integer.max) ||
+      !isTRUE(all.equal(as.numeric(charge), floor(charge)))
   ) {
     .abort(
       "{.arg charge} must contain non-negative integers.",
       class = "pepvet_error_invalid_charge"
     )
   }
+
+  normalized_charge <- as.integer(charge)
 
   if (length(normalized_charge) == 1L) {
     normalized_charge <- rep(normalized_charge, sequence_count)
@@ -910,10 +949,10 @@ pepvet_preset <- function(type = "standard") {
   include_pI
 }
 
-## Internal: sequences already uppercase 20-standard-AA strings
+## Internal: sequences already uppercase supported-amino-acid strings
 ## (no re-validation).
-## Counts each of the 7 ionizable residues per peptide using vectorized gsub
-## (7 gsub passes over the whole vector) instead of strsplit + a for-loop over
+## Counts each of the 8 ionizable residues per peptide using vectorized gsub
+## (8 gsub passes over the whole vector) instead of strsplit + a for-loop over
 ## every sequence.  This is >20x faster for large peptide sets.
 .ionizable_composition_matrix_internal <- function(normalized_sequences) {
   ionizable_residues <- names(.ionizable_side_chain_pka)
@@ -950,7 +989,7 @@ pepvet_preset <- function(type = "standard") {
         (1 + 10^(pH - .ionizable_side_chain_pka[[residue]]))
   }
 
-  for (residue in c("C", "D", "E", "Y")) {
+  for (residue in c("C", "D", "E", "Y", "U")) {
     net_charge <- net_charge -
       composition_matrix[, residue] /
         (1 + 10^(.ionizable_side_chain_pka[[residue]] - pH))
@@ -967,8 +1006,8 @@ pepvet_preset <- function(type = "standard") {
 #' values using the proton mass `1.007276` Da.
 #'
 #' @param sequence Peptide sequence supplied as a character vector. Amino-acid
-#'   codes must be one-letter uppercase or lowercase symbols from the 20
-#'   standard residues. If `NULL`, raises an error.
+#'   codes must be one-letter uppercase or lowercase symbols from the 22
+#'   supported residues in [aa_properties]. If `NULL`, raises an error.
 #' @param charge Optional non-negative integer scalar or integer vector with
 #'   length matching `sequence`. Defaults to `0L`. `0L` returns neutral masses.
 #'   Positive values return m/z. If `NULL`, raises an error.
@@ -1026,11 +1065,11 @@ calculate_peptide_mass <- function(sequence, charge = 0L) {
 #' search over the Henderson-Hasselbalch net-charge equation. The calculation
 #' uses hard-coded terminal pKa values of `8.0` for the N-terminus and `3.1`
 #' for the C-terminus, plus side-chain pKa values from [aa_properties] for `C`,
-#' `D`, `E`, `H`, `K`, `R`, and `Y`.
+#' `D`, `E`, `H`, `K`, `R`, `Y`, and `U`.
 #'
 #' @param sequence Peptide sequence supplied as a character vector. Amino-acid
-#'   codes must be one-letter uppercase or lowercase symbols from the 20
-#'   standard residues. If `NULL`, raises an error.
+#'   codes must be one-letter uppercase or lowercase symbols from the 22
+#'   supported residues in [aa_properties]. If `NULL`, raises an error.
 #'
 #' @family utils
 #' @section Limitations:

@@ -329,11 +329,30 @@ test_that("missing and invalid FASTA paths raise a classed file error", {
 })
 
 test_that("invalid enzyme names raise a classed error with supported names", {
-  expect_error(
-    digest_protein("MKWVTFISLLFLFSSAYSR", enzyme = "not-an-enzyme"),
-    regexp = "Supported enzymes",
-    class = "pepvet_error_invalid_enzyme"
+  invalid_enzymes <- list(
+    null = NULL,
+    empty = character(0),
+    missing = NA_character_,
+    blank = "",
+    wrong_type = 42,
+    unsupported = "not-an-enzyme"
   )
+
+  for (enzyme_name in names(invalid_enzymes)) {
+    expect_error(
+      digest_protein(
+        "MKWVTFISLLFLFSSAYSR",
+        enzyme = invalid_enzymes[[enzyme_name]]
+      ),
+      regexp = if (identical(enzyme_name, "unsupported")) {
+        "Supported enzymes"
+      } else {
+        NULL
+      },
+      class = "pepvet_error_invalid_enzyme",
+      info = enzyme_name
+    )
+  }
 })
 
 test_that("invalid sequence content is rejected with offending characters", {
@@ -356,21 +375,53 @@ test_that("invalid input types and missed cleavage values are rejected", {
     digest_protein(Biostrings::AAStringSet()),
     class = "pepvet_error_invalid_input"
   )
-  expect_error(
-    digest_protein("MKWVTFISLLFLFSSAYSR", missed_cleavages = -1L),
-    class = "pepvet_error_invalid_missed_cleavages"
+
+  invalid_missed_cleavages <- list(
+    negative = -1L,
+    fractional = 1.5,
+    missing = NA_real_,
+    non_finite = Inf,
+    empty = numeric(0),
+    multiple = c(0L, 1L),
+    wrong_type = "1"
   )
-  expect_error(
-    digest_protein("MKWVTFISLLFLFSSAYSR", missed_cleavages = 1.5),
-    class = "pepvet_error_invalid_missed_cleavages"
+  for (value_name in names(invalid_missed_cleavages)) {
+    expect_error(
+      digest_protein(
+        "MKWVTFISLLFLFSSAYSR",
+        missed_cleavages = invalid_missed_cleavages[[value_name]]
+      ),
+      class = "pepvet_error_invalid_missed_cleavages",
+      info = value_name
+    )
+  }
+  expect_no_warning(
+    expect_error(
+      digest_protein(
+        "MKWVTFISLLFLFSSAYSR",
+        missed_cleavages = 1e20
+      ),
+      class = "pepvet_error_invalid_missed_cleavages"
+    )
   )
-  expect_error(
-    digest_protein(
-      "MKWVTFISLLFLFSSAYSR",
-      include_cleavage_efficiency = 1
-    ),
-    class = "pepvet_error_invalid_include_cleavage_efficiency"
+
+  invalid_include_values <- list(
+    null = NULL,
+    missing = NA,
+    wrong_type = 1,
+    multiple = c(FALSE, TRUE),
+    character = "yes"
   )
+  for (value_name in names(invalid_include_values)) {
+    expect_error(
+      digest_protein(
+        "MKWVTFISLLFLFSSAYSR",
+        include_cleavage_efficiency = invalid_include_values[[value_name]]
+      ),
+      class = "pepvet_error_invalid_include_cleavage_efficiency",
+      info = value_name
+    )
+  }
 })
 
 test_that("unnamed character inputs receive stable generated protein ids", {

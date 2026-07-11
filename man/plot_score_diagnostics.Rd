@@ -26,6 +26,12 @@ variance line and an 80\% reference, (C) ablation waterfall showing
 the mean composite drop with error bars when each component is set
 to zero, annotated with the number of verdicts that flip.
 }
+\section{Limitations}{
+
+Shows what score_diagnostics() returns. Interpretation needs domain
+knowledge.
+}
+
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
     requireNamespace("patchwork", quietly = TRUE)) {

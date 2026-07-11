@@ -35,6 +35,16 @@ extended subsite preferences beyond P1', or PTMs that block cleavage.
 Unsupported enzymes raise an error rather than returning a partially
 annotated table.
 }
+\section{Limitations}{
+ Trypsin family only, sequence-local P1-P1' context
+only, no extended subsite modeling.
+}
+
 \examples{
 annotate_cleavage_sites("AKRTPK", enzyme = "trypsin")
 }
+\seealso{
+Other digest:
+\code{\link[=digest_protein]{digest_protein()}}
+}
+\concept{digest}

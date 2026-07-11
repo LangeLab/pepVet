@@ -12,14 +12,17 @@ pepvet_plot_config(palette = NULL, params = NULL, theme = NULL)
 Sub-lists like \code{verdict}, \code{component}, and \code{overlap} are replaced entirely.}
 
 \item{params}{Named list of parameter overrides. Names must match existing
-\code{.pepvet_params} entries (e.g. \code{list(verdict_good = 0.70, scatter_alpha = 0.90)}).}
+\code{.pepvet_params} entries (e.g.
+\code{list(verdict_good = 0.70, scatter_alpha = 0.90)}).}
 
 \item{theme}{Named list of ggplot2 theme element overrides. Passed directly
 to \code{\link[ggplot2:theme]{ggplot2::theme()}} and applied on top of the base \code{.pepvet_theme()}.
-(e.g. \code{list(legend.position = "right", plot.title = element_text(size = 14))}).}
+(e.g.
+\code{list(legend.position = "right", plot.title = element_text(size = 14))}).}
 }
 \value{
-Invisibly returns a list with current \code{palette}, \code{params}, and \code{theme}.
+Invisibly returns a list with current \code{palette}, \code{params},
+and \code{theme}.
 }
 \description{
 Override default colors, numeric parameters, and theme elements used by

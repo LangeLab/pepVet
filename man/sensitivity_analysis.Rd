@@ -50,6 +50,13 @@ Dirichlet distribution and reports how often the verdict (or enzyme ranking)
 changes. This answers the question: "If the weights were slightly different,
 would the recommendation change?"
 }
+\section{Limitations}{
+
+Monte Carlo estimates are approximate. Stability depends on \code{n_iter}.
+The analysis only perturbs weights within the Dirichlet framework; it does
+not test alternative scoring functions or parameter ranges.
+}
+
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 res <- evaluate_digest(bsa_path, enzyme = "trypsin")
@@ -57,3 +64,14 @@ sens <- sensitivity_analysis(res, n_iter = 1000L)
 sens$summary$verdict_pct
 
 }
+\seealso{
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
+}
+\concept{evaluation}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/report.R
 \name{pepvet_check}
 \alias{pepvet_check}
-\title{Quick Digest Check for a Single Protein}
+\title{Quick digest check for a single protein}
 \usage{
 pepvet_check(sequence, enzyme = "trypsin", ...)
 }
@@ -32,4 +32,8 @@ pepvet_check(bsa_path, enzyme = "trypsin")
 }
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=digest_report]{digest_report()}}
+
+Other report:
+\code{\link[=digest_report]{digest_report()}}
 }
+\concept{report}

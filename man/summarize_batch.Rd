@@ -41,6 +41,13 @@ sequence-level difficulty flags, not from running alternative enzymes.
 Use \code{\link[=compare_digests]{compare_digests()}} to confirm whether a specific alternative enzyme
 improves the verdict for a flagged protein.
 }
+\section{Limitations}{
+
+The \code{enzyme_switch_candidates} are heuristic flags based on sequence
+difficulty, not actual re-evaluation with alternative enzymes. Use
+\code{\link[=compare_digests]{compare_digests()}} to confirm whether a switch improves the verdict.
+}
+
 \examples{
 small_path <- system.file(
   "extdata", "small_proteome_50_proteins.fasta",
@@ -53,4 +60,14 @@ summary$component_summary
 }
 \seealso{
 \code{\link[=batch_evaluate]{batch_evaluate()}}, \code{\link[=triage_proteins]{triage_proteins()}}
+
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }
+\concept{evaluation}

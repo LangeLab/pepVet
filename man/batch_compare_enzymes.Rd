@@ -62,6 +62,12 @@ equal chunks processed via fork copy-on-write (\code{parallel::mclapply}).
 This means \code{cores} workers are fully utilised regardless of how many enzymes
 are compared, and the speedup applies equally to single-enzyme calls.
 }
+\section{Limitations}{
+
+Enzymes run sequentially even when \code{cores > 1}; only proteins within each
+enzyme are parallelized. Parallel execution requires Unix.
+}
+
 \examples{
 small <- system.file(
   "extdata", "small_proteome_50_proteins.fasta",
@@ -73,4 +79,14 @@ result[result$enzyme == "trypsin", c("protein_id", "composite_score")]
 }
 \seealso{
 \code{\link[=batch_evaluate]{batch_evaluate()}}, \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=summarize_batch]{summarize_batch()}}
+
+Other evaluation:
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }
+\concept{evaluation}

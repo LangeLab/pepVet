@@ -16,16 +16,21 @@ pepvet_save_figure(
 )
 }
 \arguments{
-\item{plot}{A ggplot or patchwork object produced by any pepVet plot function.}
+\item{plot}{A ggplot or patchwork object produced by any pepVet
+plot function.}
 
-\item{filename}{Character path for the output file. Extensions \code{.png}, \code{.pdf},
-\code{.svg}, etc. are handled by \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}}. Defaults to \code{"pepvet_plot.png"}
+\item{filename}{Character path for the output file. Extensions
+\code{.png}, \code{.pdf},
+\code{.svg}, etc. are handled by \code{\link[ggplot2:ggsave]{ggplot2::ggsave()}}. Defaults to
+\code{"pepvet_plot.png"}
 in the working directory.}
 
-\item{width, height}{Numeric. Plot dimensions in inches. When \code{NULL} (default),
+\item{width, height}{Numeric. Plot dimensions in inches. When
+\code{NULL} (default),
 auto-sized: single-panel = 10x7, multi-panel patchwork = 14x10.}
 
-\item{dpi}{Numeric. Resolution in dots per inch. Defaults to \code{300} (publication).}
+\item{dpi}{Numeric. Resolution in dots per inch. Defaults to
+\code{300} (publication).}
 
 \item{bg}{Character. Background color. Defaults to \code{"white"}.}
 

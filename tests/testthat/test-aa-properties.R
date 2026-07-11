@@ -252,10 +252,6 @@ test_that(".calculate_gravy matches the reference hydrophobicity arithmetic", {
   }
 })
 
-test_that(".calculate_gravy accepts uppercase sequences", {
-  expect_equal(pepVet:::.calculate_gravy("ALIV"), reference_gravy("ALIV"))
-})
-
 test_that(".calculate_gravy vectorises over multiple sequences", {
   input <- c("ALIV", "SWWWWYY", "STVVWWW", "AAAAAAAK")
   expected <- vapply(input, reference_gravy, numeric(1), USE.NAMES = FALSE)
@@ -292,17 +288,28 @@ test_that("calculate_peptide_mass is vectorized and validates charge", {
 
   expect_type(result, "double")
   expect_identical(names(result), c("a", "b"))
-  expect_error(
-    calculate_peptide_mass("PEPTIDE", charge = -1L),
-    class = "pepvet_error_invalid_charge"
+
+  invalid_charges <- list(
+    negative = -1L,
+    fractional = 1.5,
+    mismatch = c(1L, 2L, 3L),
+    missing = NA_real_,
+    non_finite = Inf,
+    wrong_type = "2",
+    empty = numeric(0)
   )
-  expect_error(
-    calculate_peptide_mass("PEPTIDE", charge = 1.5),
-    class = "pepvet_error_invalid_charge"
-  )
-  expect_error(
-    calculate_peptide_mass("PEPTIDE", charge = c(1L, 2L, 3L)),
-    class = "pepvet_error_invalid_charge"
+  for (charge_name in names(invalid_charges)) {
+    expect_error(
+      calculate_peptide_mass("PEPTIDE", charge = invalid_charges[[charge_name]]),
+      class = "pepvet_error_invalid_charge",
+      info = charge_name
+    )
+  }
+  expect_no_warning(
+    expect_error(
+      calculate_peptide_mass("PEPTIDE", charge = 1e20),
+      class = "pepvet_error_invalid_charge"
+    )
   )
 })
 
@@ -345,6 +352,21 @@ test_that("calculate_pI returns bounded deterministic named values", {
 
   expect_equal(mixed_pi, 7.15, tolerance = 0.1)
   expect_equal(basic_pi, 10.25, tolerance = 0.1)
+})
+
+test_that("calculate_pI includes the selenol pKa for U", {
+  pH_grid <- seq(0, 14, by = 0.001)
+  terminal_charge <-
+    1 / (1 + 10^(pH_grid - 8.0)) -
+    1 / (1 + 10^(3.1 - pH_grid))
+  expected_charge <- terminal_charge -
+    1 / (1 + 10^(5.2 - pH_grid))
+  expected_pi <- pH_grid[[which.min(abs(expected_charge))]]
+
+  observed_pi <- calculate_pI("U")
+
+  expect_equal(observed_pi, expected_pi, tolerance = 0.002)
+  expect_lt(observed_pi, calculate_pI("A") - 1)
 })
 
 test_that("calculate_pI is vectorized and rejects bad peptide input", {

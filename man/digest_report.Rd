@@ -29,6 +29,11 @@ function returns its input invisibly so it can be used in pipelines. Use it
 when you want a compact review of component scores during interactive enzyme
 selection or package-level demonstrations.
 }
+\section{Limitations}{
+
+Output is printed to the console only. File output is not supported.
+}
+
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 ev <- evaluate_digest(bsa_path)
@@ -39,4 +44,8 @@ digest_report(comp)
 }
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}
+
+Other report:
+\code{\link[=pepvet_check]{pepvet_check()}}
 }
+\concept{report}

@@ -46,12 +46,16 @@ When specified, writes to that path and returns \code{file} invisibly.
 \code{"fasta"} is written with \code{\link[base:writeLines]{base::writeLines()}}.}
 }
 \value{
-When \code{file = NULL}: for \code{"skyline"}, a tibble with columns
-\code{Protein}, \code{Peptide Sequence}, \code{Precursor Charge}, and
-\code{Precursor Mz}; for \code{"generic"}, a tibble with all original columns
-plus \code{gravy}, \code{pI}, and \code{valid}; for \code{"fasta"}, a
-character vector of FASTA records. When \code{file} is specified: \code{file},
-invisibly.
+When \code{file = NULL}:
+\itemize{
+\item For \code{"skyline"}: a tibble with columns \code{Protein},
+\code{Peptide Sequence}, \code{Precursor Charge}, and
+\code{Precursor Mz}.
+\item For \code{"generic"}: a tibble with all original columns plus
+\code{gravy}, \code{pI}, and \code{valid}.
+\item For \code{"fasta"}: a character vector of FASTA records.
+}
+When \code{file} is specified: \code{file}, invisibly.
 }
 \description{
 \code{export_peptide_list()} filters a pepVet peptide tibble to valid peptides
@@ -68,6 +72,11 @@ accepts this format via File > Import > Transition List.
 When no peptides pass the \code{length_range} filter, skyline format returns
 an empty tibble and fasta format returns an empty character vector.
 }
+\section{Limitations}{
+
+Only peptides passing the specified \code{length_range} are exported.
+}
+
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 peps <- digest_protein(bsa_path, enzyme = "trypsin")
@@ -78,3 +87,4 @@ export_peptide_list(peps, format = "fasta")
 \seealso{
 \code{\link[=digest_protein]{digest_protein()}}, \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}}
 }
+\concept{export}

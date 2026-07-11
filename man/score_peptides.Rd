@@ -75,10 +75,12 @@ Valid peptides are defined as peptides with lengths between 7 and
 25 residues inclusive by default, but this window can be changed with
 \code{length_range}. Coverage is computed from valid peptide coordinates with
 overlapping intervals reduced before coverage is summed. \code{S_hydro} uses
-the inclusive \code{gravy_range}, and \code{S_unique} is only computed when a
-proteome digest is supplied. \code{S_charge} measures the fraction of
-valid peptides that contain at least one non-terminal basic residue,
-capturing extra charge-state richness rather than baseline ionizability.
+the inclusive \code{gravy_range}; mixed sequences average known hydrophobicity
+values, and sequences with no known values score zero. \code{S_unique} is only
+computed when a proteome digest is supplied. \code{S_charge} measures the
+fraction of valid peptides that contain at least one non-terminal basic
+residue to capture extra charge-state richness rather than baseline
+ionizability.
 Composite verdicts are classified as \code{Good} for scores >= 0.65,
 \code{Moderate} for scores >= 0.4, and \code{Poor} otherwise.
 }
@@ -108,3 +110,4 @@ score_peptides(
   proteome = target_and_background
 )
 }
+\concept{scoring}

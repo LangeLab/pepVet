@@ -46,10 +46,26 @@ the score columns returned by \code{\link[=evaluate_digest]{evaluate_digest()}},
 and returns a tibble of scores sorted by \code{composite_score} descending. Main
 ranking function for pre-experimental enzyme selection.
 }
+\section{Limitations}{
+
+Single-protein only. Use \code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}} for proteome-wide
+enzyme comparison.
+}
+
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 compare_digests(bsa_path, enzymes = c("trypsin", "lysc"))
 }
 \seealso{
 \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=recommend_enzyme]{recommend_enzyme()}}
+
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }
+\concept{evaluation}

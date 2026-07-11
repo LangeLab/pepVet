@@ -66,6 +66,17 @@ scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
 to append peptide-level pI values for fractionation-aware analysis.
 }
 
+\section{Limitations}{
+
+Only 6 named presets are provided. Custom presets are not validated.
+}
+
 \examples{
 pepvet_preset("standard")
 }
+\seealso{
+Other utils:
+\code{\link[=calculate_pI]{calculate_pI()}},
+\code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}}
+}
+\concept{utils}

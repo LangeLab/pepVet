@@ -239,11 +239,11 @@
   ## the whole vector instead of once per peptide.
   gravy_values <- .calculate_gravy(valid_digest$peptide)
   tolerance <- sqrt(.Machine$double.eps)
-
-  mean(
+  in_range <- !is.na(gravy_values) &
     gravy_values >= (gravy_range[[1]] - tolerance) &
-      gravy_values <= (gravy_range[[2]] + tolerance)
-  )
+    gravy_values <= (gravy_range[[2]] + tolerance)
+
+  mean(in_range)
 }
 
 .score_charge <- function(protein_digest,
@@ -396,10 +396,12 @@
 #'   25 residues inclusive by default, but this window can be changed with
 #'   `length_range`. Coverage is computed from valid peptide coordinates with
 #'   overlapping intervals reduced before coverage is summed. `S_hydro` uses
-#'   the inclusive `gravy_range`, and `S_unique` is only computed when a
-#'   proteome digest is supplied. `S_charge` measures the fraction of
-#'   valid peptides that contain at least one non-terminal basic residue,
-#'   capturing extra charge-state richness rather than baseline ionizability.
+#'   the inclusive `gravy_range`; mixed sequences average known hydrophobicity
+#'   values, and sequences with no known values score zero. `S_unique` is only
+#'   computed when a proteome digest is supplied. `S_charge` measures the
+#'   fraction of valid peptides that contain at least one non-terminal basic
+#'   residue to capture extra charge-state richness rather than baseline
+#'   ionizability.
 #'   Composite verdicts are classified as `Good` for scores >= 0.65,
 #'   `Moderate` for scores >= 0.4, and `Poor` otherwise.
 #'

@@ -42,10 +42,26 @@ all tied enzyme names are returned in alphabetical order. Compact
 recommendation for scripted triage pipelines that stays aligned with
 \code{\link[=compare_digests]{compare_digests()}}.
 }
+\section{Limitations}{
+
+Single-protein only. When multiple enzymes tie within tolerance, all are
+returned in alphabetical order with no further tie-breaking.
+}
+
 \examples{
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 recommend_enzyme(bsa_path, enzymes = c("trypsin", "lysc"))
 }
 \seealso{
 \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=evaluate_digest]{evaluate_digest()}}
+
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=summarize_batch]{summarize_batch()}},
+\code{\link[=triage_proteins]{triage_proteins()}}
 }
+\concept{evaluation}

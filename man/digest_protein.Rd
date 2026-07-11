@@ -62,8 +62,18 @@ fall within a peptide. These annotations reflect local P1-P1' sequence
 context only. They do not model extended subsite preferences, structural
 protection, or PTMs that alter cleavage behavior.
 }
+\section{Limitations}{
+ Cleaver rules only, no structural accessibility,
+no PTM awareness.
+}
+
 \examples{
 digest_protein("MKWVTFISLLFLFSSAYSR")
 digest_protein(Biostrings::AAString("MKWVTFISLLFLFSSAYSR"))
 digest_protein("AKRTPK", include_cleavage_efficiency = TRUE)
 }
+\seealso{
+Other digest:
+\code{\link[=annotate_cleavage_sites]{annotate_cleavage_sites()}}
+}
+\concept{digest}

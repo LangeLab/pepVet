@@ -33,6 +33,13 @@ score.}
 by \code{\link[=batch_evaluate]{batch_evaluate()}} with deterministic recommendations based on each
 protein's verdict and difficulty flags.
 }
+\section{Limitations}{
+
+Triage actions are advisory, based on heuristic difficulty flags from the
+batch score columns. They do not re-evaluate the protein with alternative
+enzymes. Use \code{\link[=compare_digests]{compare_digests()}} for that.
+}
+
 \examples{
 small_path <- system.file(
   "extdata", "small_proteome_50_proteins.fasta",
@@ -44,4 +51,14 @@ table(triaged$action)
 }
 \seealso{
 \code{\link[=batch_evaluate]{batch_evaluate()}}, \code{\link[=summarize_batch]{summarize_batch()}}
+
+Other evaluation:
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}},
+\code{\link[=batch_evaluate]{batch_evaluate()}},
+\code{\link[=compare_digests]{compare_digests()}},
+\code{\link[=evaluate_digest]{evaluate_digest()}},
+\code{\link[=recommend_enzyme]{recommend_enzyme()}},
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}},
+\code{\link[=summarize_batch]{summarize_batch()}}
 }
+\concept{evaluation}

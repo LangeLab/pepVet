@@ -8,8 +8,8 @@ calculate_pI(sequence)
 }
 \arguments{
 \item{sequence}{Peptide sequence supplied as a character vector. Amino-acid
-codes must be one-letter uppercase or lowercase symbols from the 20
-standard residues. If \code{NULL}, raises an error.}
+codes must be one-letter uppercase or lowercase symbols from the 22
+supported residues in \link{aa_properties}. If \code{NULL}, raises an error.}
 }
 \value{
 A numeric vector of estimated peptide pI values. Names are preserved
@@ -20,9 +20,21 @@ from \code{sequence} when present.
 search over the Henderson-Hasselbalch net-charge equation. The calculation
 uses hard-coded terminal pKa values of \code{8.0} for the N-terminus and \code{3.1}
 for the C-terminus, plus side-chain pKa values from \link{aa_properties} for \code{C},
-\code{D}, \code{E}, \code{H}, \code{K}, \code{R}, and \code{Y}.
+\code{D}, \code{E}, \code{H}, \code{K}, \code{R}, \code{Y}, and \code{U}.
 }
+\section{Limitations}{
+
+pI estimation uses the Lehninger pKa set. Calculation may be slow for
+more than 5000 sequences.
+}
+
 \examples{
 calculate_pI("PEPTIDE")
 calculate_pI(c("AAAAAAAR", "ACDEFGHIKLMNPQRSTVWY"))
 }
+\seealso{
+Other utils:
+\code{\link[=calculate_peptide_mass]{calculate_peptide_mass()}},
+\code{\link[=pepvet_preset]{pepvet_preset()}}
+}
+\concept{utils}

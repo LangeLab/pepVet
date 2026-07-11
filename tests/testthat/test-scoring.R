@@ -103,6 +103,10 @@ test_that("weight validation rejects bad sums, negatives, and wrong lengths", {
     class = "pepvet_error_invalid_weights"
   )
   expect_error(
+    pepVet:::.validate_weights(rep(0, 5L), FALSE),
+    class = "pepvet_error_invalid_weights"
+  )
+  expect_error(
     pepVet:::.validate_weights(c(-0.1, 0.3, 0.3, 0.3, 0.2), FALSE),
     class = "pepvet_error_invalid_weights"
   )
@@ -125,6 +129,70 @@ test_that("weight validation rejects bad sums, negatives, and wrong lengths", {
     ),
     class = "pepvet_error_invalid_weights"
   )
+  expect_identical(
+    pepVet:::.validate_weights(
+      c(expected_protein_only_weights, S_unique = 0),
+      has_proteome = FALSE
+    ),
+    expected_protein_only_weights
+  )
+  expect_identical(
+    pepVet:::.validate_weights(
+      unname(c(expected_protein_only_weights, S_unique = 0)),
+      has_proteome = FALSE
+    ),
+    expected_protein_only_weights
+  )
+  expect_identical(
+    pepVet:::.validate_weights(
+      expected_proteome_weights,
+      has_proteome = TRUE
+    ),
+    expected_proteome_weights
+  )
+  expect_identical(
+    pepVet:::.validate_weights(
+      unname(expected_proteome_weights),
+      has_proteome = TRUE
+    ),
+    expected_proteome_weights
+  )
+})
+
+test_that("weight normalization rejects incomplete and ambiguous names", {
+  empty_name <- rep(0.2, 5L)
+  names(empty_name) <- c(
+    "S_length", "S_coverage", "S_count", "S_hydro", ""
+  )
+  invalid_weights <- list(
+    wrong_length = rep(0.2, 4L),
+    missing_name = c(
+      S_length = 0.2, S_coverage = 0.2, S_count = 0.2, S_hydro = 0.2
+    ),
+    duplicate_name = c(
+      S_length = 0.1, S_length = 0.1, S_coverage = 0.2,
+      S_count = 0.3, S_hydro = 0.3
+    ),
+    empty_name = empty_name,
+    unknown_name = c(
+      foo = 0.2, S_coverage = 0.2, S_count = 0.2,
+      S_hydro = 0.2, S_charge = 0.2
+    ),
+    missing_value = c(0.2, 0.2, 0.2, 0.2, NA_real_),
+    non_finite = c(0.2, 0.2, 0.2, 0.2, Inf),
+    wrong_type = rep("0.2", 5L)
+  )
+
+  for (input_name in names(invalid_weights)) {
+    expect_error(
+      pepVet:::.normalize_weights(
+        invalid_weights[[input_name]],
+        expected_protein_only_weights
+      ),
+      class = "pepvet_error_invalid_weights",
+      info = input_name
+    )
+  }
 })
 
 test_that("score_peptides returns the documented schema without proteome", {
@@ -206,17 +274,140 @@ test_that("score_peptides returns the digest-derived median peptide length", {
   expect_identical(result$median_peptide_length, 10)
 })
 
-test_that("preset helper returns modifiable scoring configuration lists", {
-  preset <- pepvet_preset("standard")
+test_that("preset helper returns every documented scoring configuration", {
+  expected_ranges <- list(
+    standard = list(
+      gravy = c(-1.0, 0.6), length = c(7L, 25L), pI = FALSE,
+      weights = c(
+        S_length = 0.200, S_coverage = 0.348, S_count = 0.226,
+        S_hydro = 0.138, S_charge = 0.088, S_unique = 0.000
+      )
+    ),
+    dia = list(
+      gravy = c(-1.0, 0.8), length = c(7L, 30L), pI = FALSE,
+      weights = c(
+        S_length = 0.20, S_coverage = 0.30, S_count = 0.20,
+        S_hydro = 0.10, S_charge = 0.10, S_unique = 0.10
+      )
+    ),
+    targeted = list(
+      gravy = c(-0.8, 0.4), length = c(8L, 20L), pI = FALSE,
+      weights = c(
+        S_length = 0.15, S_coverage = 0.10, S_count = 0.15,
+        S_hydro = 0.15, S_charge = 0.15, S_unique = 0.30
+      )
+    ),
+    membrane = list(
+      gravy = c(-1.0, 2.0), length = c(7L, 30L), pI = FALSE,
+      weights = c(
+        S_length = 0.25, S_coverage = 0.25, S_count = 0.20,
+        S_hydro = 0.05, S_charge = 0.15, S_unique = 0.10
+      )
+    ),
+    ffpe_degraded = list(
+      gravy = c(-1.0, 0.8), length = c(6L, 30L), pI = FALSE,
+      weights = c(
+        S_length = 0.20, S_coverage = 0.20, S_count = 0.30,
+        S_hydro = 0.10, S_charge = 0.10, S_unique = 0.10
+      )
+    ),
+    fractionated = list(
+      gravy = c(-1.0, 0.6), length = c(7L, 25L), pI = TRUE,
+      weights = c(
+        S_length = 0.200, S_coverage = 0.348, S_count = 0.226,
+        S_hydro = 0.138, S_charge = 0.088, S_unique = 0.000
+      )
+    )
+  )
+
+  for (preset_name in names(expected_ranges)) {
+    preset <- pepvet_preset(preset_name)
+    expected <- expected_ranges[[preset_name]]
+
+    expect_identical(
+      names(preset),
+      c("gravy_range", "length_range", "weights", "include_pI"),
+      info = preset_name
+    )
+    expect_equal(preset$gravy_range, expected$gravy, info = preset_name)
+    expect_identical(preset$length_range, expected$length, info = preset_name)
+    expect_identical(preset$include_pI, expected$pI, info = preset_name)
+    expect_identical(
+      names(preset$weights),
+      names(expected_proteome_weights),
+      info = preset_name
+    )
+    expect_equal(preset$weights, expected$weights, tolerance = 1e-12)
+    expect_true(all(is.finite(preset$weights)), info = preset_name)
+    expect_true(all(preset$weights >= 0), info = preset_name)
+    expect_equal(sum(preset$weights), 1, tolerance = 1e-12)
+  }
 
   expect_identical(
-    names(preset),
-    c("gravy_range", "length_range", "weights", "include_pI")
+    pepvet_preset(" DIA ")$length_range,
+    c(7L, 30L)
   )
-  expect_equal(preset$gravy_range, c(-1.0, 0.6))
-  expect_equal(preset$length_range, c(7L, 25L))
-  expect_true(all(c("S_length", "S_unique") %in% names(preset$weights)))
-  expect_false(preset$include_pI)
+
+  standard <- pepvet_preset("standard")
+  standard$weights[["S_length"]] <- 0
+  expect_equal(
+    pepvet_preset("standard")$weights[["S_length"]],
+    0.2
+  )
+})
+
+test_that("preset identity distinguishes named and custom configurations", {
+  for (preset_name in names(pepVet:::.pepvet_presets)) {
+    preset <- pepvet_preset(preset_name)
+    expect_identical(
+      pepVet:::.identify_preset_used(
+        gravy_range = preset$gravy_range,
+        length_range = preset$length_range,
+        weights = preset$weights,
+        include_pI = preset$include_pI,
+        has_proteome = TRUE
+      ),
+      preset_name,
+      info = preset_name
+    )
+  }
+
+  standard <- pepvet_preset("standard")
+  protein_weights <- pepVet:::.validate_weights(
+    standard$weights,
+    has_proteome = FALSE
+  )
+  expect_identical(
+    pepVet:::.identify_preset_used(
+      standard$gravy_range,
+      standard$length_range,
+      protein_weights,
+      standard$include_pI,
+      has_proteome = FALSE
+    ),
+    "standard"
+  )
+  expect_identical(
+    pepVet:::.identify_preset_used(
+      c(-0.9, 0.6),
+      standard$length_range,
+      protein_weights,
+      standard$include_pI,
+      has_proteome = FALSE
+    ),
+    "custom"
+  )
+
+  expect_true(
+    pepVet:::.same_numeric_values(c(1, 2), c(1 + 1e-9, 2))
+  )
+  expect_false(
+    pepVet:::.same_numeric_values(c(1, 2), c(1 + 1e-5, 2))
+  )
+  expect_true(
+    pepVet:::.same_named_weights(c(a = 1), c(a = 1 + 1e-9))
+  )
+  expect_false(pepVet:::.same_named_weights(c(a = 1), c(b = 1)))
 })
 
 test_that("score_peptides respects configurable length and GRAVY ranges", {
@@ -488,6 +679,7 @@ test_that("hydrophobicity scoring respects thresholds and zero-valid cases", {
   boundary_low <- make_digest_result("SWWWWYY")
   boundary_high <- make_digest_result("STVVWWW")
   zero_valid <- make_digest_result(c("AAA", "AAA"))
+  missing_hydrophobicity <- make_digest_result("O")
 
   expect_equal(pepVet:::.calculate_gravy("SWWWWYY"), -1)
   expect_equal(pepVet:::.calculate_gravy("STVVWWW"), 0.6)
@@ -497,6 +689,21 @@ test_that("hydrophobicity scoring respects thresholds and zero-valid cases", {
   expect_identical(pepVet:::.score_hydro(boundary_low), 1)
   expect_identical(pepVet:::.score_hydro(boundary_high), 1)
   expect_identical(pepVet:::.score_hydro(zero_valid), 0)
+  expect_identical(
+    pepVet:::.score_hydro(
+      missing_hydrophobicity,
+      length_range = c(1L, 25L)
+    ),
+    0
+  )
+
+  public_result <- score_peptides(
+    make_digest_result(c("O", "O")),
+    length_range = c(1L, 25L)
+  )
+  expect_identical(public_result$S_hydro, 0)
+  expect_true(is.finite(public_result$composite_score))
+  expect_false(anyNA(public_result))
 })
 
 test_that("charge scoring checks internal basic residues only", {
@@ -611,15 +818,38 @@ test_that("score_peptides rejects invalid length_range", {
 
 test_that("score_peptides rejects invalid include_pI", {
   d <- digest_protein(.bsa_path, enzyme = "trypsin")
-  expect_error(
-    score_peptides(d, include_pI = NULL),
-    class = "pepvet_error_invalid_include_pi"
+  invalid_values <- list(
+    null = NULL,
+    missing = NA,
+    wrong_type = 1,
+    multiple = c(FALSE, TRUE),
+    character = "no"
   )
+
+  for (input_name in names(invalid_values)) {
+    expect_error(
+      score_peptides(d, include_pI = invalid_values[[input_name]]),
+      class = "pepvet_error_invalid_include_pi",
+      info = input_name
+    )
+  }
 })
 
 test_that("pepvet_preset rejects invalid preset name", {
-  expect_error(
-    pepvet_preset("nonexistent_preset"),
-    class = "pepvet_error_invalid_preset"
+  invalid_values <- list(
+    null = NULL,
+    missing = NA_character_,
+    empty = "",
+    multiple = c("standard", "dia"),
+    wrong_type = 42,
+    unsupported = "nonexistent_preset"
   )
+
+  for (input_name in names(invalid_values)) {
+    expect_error(
+      pepvet_preset(invalid_values[[input_name]]),
+      class = "pepvet_error_invalid_preset",
+      info = input_name
+    )
+  }
 })

@@ -8,8 +8,8 @@ calculate_peptide_mass(sequence, charge = 0L)
 }
 \arguments{
 \item{sequence}{Peptide sequence supplied as a character vector. Amino-acid
-codes must be one-letter uppercase or lowercase symbols from the 20
-standard residues. If \code{NULL}, raises an error.}
+codes must be one-letter uppercase or lowercase symbols from the 22
+supported residues in \link{aa_properties}. If \code{NULL}, raises an error.}
 
 \item{charge}{Optional non-negative integer scalar or integer vector with
 length matching \code{sequence}. Defaults to \code{0L}. \code{0L} returns neutral masses.
@@ -30,7 +30,19 @@ This function computes masses for unmodified peptide sequences only.
 It does not account for chemical labels such as TMT or iTRAQ, isotopic
 labels such as SILAC, or post-translational modifications.
 }
+\section{Limitations}{
+
+This function computes monoisotopic mass only. Average mass is not
+supported.
+}
+
 \examples{
 calculate_peptide_mass("PEPTIDE")
 calculate_peptide_mass(c(a = "PEPTIDE", b = "AAAAAAAR"), charge = 2L)
 }
+\seealso{
+Other utils:
+\code{\link[=calculate_pI]{calculate_pI()}},
+\code{\link[=pepvet_preset]{pepvet_preset()}}
+}
+\concept{utils}

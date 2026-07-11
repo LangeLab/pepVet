@@ -42,13 +42,23 @@ prevalence (most common at top).
 When the input batch lacks difficulty flag columns, panel C shows
 an empty placeholder message instead of stacked bars.
 }
+\section{Limitations}{
+
+At proteome sizes exceeding 2000 proteins the figure panels become dense
+and text labels may overlap. Consider filtering the batch to a
+representative subset or increasing the output dimensions.
+}
+
 \examples{
-small <- system.file(
-  "extdata", "small_proteome_50_proteins.fasta",
-  package = "pepVet"
-)
-batch <- batch_evaluate(small, enzyme = "trypsin")
-plot_proteome_overview(batch)
+if (requireNamespace("ggplot2", quietly = TRUE) &&
+  requireNamespace("patchwork", quietly = TRUE)) {
+  small <- system.file(
+    "extdata", "small_proteome_50_proteins.fasta",
+    package = "pepVet"
+  )
+  batch <- batch_evaluate(small, enzyme = "trypsin")
+  plot_proteome_overview(batch)
+}
 }
 \seealso{
 \code{\link[=batch_evaluate]{batch_evaluate()}} for the upstream evaluation step.

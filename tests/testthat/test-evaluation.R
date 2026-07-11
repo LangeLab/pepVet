@@ -449,26 +449,33 @@ test_that("sensitivity_analysis on batch input returns per-protein instability",
 test_that("sensitivity_analysis rejects invalid tuning parameters", {
   res <- .fix_bsa_trypsin
 
-  expect_error(
-    sensitivity_analysis(res, nu = 0),
-    class = "pepvet_error_invalid_sensitivity_parameter"
+  invalid_calls <- list(
+    nu_zero = list(nu = 0),
+    nu_negative = list(nu = -1),
+    nu_missing = list(nu = NA_real_),
+    nu_nan = list(nu = NaN),
+    nu_infinite = list(nu = Inf),
+    n_iter_zero = list(n_iter = 0L),
+    n_iter_fractional = list(n_iter = 1.5),
+    n_iter_missing = list(n_iter = NA_real_),
+    n_iter_infinite = list(n_iter = Inf),
+    chunk_zero = list(chunk_size = 0L),
+    chunk_fractional = list(chunk_size = 1.5),
+    chunk_missing = list(chunk_size = NA_real_),
+    importance_wrong_type = list(importance = "yes"),
+    corner_cases_missing = list(corner_cases = NA)
   )
-  expect_error(
-    sensitivity_analysis(res, n_iter = 0L),
-    class = "pepvet_error_invalid_sensitivity_parameter"
-  )
-  expect_error(
-    sensitivity_analysis(res, chunk_size = 0L),
-    class = "pepvet_error_invalid_sensitivity_parameter"
-  )
-  expect_error(
-    sensitivity_analysis(res, importance = "yes"),
-    class = "pepvet_error_invalid_sensitivity_parameter"
-  )
-  expect_error(
-    sensitivity_analysis(res, corner_cases = NA),
-    class = "pepvet_error_invalid_sensitivity_parameter"
-  )
+
+  for (input_name in names(invalid_calls)) {
+    expect_error(
+      do.call(
+        sensitivity_analysis,
+        c(list(x = res), invalid_calls[[input_name]])
+      ),
+      class = "pepvet_error_invalid_sensitivity_parameter",
+      info = input_name
+    )
+  }
 })
 
 test_that("Dirichlet sampler produces correct mean and variance", {
@@ -478,12 +485,19 @@ test_that("Dirichlet sampler produces correct mean and variance", {
   samples <- .rdirichlet(10000, nu * w0)
   expect_equal(nrow(samples), 10000)
   expect_equal(ncol(samples), 3L)
+  expect_true(all(samples > 0))
   expect_equal(rowSums(samples), rep(1, 10000), tolerance = 1e-10)
   col_means <- colMeans(samples)
   expect_equal(as.numeric(col_means), as.numeric(w0), tolerance = 0.02)
   col_vars <- apply(samples, 2, var)
   expected_var <- as.numeric(w0 * (1 - w0) / (nu + 1))
   expect_equal(as.numeric(col_vars), expected_var, tolerance = 0.005)
+
+  withr::local_seed(42)
+  first <- .rdirichlet(10L, nu * w0)
+  withr::local_seed(42)
+  second <- .rdirichlet(10L, nu * w0)
+  expect_identical(first, second)
 })
 
 test_that("plot_weight_sensitivity returns a ggplot for single-protein input", {

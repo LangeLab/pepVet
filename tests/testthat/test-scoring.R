@@ -461,7 +461,10 @@ test_that("fractionated preset enables peptide pI annotation", {
 })
 
 test_that("score_peptides can append peptide pI values without affecting scores", {
-  digest_result <- make_digest_result(c("PEPTIDEK", "AAAAAAAR"))
+  digest_result <- make_digest_result(
+    c("PEPTIDEK", "AAAAAAAR", "AAA"),
+    starts = c(1L, 9L, 17L)
+  )
   baseline <- score_peptides(digest_result)
   with_pi <- score_peptides(digest_result, include_pI = TRUE)
 
@@ -470,6 +473,15 @@ test_that("score_peptides can append peptide pI values without affecting scores"
   expect_type(with_pi$pI, "list")
   expect_identical(names(with_pi$pI[[1]]), c("PEPTIDEK", "AAAAAAAR"))
   expect_identical(with_pi$preset_used, "fractionated")
+
+  no_valid_peptides <- score_peptides(
+    make_digest_result(
+      c("AAA", "CCC"),
+      starts = c(1L, 4L)
+    ),
+    include_pI = TRUE
+  )
+  expect_identical(no_valid_peptides$pI[[1]], numeric(0))
 })
 
 test_that("preset_used falls back to custom when weights do not match a named preset", {
@@ -495,6 +507,51 @@ test_that("score_peptides falls back to enzyme-class expected lengths", {
   expect_identical(trypsin_result$median_peptide_length, 12)
 })
 
+test_that("fallback peptide lengths cover every supported enzyme group", {
+  expected_fallbacks <- c(
+    trypsin = 12,
+    `trypsin-high` = 12,
+    `trypsin-low` = 12,
+    `trypsin-simple` = 12,
+    lysc = 24,
+    `arg-c proteinase` = 24,
+    `glutamyl endopeptidase` = 17,
+    `asp-n endopeptidase` = 17,
+    `chymotrypsin-high` = 11,
+    `chymotrypsin-low` = 11,
+    unknown = 12
+  )
+
+  for (enzyme_name in names(expected_fallbacks)) {
+    lookup_name <- if (identical(enzyme_name, "unknown")) {
+      "unsupported-but-normalized"
+    } else {
+      enzyme_name
+    }
+
+    expect_identical(
+      pepVet:::.fallback_expected_peptide_length(lookup_name),
+      as.numeric(expected_fallbacks[[enzyme_name]]),
+      info = enzyme_name
+    )
+  }
+
+  three_peptides <- make_digest_result(
+    c(strrep("A", 8), strrep("A", 12), strrep("A", 16)),
+    starts = c(1L, 9L, 21L)
+  )
+  two_peptides <- three_peptides[1:2, , drop = FALSE]
+
+  expect_identical(
+    pepVet:::.expected_peptide_length(three_peptides, enzyme = "lysc"),
+    12
+  )
+  expect_identical(
+    pepVet:::.expected_peptide_length(two_peptides, enzyme = "lysc"),
+    24
+  )
+})
+
 test_that("score_peptides warns and zeros S_count for no-cleavage digests", {
   digest_result <- digest_protein(strrep("A", 20L), enzyme = "trypsin")
 
@@ -507,16 +564,167 @@ test_that("score_peptides warns and zeros S_count for no-cleavage digests", {
   expect_identical(result$median_peptide_length, 12)
 })
 
+test_that("zero-cleavage scoring keeps its two current component partitions", {
+  no_valid_peptide <- digest_protein("A", enzyme = "trypsin")
+  full_length_peptide <- digest_protein(
+    strrep("A", 20L),
+    enzyme = "trypsin"
+  )
+
+  expect_warning(
+    poor_result <- score_peptides(no_valid_peptide, enzyme = "trypsin"),
+    class = "pepvet_warning_no_cleavage_sites"
+  )
+  expect_identical(poor_result$S_count, 0)
+  expect_identical(poor_result$S_coverage, 0)
+  expect_identical(poor_result$composite_score, 0)
+  expect_identical(poor_result$verdict, "Poor")
+
+  expect_warning(
+    current_result <- score_peptides(full_length_peptide, enzyme = "trypsin"),
+    class = "pepvet_warning_no_cleavage_sites"
+  )
+  expected_components <- c(
+    S_length = 1,
+    S_coverage = 1,
+    S_count = 0,
+    S_hydro = 0,
+    S_charge = 0
+  )
+  expected_composite <- sum(
+    expected_components * expected_protein_only_weights[names(expected_components)]
+  )
+  actual_components <- unlist(
+    current_result[names(expected_components)],
+    use.names = FALSE
+  )
+
+  expect_equal(
+    unname(actual_components),
+    unname(expected_components),
+    tolerance = 1e-12
+  )
+  expect_equal(
+    current_result$composite_score,
+    expected_composite,
+    tolerance = 1e-12
+  )
+  expect_identical(current_result$verdict, "Moderate")
+})
+
+test_that("digest validation rejects malformed tables with classed errors", {
+  valid_digest <- make_digest_result(
+    c("AAAAAAA", "CCCCCCC"),
+    starts = c(1L, 8L)
+  )
+
+  with_extra_column <- valid_digest
+  with_extra_column$extra <- TRUE
+  normalized <- pepVet:::.validate_digest_result(with_extra_column)
+
+  expect_s3_class(normalized, "tbl_df")
+  expect_identical(names(normalized), pepVet:::.required_digest_columns)
+  expect_type(normalized$start, "integer")
+  expect_type(normalized$end, "integer")
+  expect_type(normalized$length, "integer")
+  expect_type(normalized$missed_cleavages, "integer")
+
+  empty_digest <- tibble::tibble(
+    protein_id = character(),
+    peptide = character(),
+    start = integer(),
+    end = integer(),
+    length = integer(),
+    missed_cleavages = integer()
+  )
+  wrong_protein_type <- valid_digest
+  wrong_protein_type$protein_id <- seq_len(nrow(valid_digest))
+  wrong_peptide_type <- valid_digest
+  wrong_peptide_type$peptide <- seq_len(nrow(valid_digest))
+  wrong_coordinate_type <- valid_digest
+  wrong_coordinate_type$start <- as.character(valid_digest$start)
+  missing_value <- valid_digest
+  missing_value$peptide[[1L]] <- NA_character_
+  infinite_coordinate <- valid_digest
+  infinite_coordinate$end[[1L]] <- Inf
+  oversized_coordinate <- valid_digest
+  oversized_coordinate$end[[1L]] <- .Machine$integer.max + 1
+  fractional_coordinate <- valid_digest
+  fractional_coordinate$start[[1L]] <- 1.5
+  fractional_length <- valid_digest
+  fractional_length$length[[1L]] <- 7.5
+  fractional_missed <- valid_digest
+  fractional_missed$missed_cleavages[[1L]] <- 0.5
+  invalid_start <- valid_digest
+  invalid_start$start[[1L]] <- 0L
+  invalid_order <- valid_digest
+  invalid_order$end[[1L]] <- invalid_order$start[[1L]] - 1L
+  inconsistent_length <- valid_digest
+  inconsistent_length$length[[1L]] <- inconsistent_length$length[[1L]] + 1L
+  negative_missed <- valid_digest
+  negative_missed$missed_cleavages[[1L]] <- -1L
+
+  invalid_cases <- list(
+    wrong_object_type = 42,
+    empty = empty_digest,
+    wrong_protein_type = wrong_protein_type,
+    wrong_peptide_type = wrong_peptide_type,
+    wrong_coordinate_type = wrong_coordinate_type,
+    missing_value = missing_value,
+    infinite_coordinate = infinite_coordinate,
+    oversized_coordinate = oversized_coordinate,
+    fractional_coordinate = fractional_coordinate,
+    fractional_length = fractional_length,
+    fractional_missed = fractional_missed,
+    invalid_start = invalid_start,
+    invalid_order = invalid_order,
+    inconsistent_length = inconsistent_length,
+    negative_missed = negative_missed
+  )
+
+  for (case_name in names(invalid_cases)) {
+    expect_error(
+      pepVet:::.validate_digest_result(invalid_cases[[case_name]]),
+      class = "pepvet_error_invalid_digest",
+      info = case_name
+    )
+  }
+})
+
 test_that("score_peptides rejects invalid digest and proteome inputs", {
   valid_digest <- make_digest_result("AAAAAAAAAAAK")
+  empty_digest <- tibble::tibble(
+    protein_id = character(),
+    peptide = character(),
+    start = integer(),
+    end = integer(),
+    length = integer(),
+    missed_cleavages = integer()
+  )
 
   expect_error(
     score_peptides(tibble::tibble(foo = 1)),
     class = "pepvet_error_invalid_digest"
   )
   expect_error(
+    score_peptides(42),
+    class = "pepvet_error_invalid_digest"
+  )
+  expect_error(
+    score_peptides(empty_digest),
+    class = "pepvet_error_invalid_digest"
+  )
+  expect_error(
     score_peptides(valid_digest, proteome = tibble::tibble(foo = 1)),
     class = "pepvet_error_invalid_digest"
+  )
+  expect_error(
+    score_peptides(valid_digest, enzyme = NULL),
+    class = "pepvet_error_invalid_enzyme"
+  )
+  expect_error(
+    score_peptides(valid_digest, weights = rep(0.2, 4L)),
+    class = "pepvet_error_invalid_weights"
   )
 })
 
@@ -552,6 +760,27 @@ test_that("component scores stay bounded on the reference grid", {
       )
     }
   }
+})
+
+test_that("score_peptides returns one stable row per input protein", {
+  digest_result <- make_digest_result(
+    c(
+      strrep("A", 7L), strrep("A", 7L),
+      strrep("C", 7L), strrep("C", 7L)
+    ),
+    starts = c(1L, 8L, 1L, 8L),
+    protein_id = c("first", "first", "second", "second")
+  )
+  result <- score_peptides(digest_result)
+
+  expect_identical(result$protein_id, c("first", "second"))
+  expect_identical(nrow(result), 2L)
+  expect_identical(result$median_peptide_length, c(12, 12))
+  expect_true(all(result$S_length == 1))
+  expect_true(all(result$S_coverage == 1))
+  expect_true(all(result$S_count == 1))
+  expect_true(all(result$composite_score >= 0))
+  expect_true(all(result$composite_score <= 1))
 })
 
 test_that("composite equals the weighted sum and is deterministic", {
@@ -629,6 +858,31 @@ test_that("length scoring handles valid, invalid, ratio, and boundaries", {
   )
 })
 
+test_that("valid peptide extraction preserves order, columns, and empty type", {
+  digest_result <- make_digest_result(
+    c("AAAAAAA", "A", strrep("A", 25L), strrep("A", 26L)),
+    starts = c(1L, 8L, 9L, 34L)
+  )
+
+  mask <- pepVet:::.valid_length_mask(digest_result)
+  extracted <- pepVet:::.extract_valid_digest(digest_result)
+  empty <- pepVet:::.extract_valid_digest(
+    digest_result,
+    length_range = c(100L, 101L)
+  )
+
+  expect_identical(mask, c(TRUE, FALSE, TRUE, FALSE))
+  expect_identical(
+    extracted$peptide,
+    c("AAAAAAA", strrep("A", 25L))
+  )
+  expect_identical(names(extracted), names(digest_result))
+  expect_identical(nrow(empty), 0L)
+  expect_identical(names(empty), names(digest_result))
+  expect_type(empty$peptide, "character")
+  expect_type(empty$start, "integer")
+})
+
 test_that("coverage scoring handles full, zero, partial, and overlap", {
   full_coverage <- make_digest_result(
     c(rep("AAAAAAAAAA", 10)),
@@ -649,6 +903,35 @@ test_that("coverage scoring handles full, zero, partial, and overlap", {
   expect_identical(pepVet:::.score_coverage(zero_coverage), 0)
   expect_equal(pepVet:::.score_coverage(partial_coverage), 0.6, tolerance = 1e-10)
   expect_identical(pepVet:::.score_coverage(overlapping), 1)
+})
+
+test_that("coverage scoring reduces unsorted and adjacent intervals independently", {
+  digest_result <- make_digest_result(
+    rep(strrep("A", 10L), 5L),
+    starts = c(21L, 1L, 11L, 6L, 31L)
+  )
+  interval_set <- IRanges::IRanges(
+    start = digest_result$start,
+    end = digest_result$end
+  )
+  reduced_intervals <- IRanges::reduce(interval_set)
+  expected_coverage <- sum(IRanges::width(reduced_intervals)) /
+    max(digest_result$end)
+
+  expect_equal(
+    pepVet:::.score_coverage(digest_result),
+    expected_coverage,
+    tolerance = 1e-12
+  )
+
+  adjacent <- make_digest_result(
+    c(strrep("A", 5L), strrep("A", 5L)),
+    starts = c(1L, 6L)
+  )
+  expect_identical(
+    pepVet:::.score_coverage(adjacent, length_range = c(1L, 25L)),
+    1
+  )
 })
 
 test_that("count scoring handles caps, ratios, and edge protein sizes", {
@@ -680,9 +963,11 @@ test_that("hydrophobicity scoring respects thresholds and zero-valid cases", {
   boundary_high <- make_digest_result("STVVWWW")
   zero_valid <- make_digest_result(c("AAA", "AAA"))
   missing_hydrophobicity <- make_digest_result("O")
+  mixed_hydrophobicity <- make_digest_result("AO")
 
   expect_equal(pepVet:::.calculate_gravy("SWWWWYY"), -1)
   expect_equal(pepVet:::.calculate_gravy("STVVWWW"), 0.6)
+  expect_equal(pepVet:::.calculate_gravy("AO"), 1.8, tolerance = 1e-12)
   expect_identical(pepVet:::.score_hydro(in_range), 1)
   expect_identical(pepVet:::.score_hydro(too_hydrophobic), 0)
   expect_identical(pepVet:::.score_hydro(too_hydrophilic), 0)
@@ -695,6 +980,14 @@ test_that("hydrophobicity scoring respects thresholds and zero-valid cases", {
       length_range = c(1L, 25L)
     ),
     0
+  )
+  expect_identical(
+    pepVet:::.score_hydro(
+      mixed_hydrophobicity,
+      gravy_range = c(-2, 2),
+      length_range = c(1L, 25L)
+    ),
+    1
   )
 
   public_result <- score_peptides(
@@ -713,6 +1006,7 @@ test_that("charge scoring checks internal basic residues only", {
   non_tryptic_fail <- make_digest_result("AAAAAAAAAAE")
   zero_valid <- make_digest_result(c("AAA", "AAA"))
   all_basic <- make_digest_result(c("AAHAAAAAAK", "AARAAAAAAK"))
+  single_basic <- make_digest_result(c("K", "R", "H"))
 
   expect_identical(pepVet:::.score_charge(internal_basic), 1)
   expect_identical(pepVet:::.score_charge(no_internal_basic), 0)
@@ -720,6 +1014,10 @@ test_that("charge scoring checks internal basic residues only", {
   expect_identical(pepVet:::.score_charge(non_tryptic_fail), 0)
   expect_identical(pepVet:::.score_charge(zero_valid), 0)
   expect_identical(pepVet:::.score_charge(all_basic), 1)
+  expect_identical(
+    pepVet:::.score_charge(single_basic, length_range = c(1L, 1L)),
+    0
+  )
 })
 
 test_that("uniqueness scoring handles shared and unique peptides", {
@@ -746,7 +1044,47 @@ test_that("uniqueness scoring handles shared and unique peptides", {
   expect_identical(pepVet:::.score_unique(target, mixed_index), 0.5)
   expect_identical(pepVet:::.score_unique(target, target_index), 1)
   expect_identical(pepVet:::.score_unique(target, shared_index), 0)
+  expect_identical(
+    pepVet:::.score_unique(
+      make_digest_result(c("AAA", "CCC")),
+      target_index
+    ),
+    0
+  )
   expect_false("S_unique" %in% names(score_peptides(target)))
+
+  unrelated <- make_digest_result(
+    "CCCCCCCCK",
+    protein_id = "unrelated"
+  )
+  expect_identical(
+    score_peptides(
+      target,
+      proteome = unrelated,
+      length_range = c(1L, 25L)
+    )$S_unique,
+    1
+  )
+
+  repeated <- make_digest_result(
+    c("AAAAAAAAR", "AAAAAAAAR"),
+    starts = c(1L, 10L),
+    protein_id = "target"
+  )
+  expect_identical(
+    pepVet:::.score_unique(
+      repeated,
+      pepVet:::.build_proteome_index(repeated)
+    ),
+    1
+  )
+  expect_error(
+    pepVet:::.score_unique(
+      combine_digest_results(target, other),
+      mixed_index
+    ),
+    class = "pepvet_error_invalid_digest"
+  )
 })
 
 test_that("verdict classification respects both decision boundaries", {
@@ -756,6 +1094,52 @@ test_that("verdict classification respects both decision boundaries", {
     pepVet:::.classify_verdict(c(vg, vg - 1e-4, vm, vm - 1e-4, 0, 1)),
     c("Good", "Moderate", "Moderate", "Poor", "Poor", "Good")
   )
+  expect_identical(
+    pepVet:::.classify_verdict(c(-Inf, Inf, NA_real_)),
+    c("Poor", "Good", NA_character_)
+  )
+})
+
+test_that("random valid score inputs preserve component and composite bounds", {
+  withr::local_seed(20260711)
+  amino_acids <- strsplit("ACDEFGHIKLMNPQRSTVWY", "", fixed = TRUE)[[1L]]
+  component_names <- names(expected_protein_only_weights)
+
+  for (iteration in seq_len(40L)) {
+    n_peptides <- sample(3L:12L, 1L)
+    peptide_lengths <- sample(3L:30L, n_peptides, replace = TRUE)
+    peptides <- vapply(
+      peptide_lengths,
+      function(peptide_length) {
+        paste(sample(amino_acids, peptide_length, replace = TRUE),
+          collapse = ""
+        )
+      },
+      character(1)
+    )
+    starts <- c(1L, head(cumsum(peptide_lengths) + 1L, -1L))
+    digest_result <- make_digest_result(peptides, starts = starts)
+    weights <- stats::runif(length(component_names))
+    weights <- weights / sum(weights)
+    names(weights) <- component_names
+    result <- score_peptides(digest_result, weights = weights)
+    components <- unname(unlist(result[component_names], use.names = FALSE))
+
+    expect_true(all(components >= 0 & components <= 1),
+      info = paste("component bounds", iteration)
+    )
+    expect_true(
+      result$composite_score >= min(components) &&
+        result$composite_score <= max(components),
+      info = paste("convex composite", iteration)
+    )
+    expect_equal(
+      result$composite_score,
+      sum(components * weights),
+      tolerance = 1e-12,
+      info = paste("weighted sum", iteration)
+    )
+  }
 })
 
 test_that("score_peptides reproduces boundary verdicts via weight isolation", {

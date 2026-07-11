@@ -81,6 +81,38 @@
     )
   }
 
+  if (!all(vapply(
+    digest_result[numeric_columns],
+    function(values) {
+      all(
+        is.finite(values) &
+          values >= -.Machine$integer.max &
+          values <= .Machine$integer.max
+      )
+    },
+    logical(1)
+  ))) {
+    .abort(
+      paste0(
+        "{.arg {arg_name}} must store finite coordinate and count values."
+      ),
+      class = "pepvet_error_invalid_digest"
+    )
+  }
+
+  if (!all(vapply(
+    digest_result[numeric_columns],
+    function(values) all(values == floor(values)),
+    logical(1)
+  ))) {
+    .abort(
+      paste0(
+        "{.arg {arg_name}} must store integer coordinate and count values."
+      ),
+      class = "pepvet_error_invalid_digest"
+    )
+  }
+
   peptide_lengths <- nchar(digest_result$peptide, type = "chars")
   row_lengths <- as.integer(digest_result$length)
   row_starts <- as.integer(digest_result$start)

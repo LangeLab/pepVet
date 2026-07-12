@@ -1,25 +1,34 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
-# pepVet 0.1.7 (unreleased)
+# pepVet 0.1.8 (unreleased)
 
-## New documentation
+## Testing and reliability
 
-* Added *PeptideAtlas Concordance* article validating pepVet scoring parameters against the human PeptideAtlas build (5.3M observed peptides). Covers enrichment measurement with bootstrap CI, signal decomposition by filter, grid search over length/GRAVY boundaries, and threshold calibration.
-* Added empirical validation summary to the scoring-model article, cross-referencing the Score Diagnostics and PeptideAtlas Concordance articles.
-* Updated workflow, plotting, and tool-comparison documentation to reflect current thresholds, preset ranges, and cleavage-efficiency output.
+* Reworked the test suite around public contracts, scientific invariants, classed conditions, metadata, and plot semantics. The suite now contains 400 source-aligned test blocks.
+* Hardened validation across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Malformed inputs now fail through package conditions before reaching base R errors.
+* Preserved resolved scoring metadata through single-protein, comparison, batch, sensitivity, and plotting workflows.
+* Added fast contract tests for shipped FASTA, tool-comparison, and PeptideAtlas artifacts. Data-generation workflows now run as separate offline audits and fail clearly when required inputs are missing.
 
-## Improvements
+# pepVet 0.1.7
 
-* Unified GRAVY calculations across scoring, export, plotting, and comparison workflows for consistent results.
-* Made plot configuration changes propagate consistently to diagnostics, batch plots, distributions, and sensitivity plots.
+## Empirical validation
 
-## Bug fixes
+* Added the reproducible PeptideAtlas concordance analysis and article. On the sampled human proteins, pepVet-valid peptides showed 38.0 percentage points higher observation rates than invalid peptides. (Not quite the best emp.validation will need re-work)
+* Added grid-search and threshold-calibration results, documented the limits of the analysis, and retained the current defaults as conservative settings.
+* Corrected the concordance artifacts to store full protein lengths and regenerated the committed CSV and RDS files.
 
-* Corrected the PeptideAtlas per-protein artifact to record full protein lengths rather than the length of each protein's first peptide, then regenerated the checked-in concordance tables.
-* Fixed `recommend_enzyme()` tie handling so all enzymes within the documented tolerance are returned in alphabetical order.
-* Corrected charge scoring for single-residue peptides so they do not receive an internal basic-residue contribution.
-* Strengthened input validation for batch cores, sensitivity-analysis parameters, custom diagnostic weights, and plot configuration. Invalid values now produce clear errors without partially changing active plot settings.
-* Fixed repeated package initialization so plot configuration remains stable when the package is loaded more than once.
+## Package quality
+
+* Standardized docstrings, limitations, error handling, plot conventions, package-qualified calls, comments, and line formatting across the source.
+* Unified GRAVY calculation under one vectorized helper and removed stale helper references from package and data-generation code.
+* Removed inactive GitHub workflow files and generated vignette data from version control so the repository matches the current release process.
+
+## Fixes
+
+* Fixed edge cases in row binding, cleavage-efficiency summaries, GRAVY missing-value handling, and sensitivity plot validation.
+* Fixed `recommend_enzyme()` tie handling so all enzymes within tolerance are returned in alphabetical order.
+* Corrected charge scoring for single-residue peptides so terminal basic residues are not counted as internal charge sites.
+* Fixed plot configuration updates so invalid changes leave the active configuration unchanged.
 
 # pepVet 0.1.6
 

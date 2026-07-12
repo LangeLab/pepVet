@@ -733,7 +733,7 @@ test_that(".validate_batch_result checks schema types and values", {
   duplicate_id$protein_id <- c("same", "same")
   hard_fail <- valid
   hard_fail$S_count[[1L]] <- 0
-  hard_fail$S_coverage[[1L]] <- 0
+  hard_fail$S_coverage[[1L]] <- 1
   hard_fail$composite_score[[1L]] <- 0.5
   hard_fail$verdict[[1L]] <- "Moderate"
   empty <- valid[0, , drop = FALSE]
@@ -1201,7 +1201,7 @@ test_that("sensitivity_analysis preserves custom reference weights and score", {
 })
 
 test_that("sensitivity_analysis applies the zero-cleavage hard-fail rule", {
-  no_cleave <- "MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  no_cleave <- strrep("A", 20L)
   expect_warning(
     result <- evaluate_digest(no_cleave, missed_cleavages = 1L),
     class = "pepvet_warning_no_cleavage_sites"
@@ -1383,7 +1383,7 @@ test_that("sensitivity_analysis rejects malformed score inputs", {
   )
   hard_fail <- .fix_batch_bsa
   hard_fail$S_count[[1L]] <- 0
-  hard_fail$S_coverage[[1L]] <- 0
+  hard_fail$S_coverage[[1L]] <- 1
   hard_fail$composite_score[[1L]] <- 0.5
   hard_fail$verdict[[1L]] <- "Moderate"
   expect_error(

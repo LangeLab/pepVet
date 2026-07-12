@@ -174,8 +174,3 @@ reference:
   - title: "Package"
     contents:
       - pepVet-package
-
-news:
-  releases:
-    - text: "pepVet 0.1.0"
-      href: news/index.html

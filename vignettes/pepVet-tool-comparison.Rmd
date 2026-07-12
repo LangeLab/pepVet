@@ -54,10 +54,11 @@ verdict_fill <- c(
 ```
 
 You are choosing an enzyme for a bottom-up proteomics experiment. Six tools
-can simulate the digest. They all produce the same peptide list from the
-same cleavage rules. The question is what each tool adds beyond the peptide
-list: scoring, filtering, ranking, structural context, and programmatic
-access.
+can simulate or evaluate the digest. Shared cleavage rules produce broadly
+consistent results, but service defaults and filters change the reported
+peptide lists. The comparison therefore covers both those baseline differences
+and what each tool adds: scoring, filtering, ranking, structural context, and
+programmatic access.
 
 This vignette is the companion to the [getting-started guide](pepVet-introduction.html). It compares pepVet
 against five other tools on a panel of 5 proteins and 5 enzymes.
@@ -101,8 +102,9 @@ ggplot2::ggplot(overlap, ggplot2::aes(x = Tool)) +
 116 peptides are common to all three. pepVet returns the most because it
 applies no default mass or length filter. MS-Digest and ExPASy filter
 short and hydrophobic fragments by default. Mass correlation between
-MS-Digest and ExPASy is 0.999983, confirming consistent residue-mass
-physics across all three tools.
+MS-Digest and ExPASy is 0.999983. PepVet and MS-Digest correlate at
+0.999821, while pepVet and ExPASy correlate at 1.000000 on their common
+peptides.
 
 ## How tools differ
 
@@ -244,7 +246,7 @@ overlap. Enrichment is the difference in mean PR score between
 pepVet-valid and pepVet-invalid peptides. Positive enrichment means
 pepVet's filter selects higher-detectability peptides.
 
-```{r pr-fig, eval=has_ggplot2, fig.width=9, fig.height=6, fig.cap="PeptideRanger enrichment: mean PR(valid) minus mean PR(invalid). Positive values (green) mean pepVet selects higher-detectability peptides. 18 of 25 combinations show positive enrichment.", fig.alt="Horizontal bar chart of enrichment values for 25 protein-enzyme combinations, colored by sign."}
+```{r pr-fig, eval=has_ggplot2, fig.width=9, fig.height=6, fig.cap="PeptideRanger enrichment: mean PR(valid) minus mean PR(invalid). Positive values (green) mean pepVet selects higher-detectability peptides. Enrichment is positive in 17 of 24 computable combinations; one combination has no valid peptides.", fig.alt="Horizontal bar chart of enrichment values for 24 computable protein-enzyme combinations, colored by sign."}
 pr_plot <- pr_data[!is.na(pr_data$enrichment), ]
 pr_plot$sign <- ifelse(
   pr_plot$enrichment >= 0, "positive", "negative"
@@ -286,9 +288,11 @@ ggplot2::ggplot(
   )
 ```
 
-Enrichment is positive in 18 of 25 combinations. Largest effects: BACE1
-asp-n (+0.24, membrane domains excluded by GRAVY), Ubiquitin Glu-C (+0.24,
-extreme fragments excluded), H3 trypsin (+0.21, short fragments removed).
+Enrichment is positive in 17 of 24 computable combinations. The Lysozyme
+Glu-C comparison has no valid peptides, so enrichment is undefined. Largest
+effects: BACE1 asp-n (+0.24, membrane domains excluded by GRAVY), Ubiquitin
+Glu-C (+0.24, extreme fragments excluded), H3 trypsin (+0.21, short fragments
+removed).
 Negative enrichment occurs in combos with few valid peptides (n < 7) where
 the mean is unstable.
 

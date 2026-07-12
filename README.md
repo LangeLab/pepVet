@@ -92,6 +92,8 @@ See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/
 - `summarize_batch()` computes proteome-level verdict distribution, composite score statistics, per-component means, and heuristic enzyme-switch candidates.
 - `triage_proteins()` appends an action column (proceed, consider_alternative, try_other_enzyme, skip) to the batch tibble.
 
+Valid-count and hydrophobicity flags follow the active scoring ranges. Short-protein and low-complexity flags remain sequence-level heuristics.
+
 **Reporting and export**
 
 - `digest_report()` renders a colour-coded console summary for single-protein or multi-enzyme results.
@@ -118,6 +120,8 @@ Six components, one weighted composite, one advisory verdict.
 Default weights (AHP-derived, consistency ratio 0.028): `S_length` 0.200, `S_coverage` 0.348, `S_count` 0.226, `S_hydro` 0.138, `S_charge` 0.088.
 
 Verdict thresholds: Good >= 0.65, Moderate >= 0.40, Poor < 0.40. These are heuristic ranking labels, not calibrated probabilities.
+
+A zero `S_count` is a failed digest. pepVet sets the composite score to zero and the verdict to Poor when an enzyme produces no cleavage sites or no usable peptides, regardless of the other component values.
 
 ## Workflow presets
 

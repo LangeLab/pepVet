@@ -236,7 +236,8 @@
     cli::cli_warn(
       paste0(
         "Protein {.val {protein_digest$protein_id[[1]]}} has no cleavage ",
-        "sites for {.val {enzyme}}. S_count set to 0."
+        "sites for {.val {enzyme}}. S_count and composite score set to 0; ",
+        "verdict set to Poor."
       ),
       class = "pepvet_warning_no_cleavage_sites"
     )
@@ -433,7 +434,11 @@
 #'   computed when a proteome digest is supplied. `S_charge` measures the
 #'   fraction of valid peptides that contain at least one non-terminal basic
 #'   residue to capture extra charge-state richness rather than baseline
-#'   ionizability.
+#'   ionizability. A zero `S_count` means that the enzyme produced no cleavage
+#'   sites or no usable peptides. In that case pepVet applies a hard failure:
+#'   `composite_score` is set to zero and the verdict is `Poor`, regardless of
+#'   the other component values. This is the documented exception to the
+#'   weighted-sum equation.
 #'   Composite verdicts are classified as `Good` for scores >= 0.65,
 #'   `Moderate` for scores >= 0.4, and `Poor` otherwise.
 #'
@@ -529,11 +534,10 @@ score_peptides <- function(digest_result,
       weighted_components <- component_scores[names(normalized_weights)]
       composite_score <- sum(weighted_components * normalized_weights)
 
-      ## Zero-cleavage hard-fail: S_count == 0 and S_coverage == 0 means
-      ## the protein was not digested by this enzyme.  Override composite
-      ## and verdict so an undigestible protein is always "Poor".
-      if (component_scores[["S_count"]] == 0 &&
-            component_scores[["S_coverage"]] == 0) {
+      ## A zero count marks a failed digest: either the enzyme produced no
+      ## cleavage sites or none of its products were usable. This is the
+      ## documented exception to the weighted-sum equation.
+      if (component_scores[["S_count"]] == 0) {
         composite_score <- 0
       }
 

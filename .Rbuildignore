@@ -42,3 +42,4 @@
 ^tmp/
 ^paper$
 ^paper/
+^man/figures/generate-readme-plots\.R$

@@ -313,7 +313,7 @@ nrow(batch)
 batch[, c("protein_id", "composite_score", "verdict")]
 ```
 
-Each protein is evaluated independently. The returned tibble slots directly into `summarize_batch()` and `triage_proteins()`.
+Each protein is evaluated independently. Valid-peptide counts and hydrophobicity flags follow the active `length_range` and `gravy_range`. Short-protein and low-complexity flags remain fixed sequence-level heuristics. The returned tibble slots directly into `summarize_batch()` and `triage_proteins()`.
 
 For proteome-aware uniqueness scoring, supply a background proteome digest:
 

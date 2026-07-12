@@ -326,7 +326,7 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
 ## Based on source code analysis (gkoulouras/ProteinCleaver).
 ## ======================================================================
 cat("\nSection E: Protein Cleaver source analysis\n\n")
-cat("Source: https://github.com/gkoulouras/ProteinCleaver (commit main, June 2026)\n")
+cat("Source: https://github.com/gkoulouras/ProteinCleaver (revision not recorded)\n")
 cat("Engine: cleaver::cleave() + cleaver::cleavageRanges()\n")
 cat("Identifiable = length in window AND mass in window (binary flag)\n")
 cat("No GRAVY, no graded score, no verdict, no presets\n")

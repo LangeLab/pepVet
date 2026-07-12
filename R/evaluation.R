@@ -690,10 +690,10 @@ batch_evaluate <- function(sequences,
     )
   }
 
-  hard_fail <- batch_result$S_count == 0 & batch_result$S_coverage == 0
+  hard_fail <- batch_result$S_count == 0
   if (any(hard_fail & batch_result$composite_score != 0)) {
     .abort(
-      "{.arg batch_result} violates the zero-cleavage hard-fail rule.",
+      "{.arg batch_result} violates the zero-count hard-fail rule.",
       class = "pepvet_error_invalid_batch_result"
     )
   }
@@ -1329,10 +1329,10 @@ triage_proteins <- function(batch_result) {
     )
   }
 
-  hard_fail <- score_table$S_count == 0 & score_table$S_coverage == 0
+  hard_fail <- score_table$S_count == 0
   if (any(hard_fail & score_table$composite_score != 0)) {
     .abort(
-      "{.arg x} violates the zero-cleavage hard-fail rule.",
+      "{.arg x} violates the zero-count hard-fail rule.",
       class = "pepvet_error_invalid_input"
     )
   }
@@ -1496,8 +1496,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   colnames(W) <- comp_names
 
   composites <- drop(W %*% s_vec)
-  hard_fail <- scores$S_count[[1L]] == 0 &&
-    scores$S_coverage[[1L]] == 0
+  hard_fail <- scores$S_count[[1L]] == 0
   if (hard_fail) {
     composites[] <- 0
   }
@@ -1676,7 +1675,7 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
 
   S <- as.matrix(batch_tbl[, comp_names, drop = FALSE])
   n_prot <- nrow(S)
-  hard_fail <- batch_tbl$S_count == 0 & batch_tbl$S_coverage == 0
+  hard_fail <- batch_tbl$S_count == 0
 
   alpha <- nu * w0
   W <- .rdirichlet(as.integer(n_iter), alpha)

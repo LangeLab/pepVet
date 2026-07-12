@@ -564,7 +564,7 @@ test_that("score_peptides warns and zeros S_count for no-cleavage digests", {
   expect_identical(result$median_peptide_length, 12)
 })
 
-test_that("zero-cleavage scoring keeps its two current component partitions", {
+test_that("zero-cleavage scoring hard-fails across component partitions", {
   no_valid_peptide <- digest_protein("A", enzyme = "trypsin")
   full_length_peptide <- digest_protein(
     strrep("A", 20L),
@@ -575,13 +575,22 @@ test_that("zero-cleavage scoring keeps its two current component partitions", {
     poor_result <- score_peptides(no_valid_peptide, enzyme = "trypsin"),
     class = "pepvet_warning_no_cleavage_sites"
   )
-  expect_identical(poor_result$S_count, 0)
-  expect_identical(poor_result$S_coverage, 0)
+  poor_components <- c(
+    S_length = 0,
+    S_coverage = 0,
+    S_count = 0,
+    S_hydro = 0,
+    S_charge = 0
+  )
+  expect_equal(
+    unlist(poor_result[names(poor_components)], use.names = FALSE),
+    unname(poor_components)
+  )
   expect_identical(poor_result$composite_score, 0)
   expect_identical(poor_result$verdict, "Poor")
 
   expect_warning(
-    current_result <- score_peptides(full_length_peptide, enzyme = "trypsin"),
+    full_result <- score_peptides(full_length_peptide, enzyme = "trypsin"),
     class = "pepvet_warning_no_cleavage_sites"
   )
   expected_components <- c(
@@ -591,11 +600,11 @@ test_that("zero-cleavage scoring keeps its two current component partitions", {
     S_hydro = 0,
     S_charge = 0
   )
-  expected_composite <- sum(
+  weighted_sum <- sum(
     expected_components * expected_protein_only_weights[names(expected_components)]
   )
   actual_components <- unlist(
-    current_result[names(expected_components)],
+    full_result[names(expected_components)],
     use.names = FALSE
   )
 
@@ -604,12 +613,9 @@ test_that("zero-cleavage scoring keeps its two current component partitions", {
     unname(expected_components),
     tolerance = 1e-12
   )
-  expect_equal(
-    current_result$composite_score,
-    expected_composite,
-    tolerance = 1e-12
-  )
-  expect_identical(current_result$verdict, "Moderate")
+  expect_gt(weighted_sum, 0)
+  expect_identical(full_result$composite_score, 0)
+  expect_identical(full_result$verdict, "Poor")
 })
 
 test_that("digest validation rejects malformed tables with classed errors", {

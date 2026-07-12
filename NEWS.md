@@ -5,7 +5,7 @@
 ## Testing and reliability
 
 * Reworked the test suite around public contracts, scientific invariants, classed conditions, metadata, and plot semantics. The suite now contains 400 source-aligned test blocks.
-* Hardened validation across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Malformed inputs now fail through package conditions before reaching base R errors.
+* Hardened validation across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Malformed inputs now fail through package conditions before reaching base R errors, and zero-count digests consistently receive a zero composite and Poor verdict.
 * Preserved resolved scoring metadata through single-protein, comparison, batch, sensitivity, and plotting workflows.
 * Added fast contract tests for shipped FASTA, tool-comparison, and PeptideAtlas artifacts. Data-generation workflows now run as separate offline audits and fail clearly when required inputs are missing.
 

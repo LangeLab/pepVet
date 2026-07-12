@@ -100,7 +100,7 @@ ev_bsa <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
 ev_bsa$scores[, c("S_count", "median_peptide_length", "composite_score")]
 ```
 
-When there are no cleavage sites for the selected enzyme, pepVet warns and sets `S_count` to `0`.
+When there are no cleavage sites for the selected enzyme, pepVet warns and sets `S_count` to `0`. A zero `S_count` is a failed digest, so pepVet also sets the composite score to `0` and the verdict to `Poor`. This hard failure applies even when the uncut full-length peptide falls inside the active length window and gives full sequence coverage. It is the documented exception to the weighted-sum equation.
 
 ### S_hydro
 

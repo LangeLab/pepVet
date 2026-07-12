@@ -80,7 +80,11 @@ values, and sequences with no known values score zero. \code{S_unique} is only
 computed when a proteome digest is supplied. \code{S_charge} measures the
 fraction of valid peptides that contain at least one non-terminal basic
 residue to capture extra charge-state richness rather than baseline
-ionizability.
+ionizability. A zero \code{S_count} means that the enzyme produced no cleavage
+sites or no usable peptides. In that case pepVet applies a hard failure:
+\code{composite_score} is set to zero and the verdict is \code{Poor}, regardless of
+the other component values. This is the documented exception to the
+weighted-sum equation.
 Composite verdicts are classified as \code{Good} for scores >= 0.65,
 \code{Moderate} for scores >= 0.4, and \code{Poor} otherwise.
 }

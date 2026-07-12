@@ -199,7 +199,6 @@ NULL
   out
 }
 
-
 ## Shared classification helpers
 
 #' Classify peptide lengths into validity categories
@@ -302,10 +301,10 @@ NULL
 #' @param result Object to validate.
 #' @return `NULL`, invisibly. Raises an error on invalid input.
 #' @noRd
-.validate_digest_result_for_plot <- function(result) {
+.validate_digest_result_for_plot <- function(result, single_protein = TRUE) {
   if (
     !is.list(result) ||
-      !all(c("scores", "peptides", "params") %in% names(result))
+    !all(c("scores", "peptides", "params") %in% names(result))
   ) {
     .abort(
       c(
@@ -321,6 +320,91 @@ NULL
       class = "pepvet_error_invalid_digest_result"
     )
   }
+
+  if (!is.data.frame(result$scores) || nrow(result$scores) < 1L) {
+    .abort(
+      "{.code result$scores} must be a non-empty score tibble from {.fn evaluate_digest}.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  score_cols <- c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+    "composite_score"
+  )
+  if ("S_unique" %in% names(result$scores)) {
+    score_cols <- c(score_cols, "S_unique")
+  }
+  if (!all(score_cols %in% names(result$scores)) ||
+      !all(vapply(result$scores[score_cols], is.numeric, logical(1L))) ||
+      any(vapply(
+        result$scores[score_cols],
+        function(values) {
+          anyNA(values) || any(!is.finite(values)) ||
+            any(values < 0 | values > 1)
+        },
+        logical(1L)
+      ))) {
+    .abort(
+      "{.code result$scores} contains missing, non-finite, or out-of-range score columns.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (!"protein_id" %in% names(result$scores) ||
+      !(is.character(result$scores$protein_id) ||
+        is.factor(result$scores$protein_id)) ||
+      anyNA(result$scores$protein_id) ||
+      any(!nzchar(trimws(as.character(result$scores$protein_id)))) ||
+      !"verdict" %in% names(result$scores) ||
+      !(is.character(result$scores$verdict) ||
+        is.factor(result$scores$verdict)) ||
+      anyNA(result$scores$verdict) ||
+      any(!as.character(result$scores$verdict) %in%
+        c("Good", "Moderate", "Poor"))) {
+    .abort(
+      "{.code result$scores$verdict} must contain Good, Moderate, or Poor values.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (!is.list(result$params) ||
+      !all(c("enzyme", "protein_ids") %in% names(result$params)) ||
+      !is.character(result$params$enzyme) ||
+      length(result$params$enzyme) != 1L ||
+      is.na(result$params$enzyme) ||
+      !nzchar(trimws(result$params$enzyme)) ||
+      !is.character(result$params$protein_ids) ||
+      length(result$params$protein_ids) < 1L ||
+      anyNA(result$params$protein_ids) ||
+      any(!nzchar(trimws(result$params$protein_ids)))) {
+    .abort(
+      "{.code result$params} must contain one valid enzyme and protein identifier set.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if ("length_range" %in% names(result$params)) {
+    .validate_length_range(result$params$length_range)
+  }
+  if ("gravy_range" %in% names(result$params)) {
+    .validate_gravy_range(result$params$gravy_range)
+  }
+  if ("missed_cleavages" %in% names(result$params) &&
+      (!is.numeric(result$params$missed_cleavages) ||
+        length(result$params$missed_cleavages) != 1L ||
+        is.na(result$params$missed_cleavages) ||
+        !is.finite(result$params$missed_cleavages) ||
+        result$params$missed_cleavages < 0 ||
+        result$params$missed_cleavages > .Machine$integer.max ||
+        result$params$missed_cleavages !=
+          floor(result$params$missed_cleavages))) {
+    .abort(
+      "{.code result$params$missed_cleavages} must be a non-negative integer.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
   peps <- result$peptides
   required_cols <- c("protein_id", "peptide", "start", "end", "length")
   if (
@@ -341,8 +425,70 @@ NULL
       class = "pepvet_error_invalid_digest_result"
     )
   }
+
+  if (nrow(peps) == 0L) {
+    .abort(
+      "No peptides found in {.arg result}. The digest produced zero peptides.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (!is.character(peps$protein_id) || anyNA(peps$protein_id) ||
+      any(!nzchar(trimws(peps$protein_id))) ||
+      !is.character(peps$peptide) || anyNA(peps$peptide) ||
+      any(!nzchar(peps$peptide)) ||
+      !all(vapply(
+        peps[c("start", "end", "length")],
+        function(values) {
+          is.numeric(values) && all(is.finite(values)) &&
+            all(values == floor(values)) &&
+            all(values <= .Machine$integer.max)
+        },
+        logical(1L)
+      ))) {
+    .abort(
+      "{.code result$peptides} contains invalid identifier, sequence, or coordinate values.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  tryCatch(
+    .normalize_peptide_sequences(
+      peps$peptide, arg_name = "result$peptides$peptide"
+    ),
+    error = function(error) {
+      .abort(
+        "{.code result$peptides$peptide} must contain valid amino-acid sequences.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+  )
+
+  if (any(peps$start < 1L) || any(peps$end < peps$start) ||
+      any(peps$length < 1L) ||
+      any(peps$length != nchar(peps$peptide)) ||
+      any(peps$end - peps$start + 1L != peps$length)) {
+    .abort(
+      "{.code result$peptides} has inconsistent peptide coordinates and lengths.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if ("missed_cleavages" %in% names(peps) &&
+      (!is.numeric(peps$missed_cleavages) ||
+        anyNA(peps$missed_cleavages) ||
+        any(!is.finite(peps$missed_cleavages)) ||
+        any(peps$missed_cleavages < 0) ||
+        any(peps$missed_cleavages > .Machine$integer.max) ||
+        any(peps$missed_cleavages != floor(peps$missed_cleavages)))) {
+    .abort(
+      "{.code result$peptides$missed_cleavages} must contain non-negative integers.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
   n_proteins <- length(unique(peps$protein_id))
-  if (n_proteins > 1L) {
+  if (isTRUE(single_protein) && n_proteins > 1L) {
     .abort(
       c(
         "!" = paste0(
@@ -361,15 +507,25 @@ NULL
       class = "pepvet_error_multi_protein"
     )
   }
-  if (nrow(peps) == 0L) {
+
+  score_ids <- as.character(result$scores$protein_id)
+  peptide_ids <- unique(peps$protein_id)
+  parameter_ids <- result$params$protein_ids
+  if (anyDuplicated(score_ids) > 0L ||
+      anyDuplicated(parameter_ids) > 0L ||
+      !setequal(score_ids, peptide_ids) ||
+      !setequal(parameter_ids, peptide_ids)) {
     .abort(
-      "No peptides found in {.arg result}. The digest produced zero peptides.",
+      paste0(
+        "{.code result} score, parameter, and peptide protein identifiers ",
+        "must agree."
+      ),
       class = "pepvet_error_invalid_digest_result"
     )
   }
+
   invisible(NULL)
 }
-
 
 ## Panel builders (internal)
 
@@ -1315,6 +1471,24 @@ pepvet_plot_config <- function(palette = NULL, params = NULL, theme = NULL) {
         class = "pepvet_error_invalid_config"
       )
     }
+
+    rlang::check_installed("ggplot2", reason = "to validate plot themes")
+    unknown <- setdiff(names(theme), names(ggplot2::theme_get()))
+    if (length(unknown) > 0L) {
+      .abort(
+        "Unknown ggplot2 theme element {.field {unknown}}.",
+        class = "pepvet_error_invalid_config"
+      )
+    }
+    tryCatch(
+      do.call(ggplot2::theme, theme),
+      error = function(error) {
+        .abort(
+          "{.arg theme} contains invalid ggplot2 theme elements.",
+          class = "pepvet_error_invalid_config"
+        )
+      }
+    )
     new_theme <- theme
   }
 
@@ -1403,6 +1577,14 @@ pepvet_save_figure <- function(plot,
                                device = NULL,
                                ...) {
   rlang::check_installed("ggplot2", reason = "to save pepVet figures")
+
+  if (!inherits(plot, "ggplot") && !inherits(plot, "patchwork")) {
+    .abort(
+      "{.arg plot} must be a ggplot or patchwork object.",
+      class = "pepvet_error_invalid_plot"
+    )
+  }
+
   ## Auto-size: patchwork gets larger default canvas
   if (is.null(width) || is.null(height)) {
     is_patchwork <- inherits(plot, "patchwork")

@@ -67,8 +67,14 @@ plot_digest_profile <- function(result,
 
   .validate_digest_result_for_plot(result)
 
+  length_range <- .resolve_plot_metadata_range(
+    result, length_range, "length_range", c(7L, 25L)
+  )
+  gravy_range <- .resolve_plot_metadata_range(
+    result, gravy_range, "gravy_range", c(-1.0, 0.6)
+  )
   length_range <- .validate_length_range(length_range)
-  gravy_range  <- .validate_gravy_range(gravy_range)
+  gravy_range <- .validate_gravy_range(gravy_range)
 
   peps   <- result$peptides
   scores <- result$scores
@@ -209,47 +215,25 @@ plot_coverage_map <- function(result,
     reason = "to produce pepVet visualization plots"
   )
 
-  color_by <- match.arg(color_by)
+  if (!is.character(color_by) || length(color_by) < 1L ||
+      anyNA(color_by) ||
+      any(!color_by %in% c("validity", "length_class", "hydrophobicity"))) {
+    .abort(
+      paste0(
+        "{.arg color_by} must be one of {.val validity}, ",
+        "{.val length_class}, or {.val hydrophobicity}."
+      ),
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  color_by <- color_by[[1L]]
 
   .validate_digest_result_for_plot(result)
 
+  length_range <- .resolve_plot_metadata_range(
+    result, length_range, "length_range", c(7L, 25L)
+  )
   length_range <- .validate_length_range(length_range)
-
-  ## Input validation for optional args
-  if (!is.null(cleavage_sites)) {
-    if (
-      !is.data.frame(cleavage_sites) ||
-        !all(c("position", "efficiency") %in% names(cleavage_sites))
-    ) {
-      .abort(
-        c(
-          "!" = paste0(
-            "{.arg cleavage_sites} must be a data.frame ",
-            "from {.fn annotate_cleavage_sites}."
-          ),
-          "i" = "Required columns: {.code position}, {.code efficiency}."
-        ),
-        class = "pepvet_error_invalid_cleavage_sites"
-      )
-    }
-  }
-  if (!is.null(domains)) {
-    if (
-      !is.data.frame(domains) ||
-        !all(c("name", "start", "end") %in% names(domains))
-    ) {
-      .abort(
-        c(
-          "!" = paste0(
-            "{.arg domains} must be a data.frame with ",
-            "columns {.code name}, {.code start}, {.code end}."
-          ),
-          "i" = "Each row describes one annotated protein domain."
-        ),
-        class = "pepvet_error_invalid_domains"
-      )
-    }
-  }
 
   ## Extract data
   peps <- result$peptides
@@ -258,6 +242,9 @@ plot_coverage_map <- function(result,
   enzyme_name <- params$enzyme
   display_id <- .tidy_protein_id(protein_id)
   protein_length <- max(peps$end, na.rm = TRUE)
+
+  .validate_cleavage_sites_for_plot(cleavage_sites, protein_length)
+  .validate_domains_for_plot(domains, protein_length)
 
   ## GRAVY (computed once, used for coloring or silently ignored)
   peps$gravy <- .calculate_gravy(peps$peptide)
@@ -637,7 +624,7 @@ plot_coverage_map <- function(result,
       axis.text.y        = ggplot2::element_blank(),
       axis.ticks.y       = ggplot2::element_blank(),
       panel.grid.major.y = ggplot2::element_blank(),
-      legend.position    = "bottom"
+      legend.position    = .get_plot_theme_value("legend.position", "bottom")
     )
 }
 
@@ -702,13 +689,17 @@ plot_peptide_overlap_map <- function(result,
   normalized_length_range <- if (is.null(length_range)) {
     NULL
   } else {
-    .validate_length_range(length_range)
+    .validate_length_range(.resolve_plot_metadata_range(
+      result, length_range, "length_range", c(7L, 25L)
+    ))
   }
 
   if (
     !is.numeric(residues_per_line) ||
       length(residues_per_line) != 1L ||
-      is.na(residues_per_line)
+      is.na(residues_per_line) ||
+      !is.finite(residues_per_line) ||
+      residues_per_line > .Machine$integer.max
   ) {
     .abort(
       "{.arg residues_per_line} must be a single positive integer.",
@@ -727,6 +718,20 @@ plot_peptide_overlap_map <- function(result,
       "{.arg residues_per_line} must be a single positive integer.",
       class = "pepvet_error_invalid_input"
     )
+  }
+
+  if (!is.null(missed_cleavages) &&
+      (!is.numeric(missed_cleavages) || length(missed_cleavages) != 1L ||
+        is.na(missed_cleavages) || !is.finite(missed_cleavages) ||
+        missed_cleavages > .Machine$integer.max ||
+        missed_cleavages < 0 || missed_cleavages != floor(missed_cleavages))) {
+    .abort(
+      "{.arg missed_cleavages} must be NULL or a non-negative integer.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  if (!is.null(missed_cleavages)) {
+    missed_cleavages <- as.integer(missed_cleavages)
   }
 
   peps <- result$peptides
@@ -846,7 +851,7 @@ plot_peptide_overlap_map <- function(result,
         face = "bold",
         color = .pepvet_pal$brand_dark
       ),
-      legend.position = "bottom"
+      legend.position = .get_plot_theme_value("legend.position", "bottom")
     )
 }
 
@@ -900,7 +905,9 @@ plot_cleavage_map <- function(result,
 
   .validate_digest_result_for_plot(result)
 
-  length_range <- .validate_length_range(length_range)
+  length_range <- .validate_length_range(.resolve_plot_metadata_range(
+    result, length_range, "length_range", c(7L, 25L)
+  ))
 
   peps <- result$peptides
   params <- result$params
@@ -908,6 +915,8 @@ plot_cleavage_map <- function(result,
   enzyme_name <- params$enzyme
   display_id <- .tidy_protein_id(protein_id)
   protein_length <- max(peps$end, na.rm = TRUE)
+
+  .validate_cleavage_sites_for_plot(cleavage_sites, protein_length)
 
   length_lo <- length_range[[1L]]
   length_hi <- length_range[[2L]]
@@ -940,8 +949,8 @@ plot_cleavage_map <- function(result,
     site_positions <- unique(peps$end[peps$end < protein_length])
     site_df <- data.frame(
       position = sort(site_positions),
-      efficiency = "unknown",
-      site_color = .pepvet_pal$brand,
+      efficiency = rep("unknown", length(site_positions)),
+      site_color = rep(.pepvet_pal$brand, length(site_positions)),
       stringsAsFactors = FALSE
     )
     has_efficiency <- FALSE
@@ -1082,7 +1091,9 @@ plot_cleavage_map <- function(result,
       axis.text.y        = ggplot2::element_blank(),
       axis.ticks.y       = ggplot2::element_blank(),
       panel.grid.major.y = ggplot2::element_blank(),
-      legend.position    = if (has_efficiency) "bottom" else "none"
+      legend.position = .get_plot_theme_value(
+        "legend.position", if (has_efficiency) "bottom" else "none"
+      )
     )
 }
 

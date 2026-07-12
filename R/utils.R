@@ -207,6 +207,108 @@ NULL
   .pepvet_params[[name]]
 }
 
+.get_plot_theme_value <- function(name, default) {
+  override <- .pepvet_config_env$theme_overrides[[name]]
+  if (is.null(override)) default else override
+}
+
+.resolve_plot_metadata_range <- function(result, value, name, default) {
+  has_params <- is.list(result) && !is.data.frame(result) &&
+    is.list(result$params) && !is.null(result$params[[name]])
+  uses_default <- is.numeric(value) && isTRUE(all.equal(
+    unname(as.numeric(value)), unname(as.numeric(default))
+  ))
+  if (has_params && uses_default) result$params[[name]] else value
+}
+
+.validate_cleavage_sites_for_plot <- function(cleavage_sites,
+                                              protein_length = NULL) {
+  if (is.null(cleavage_sites)) {
+    return(invisible(NULL))
+  }
+
+  required <- c("position", "efficiency")
+  if (!is.data.frame(cleavage_sites) ||
+      !all(required %in% names(cleavage_sites))) {
+    .abort(
+      c(
+        "{.arg cleavage_sites} must be a data.frame from {.fn annotate_cleavage_sites}.",
+        "i" = "Required columns: {.code position}, {.code efficiency}."
+      ),
+      class = "pepvet_error_invalid_cleavage_sites"
+    )
+  }
+
+  positions <- cleavage_sites$position
+  efficiency_input <- cleavage_sites$efficiency
+  valid_efficiency_type <- is.character(efficiency_input) ||
+    is.factor(efficiency_input)
+  efficiency <- if (valid_efficiency_type) {
+    as.character(efficiency_input)
+  } else {
+    character(0L)
+  }
+  valid_positions <- is.numeric(positions) &&
+    all(is.finite(positions)) && all(positions == floor(positions)) &&
+    all(positions >= 1L)
+  valid_efficiency <- valid_efficiency_type &&
+    !anyNA(efficiency) && all(efficiency %in% c("high", "medium", "low"))
+
+  if (!valid_positions || !valid_efficiency ||
+      (!is.null(protein_length) && any(positions > protein_length))) {
+    .abort(
+      "{.arg cleavage_sites} contains invalid positions or efficiency levels.",
+      class = "pepvet_error_invalid_cleavage_sites"
+    )
+  }
+
+  invisible(cleavage_sites)
+}
+
+.validate_domains_for_plot <- function(domains, protein_length = NULL) {
+  if (is.null(domains)) {
+    return(invisible(NULL))
+  }
+
+  required <- c("name", "start", "end")
+  if (!is.data.frame(domains) || !all(required %in% names(domains))) {
+    .abort(
+      c(
+        paste0(
+          "{.arg domains} must be a data.frame with columns ",
+          "{.code name}, {.code start}, and {.code end}."
+        ),
+        "i" = "Each row describes one annotated protein domain."
+      ),
+      class = "pepvet_error_invalid_domains"
+    )
+  }
+
+  valid_names <- is.character(domains$name) && !anyNA(domains$name) &&
+    all(nzchar(trimws(domains$name)))
+  valid_coordinates <- all(vapply(
+    domains[c("start", "end")],
+    function(values) {
+      is.numeric(values) && all(is.finite(values)) &&
+        all(values == floor(values))
+    },
+    logical(1L)
+  ))
+  valid_order <- valid_coordinates &&
+    all(domains$start >= 1L) && all(domains$end >= domains$start)
+  in_protein <- is.null(protein_length) ||
+    (valid_order && all(domains$end <= protein_length))
+
+  if (!valid_names || !valid_order || !in_protein) {
+    .abort(
+      "{.arg domains} contains invalid names or residue coordinates.",
+      class = "pepvet_error_invalid_domains"
+    )
+  }
+
+  invisible(domains)
+}
+
 ## Dirichlet random vector generator (base R, no dependencies)
 ## Returns an n x k matrix where each row sums to 1.
 .rdirichlet <- function(n, alpha) {

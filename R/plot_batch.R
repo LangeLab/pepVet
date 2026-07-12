@@ -4,6 +4,53 @@
 ## batch_evaluate() or equivalent structures.
 ##
 
+.validate_batch_plot_table <- function(data, required, class) {
+  if (!is.data.frame(data)) {
+    .abort(
+      "Plot input must be a data.frame returned by the corresponding batch function.",
+      class = class
+    )
+  }
+  missing <- setdiff(required, names(data))
+  if (length(missing) > 0L) {
+    .abort(
+      "Plot input is missing required columns: {.val {missing}}.",
+      class = class
+    )
+  }
+  .validate_nonempty(data, "batch", class = class)
+  invisible(data)
+}
+
+.validate_batch_plot_scores <- function(data, score_cols, class) {
+  if (!all(vapply(
+    data[score_cols],
+    function(values) {
+      is.numeric(values) && !anyNA(values) &&
+        all(is.finite(values)) && all(values >= 0 & values <= 1)
+    },
+    logical(1L)
+  ))) {
+    .abort(
+      "Plot score columns must contain finite values between 0 and 1.",
+      class = class
+    )
+  }
+  invisible(data)
+}
+
+.validate_batch_plot_verdicts <- function(data, class) {
+  if (!(is.character(data$verdict) || is.factor(data$verdict)) ||
+      anyNA(data$verdict) ||
+      any(!as.character(data$verdict) %in% c("Good", "Moderate", "Poor"))) {
+    .abort(
+      "Plot verdict values must be Good, Moderate, or Poor.",
+      class = class
+    )
+  }
+  invisible(data)
+}
+
 ## plot_proteome_overview
 
 #' Proteome digest overview
@@ -25,8 +72,9 @@
 #'
 #' @param batch A tibble returned by [batch_evaluate()], with columns
 #'   `protein_id`, `composite_score`, `verdict`, the five component score
-#'   columns, and the four difficulty flag columns. If `NULL` or empty, raises
-#'   an error.
+#'   columns, and the four difficulty flag columns.  A proteome-aware batch
+#'   may also contain `S_unique`, which is included in the component profile.
+#'   If `NULL` or empty, raises an error.
 #' @param title Optional character title for the combined figure. When `NULL`
 #'   (default), generates an auto-title with protein count.
 #'
@@ -64,18 +112,27 @@ plot_proteome_overview <- function(batch, title = NULL) {
     "protein_id", "composite_score", "verdict",
     "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
   )
-  missing_cols <- setdiff(required_cols, names(batch))
-  if (length(missing_cols) > 0L) {
+  .validate_batch_plot_table(
+    batch, required_cols, class = "pepvet_error_invalid_batch"
+  )
+  .validate_batch_plot_scores(
+    batch,
+    c(
+      "composite_score", "S_length", "S_coverage", "S_count", "S_hydro",
+      "S_charge", if ("S_unique" %in% names(batch)) "S_unique"
+    ),
+    class = "pepvet_error_invalid_batch"
+  )
+  if (!(is.character(batch$protein_id) || is.factor(batch$protein_id)) ||
+      anyNA(batch$protein_id) ||
+      any(!nzchar(trimws(as.character(batch$protein_id)))) ||
+      anyDuplicated(as.character(batch$protein_id)) > 0L) {
     .abort(
-      c(
-        "!" = "{.arg batch} must be a tibble from {.fn batch_evaluate}.",
-        "i" = "Missing columns: {.val {missing_cols}}."
-      ),
+      "Plot protein_id values must be non-empty and unique.",
       class = "pepvet_error_invalid_batch"
     )
   }
-
-  .validate_nonempty(batch, "batch", class = "pepvet_error_invalid_batch")
+  .validate_batch_plot_verdicts(batch, class = "pepvet_error_invalid_batch")
 
   batch$composite_score <- as.numeric(batch$composite_score)
   batch$verdict <- factor(
@@ -171,13 +228,17 @@ plot_proteome_overview <- function(batch, title = NULL) {
 
   ## Panel B: Component profile (lollipop)
   ## Component colors follow the pepVet component-score color map
-  comp_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
+  comp_cols <- c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+    if ("S_unique" %in% names(batch)) "S_unique"
+  )
   comp_names <- c(
     S_length   = "Length",
     S_coverage = "Coverage",
     S_count    = "Count",
     S_hydro    = "Hydrophobicity",
-    S_charge   = "Charge"
+    S_charge   = "Charge",
+    S_unique   = "Uniqueness"
   )
   comp_colors <- .pepvet_pal$component
 
@@ -288,6 +349,17 @@ plot_proteome_overview <- function(batch, title = NULL) {
     flag_low_complexity    = "Low complexity sequence"
   )
   present_flags <- flag_cols[flag_cols %in% names(batch)]
+
+  if (length(present_flags) > 0L && !all(vapply(
+    batch[present_flags],
+    function(values) is.logical(values) && !anyNA(values),
+    logical(1L)
+  ))) {
+    .abort(
+      "Difficulty flag columns must be logical and cannot contain missing values.",
+      class = "pepvet_error_invalid_batch"
+    )
+  }
 
   if (length(present_flags) > 0L) {
     flag_pcts <- vapply(present_flags, function(fc) {
@@ -432,8 +504,9 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #'
 #' @param comparison A `pepvet_batch_comparison` tibble returned by
 #'   [batch_compare_enzymes()], with columns `protein_id`, `enzyme`,
-#'   `composite_score`, `verdict`, and the five component score columns. If
-#'   `NULL` or empty, raises an error.
+#'   `composite_score`, `verdict`, and the five component score columns.  A
+#'   proteome-aware comparison may also contain `S_unique`, which is included
+#'   in the component heatmap.  If `NULL` or empty, raises an error.
 #' @param title Optional character title for the combined figure. When `NULL`
 #'   (default), generates an auto-title with protein and enzyme counts.
 #'
@@ -469,23 +542,32 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     "protein_id", "enzyme", "composite_score", "verdict",
     "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
   )
-  missing_cols <- setdiff(required_cols, names(comparison))
-  if (length(missing_cols) > 0L) {
+  .validate_batch_plot_table(
+    comparison, required_cols, class = "pepvet_error_invalid_batch"
+  )
+  .validate_batch_plot_scores(
+    comparison,
+    c(
+      "composite_score", "S_length", "S_coverage", "S_count", "S_hydro",
+      "S_charge", if ("S_unique" %in% names(comparison)) "S_unique"
+    ),
+    class = "pepvet_error_invalid_batch"
+  )
+  .validate_batch_plot_verdicts(
+    comparison, class = "pepvet_error_invalid_batch"
+  )
+  if (!(is.character(comparison$protein_id) ||
+    is.factor(comparison$protein_id)) ||
+      anyNA(comparison$protein_id) ||
+      any(!nzchar(trimws(as.character(comparison$protein_id)))) ||
+      !(is.character(comparison$enzyme) || is.factor(comparison$enzyme)) ||
+      anyNA(comparison$enzyme) ||
+      any(!nzchar(trimws(as.character(comparison$enzyme))))) {
     .abort(
-      c(
-        "!" = paste0(
-          "{.arg comparison} must be a tibble from {.fn batch_compare_enzymes}."
-        ),
-        "i" = "Missing columns: {.val {missing_cols}}."
-      ),
+      "Plot protein_id and enzyme values must be non-empty.",
       class = "pepvet_error_invalid_batch"
     )
   }
-
-  .validate_nonempty(
-    comparison, "comparison",
-    class = "pepvet_error_invalid_batch"
-  )
 
   comparison$composite_score <- as.numeric(comparison$composite_score)
   comparison$enzyme <- as.character(comparison$enzyme)
@@ -499,8 +581,27 @@ plot_batch_comparison <- function(comparison, title = NULL) {
   } else {
     unique(comparison$enzyme)
   }
+  if (!is.character(enz_levels) || length(enz_levels) < 2L ||
+      anyNA(enz_levels) || any(!nzchar(enz_levels)) ||
+      anyDuplicated(enz_levels) > 0L ||
+      !all(enz_levels %in% unique(as.character(comparison$enzyme)))) {
+    .abort(
+      "Plot comparison must contain at least two valid enzyme levels.",
+      class = "pepvet_error_invalid_batch"
+    )
+  }
   n_enz <- length(enz_levels)
   n_proteins <- length(unique(comparison$protein_id))
+
+  comparison$protein_id <- as.character(comparison$protein_id)
+  comparison$enzyme <- as.character(comparison$enzyme)
+  if (anyDuplicated(paste(comparison$protein_id, comparison$enzyme)) > 0L ||
+      nrow(comparison) != n_proteins * n_enz) {
+    .abort(
+      "Plot comparison must contain one row for every protein-enzyme pair.",
+      class = "pepvet_error_invalid_batch"
+    )
+  }
 
   verdict_colors <- .pepvet_pal$verdict
 
@@ -686,13 +787,17 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     .pepvet_theme()
 
   ## Panel C: Component heatmap (enzyme \u00d7 component)
-  comp_cols <- c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
+  comp_cols <- c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+    if ("S_unique" %in% names(comparison)) "S_unique"
+  )
   comp_labels <- c(
     S_length   = "Length",
     S_coverage = "Coverage",
     S_count    = "Count",
     S_hydro    = "Hydrophobicity",
-    S_charge   = "Charge"
+    S_charge   = "Charge",
+    S_unique   = "Uniqueness"
   )
 
   tile_rows <- .bind_rows(lapply(enz_levels, function(enz) {
@@ -764,7 +869,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     .pepvet_theme() +
     ggplot2::theme(
       axis.text.x     = ggplot2::element_text(angle = 30, hjust = 1),
-      legend.position = "right"
+      legend.position = .get_plot_theme_value("legend.position", "right")
     )
 
   ## Panel D: Per-protein win rate

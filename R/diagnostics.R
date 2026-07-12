@@ -670,7 +670,8 @@ plot_score_diagnostics <- function(x, title = NULL) {
       title = "A  Multicollinearity (VIF)",
       x = "Variance Inflation Factor", y = NULL) +
     .pepvet_theme() +
-    ggplot2::theme(legend.position = "bottom",
+    ggplot2::theme(
+      legend.position = .get_plot_theme_value("legend.position", "bottom"),
       legend.key.size = ggplot2::unit(8, "pt"),
       legend.text = ggplot2::element_text(size = 6),
       legend.margin = ggplot2::margin(t = -4, b = 0),

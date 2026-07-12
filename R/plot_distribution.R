@@ -1,6 +1,82 @@
 ## pepVet Distribution & landscape plots
 ## plot_length_distribution
 
+.validate_plot_flag <- function(value, name) {
+  if (is.null(value)) {
+    return(FALSE)
+  }
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    .abort(
+      "{.arg {name}} must be TRUE, FALSE, or NULL.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  isTRUE(value)
+}
+
+.validate_plot_distribution_data <- function(data, required) {
+  if (!is.data.frame(data) || nrow(data) == 0L ||
+      !all(required %in% names(data))) {
+    .abort(
+      "Plot data must be a non-empty data.frame with the required columns.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+  invisible(data)
+}
+
+.validate_plot_fraction_breaks <- function(fraction_breaks) {
+  if (!is.numeric(fraction_breaks) || length(fraction_breaks) < 2L ||
+      anyNA(fraction_breaks) || any(!is.finite(fraction_breaks)) ||
+      anyDuplicated(fraction_breaks) > 0L) {
+    .abort(
+      "{.arg fraction_breaks} must contain at least two finite, unique values.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  sort(as.numeric(fraction_breaks))
+}
+
+.validate_plot_charge_states <- function(charge_states) {
+  if (!is.numeric(charge_states) || length(charge_states) < 1L ||
+      anyNA(charge_states) || any(!is.finite(charge_states)) ||
+      any(charge_states < 1) ||
+      any(charge_states > .Machine$integer.max) ||
+      any(charge_states != floor(charge_states))) {
+    .abort(
+      "{.arg charge_states} must contain positive integer charge states.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  sort(unique(as.integer(charge_states)))
+}
+
+.validate_plot_numeric_column <- function(values, name, integerish = FALSE) {
+  valid <- is.numeric(values) && !anyNA(values) && all(is.finite(values))
+  if (valid && integerish) {
+    valid <- all(values == floor(values)) &&
+      all(values >= 1) && all(values <= .Machine$integer.max)
+  }
+  if (!valid) {
+    .abort(
+      "Plot column {.field {name}} must contain finite numeric values.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+  invisible(values)
+}
+
+.validate_plot_fraction_values <- function(values) {
+  .validate_plot_numeric_column(values, "pI")
+  if (any(values < 0 | values > 14)) {
+    .abort(
+      "Plot column {.field pI} must contain values between 0 and 14.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+  invisible(values)
+}
+
 #' Standalone Peptide Length Distribution
 #'
 #' `plot_length_distribution()` draws a histogram of peptide lengths
@@ -46,6 +122,9 @@ plot_length_distribution <- function(
     reason = "to use plot_length_distribution()"
   )
 
+  show_density <- .validate_plot_flag(show_density, "show_density")
+  length_range <- .validate_length_range(length_range)
+
   ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_length_distribution_multi(result,
@@ -62,7 +141,9 @@ plot_length_distribution <- function(
       all(c("peptides", "params") %in% names(result))
   ) {
     peps <- result$peptides
-    length_range <- result$params$length_range %||% length_range
+    length_range <- .resolve_plot_metadata_range(
+      result, length_range, "length_range", c(7L, 25L)
+    )
   } else if (is.data.frame(result)) {
     peps <- result
   } else {
@@ -85,8 +166,11 @@ plot_length_distribution <- function(
     )
   }
 
-  length_lo <- as.integer(length_range[[1L]])
-  length_hi <- as.integer(length_range[[2L]])
+  .validate_plot_distribution_data(peps, "length")
+  .validate_plot_numeric_column(peps$length, "length", integerish = TRUE)
+  length_range <- .validate_length_range(length_range)
+  length_lo <- length_range[[1L]]
+  length_hi <- length_range[[2L]]
 
   ## Classify peptides
   peps$length_class <- .classify_length(peps$length, length_range)
@@ -236,7 +320,7 @@ plot_length_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom"
+      legend.position = .get_plot_theme_value("legend.position", "bottom")
     )
 
   p
@@ -256,8 +340,61 @@ plot_length_distribution <- function(
     ))
 }
 
+.plot_result_labels <- function(results) {
+  supplied_names <- names(results)
+  if (!is.null(supplied_names) &&
+      (anyNA(supplied_names) ||
+        any(!nzchar(trimws(supplied_names))) ||
+        anyDuplicated(supplied_names) > 0L)) {
+    .abort(
+      "Multi-input result names must be unique and non-empty.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  for (index in seq_along(results)) {
+    tryCatch(
+      .validate_digest_result_for_plot(
+        results[[index]], single_protein = FALSE
+      ),
+      error = function(error) {
+        .abort(
+          "Element {.val {index}} is not a valid {.fn evaluate_digest} result.",
+          class = "pepvet_error_invalid_digest_result"
+        )
+      }
+    )
+  }
+
+  labels <- if (!is.null(supplied_names)) {
+    supplied_names
+  } else {
+    vapply(results, .result_label, character(1L))
+  }
+  if (anyDuplicated(labels) > 0L) {
+    .abort(
+      "Multi-input results must have unique display labels.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+  labels
+}
+
 ## Private helper: extract auto-label for a single evaluate_digest result
 .result_label <- function(r) {
+  if (!is.list(r) || !is.list(r$params) ||
+      !is.character(r$params$protein_ids) ||
+      length(r$params$protein_ids) < 1L ||
+      anyNA(r$params$protein_ids) ||
+      !nzchar(r$params$protein_ids[[1L]]) ||
+      !is.character(r$params$enzyme) ||
+      length(r$params$enzyme) != 1L ||
+      is.na(r$params$enzyme) || !nzchar(trimws(r$params$enzyme))) {
+    .abort(
+      "Each multi-input result must contain valid protein_ids and enzyme parameters.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
   paste0(
     .tidy_protein_id(r$params$protein_ids[[1L]]),
     " / ", r$params$enzyme
@@ -272,11 +409,7 @@ plot_length_distribution <- function(
     reason = "to use plot_length_distribution()"
   )
 
-  labels <- if (!is.null(names(results))) {
-    names(results)
-  } else {
-    vapply(results, .result_label, character(1L))
-  }
+  labels <- .plot_result_labels(results)
 
   peps_list <- lapply(seq_along(results), function(i) {
     r <- results[[i]]
@@ -354,7 +487,7 @@ plot_length_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom",
+      legend.position = .get_plot_theme_value("legend.position", "bottom"),
       strip.text = ggplot2::element_text(
         size = 9, face = "bold", color = .pepvet_pal$brand_dark
       )
@@ -420,6 +553,19 @@ plot_gravy_landscape <- function(
     reason = "to assemble panels in plot_gravy_landscape()"
   )
 
+  length_range <- .validate_length_range(length_range)
+  gravy_range <- .validate_gravy_range(gravy_range)
+  if (!is.numeric(label_outliers_n) || length(label_outliers_n) != 1L ||
+      is.na(label_outliers_n) || !is.finite(label_outliers_n) ||
+      label_outliers_n < 0 || label_outliers_n > .Machine$integer.max ||
+      label_outliers_n != floor(label_outliers_n)) {
+    .abort(
+      "{.arg label_outliers_n} must be a non-negative integer.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+  label_outliers_n <- as.integer(label_outliers_n)
+
   ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_gravy_landscape_multi(result,
@@ -435,8 +581,12 @@ plot_gravy_landscape <- function(
       all(c("peptides", "params") %in% names(result))
   ) {
     peps <- result$peptides
-    length_range <- result$params$length_range %||% length_range
-    gravy_range <- result$params$gravy_range %||% gravy_range
+    length_range <- .resolve_plot_metadata_range(
+      result, length_range, "length_range", c(7L, 25L)
+    )
+    gravy_range <- .resolve_plot_metadata_range(
+      result, gravy_range, "gravy_range", c(-1.0, 0.6)
+    )
   } else if (is.data.frame(result)) {
     peps <- result
   } else {
@@ -459,6 +609,9 @@ plot_gravy_landscape <- function(
     )
   }
 
+  .validate_plot_distribution_data(peps, "length")
+  .validate_plot_numeric_column(peps$length, "length", integerish = TRUE)
+
   ## Compute GRAVY if not already present
   if (!"gravy" %in% names(peps)) {
     if (!"peptide" %in% names(peps)) {
@@ -473,10 +626,13 @@ plot_gravy_landscape <- function(
     peps$gravy <- .calculate_gravy(peps$peptide)
   }
 
-  length_lo <- as.integer(length_range[[1L]])
-  length_hi <- as.integer(length_range[[2L]])
+  length_range <- .validate_length_range(length_range)
+  gravy_range <- .validate_gravy_range(gravy_range)
+  length_lo <- length_range[[1L]]
+  length_hi <- length_range[[2L]]
   gravy_lo <- gravy_range[[1L]]
   gravy_hi <- gravy_range[[2L]]
+  .validate_plot_numeric_column(peps$gravy, "gravy")
 
   ## Classify peptides
   peps$valid_length <- peps$length >= length_lo & peps$length <= length_hi
@@ -622,7 +778,9 @@ plot_gravy_landscape <- function(
       )
     ) +
     .pepvet_theme() +
-    ggplot2::theme(legend.position = "bottom")
+    ggplot2::theme(
+      legend.position = .get_plot_theme_value("legend.position", "bottom")
+    )
 
   ## Top marginal: length density by class
   p_top <- ggplot2::ggplot(
@@ -699,20 +857,19 @@ plot_gravy_landscape <- function(
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_gravy_landscape()")
 
-  labels <- if (!is.null(names(results))) {
-    names(results)
-  } else {
-    vapply(results, .result_label, character(1L))
-  }
+  labels <- .plot_result_labels(results)
 
   peps_list <- lapply(seq_along(results), function(i) {
     r <- results[[i]]
     lr <- r$params$length_range %||% length_range
     gr <- r$params$gravy_range %||% gravy_range
     df <- r$peptides
+    .validate_plot_distribution_data(df, "length")
+    .validate_plot_numeric_column(df$length, "length", integerish = TRUE)
     if (!"gravy" %in% names(df) && "peptide" %in% names(df)) {
       df$gravy <- .calculate_gravy(df$peptide)
     }
+    .validate_plot_numeric_column(df$gravy, "gravy")
     df$length_lo <- as.integer(lr[[1L]])
     df$length_hi <- as.integer(lr[[2L]])
     df$gravy_lo <- gr[[1L]]
@@ -790,7 +947,7 @@ plot_gravy_landscape <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom",
+      legend.position = .get_plot_theme_value("legend.position", "bottom"),
       strip.text = ggplot2::element_text(
         size = 9, face = "bold", color = .pepvet_pal$brand_dark
       )
@@ -852,6 +1009,11 @@ plot_pI_distribution <- function(
 ) {
   rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
 
+  show_fraction_lines <- .validate_plot_flag(
+    show_fraction_lines, "show_fraction_lines"
+  )
+  fraction_breaks <- .validate_plot_fraction_breaks(fraction_breaks)
+
   ## Multi-input mode: named list of evaluate_digest() results
   if (.is_named_results_list(result)) {
     return(.plot_pI_distribution_multi(result,
@@ -871,9 +1033,12 @@ plot_pI_distribution <- function(
   ) {
     ## evaluate_digest() list: compute pI for valid peptides
     peps <- result$peptides
+    .validate_plot_distribution_data(peps, "length")
+    .validate_plot_numeric_column(peps$length, "length", integerish = TRUE)
     lr <- result$params$length_range %||% c(7L, 25L)
-  valid <- peps[peps$length >= lr[[1L]] &
-    peps$length <= lr[[2L]], , drop = FALSE]
+    lr <- .validate_length_range(lr)
+    valid <- peps[peps$length >= lr[[1L]] &
+      peps$length <= lr[[2L]], , drop = FALSE]
     if (nrow(valid) == 0L || !"peptide" %in% names(valid)) {
       .abort(
         "No valid peptides found in {.arg result} to compute pI values.",
@@ -885,9 +1050,21 @@ plot_pI_distribution <- function(
     if ("pI" %in% names(result) && is.list(result$pI)) {
       ## score_peptides(include_pI = TRUE): unlist the list column
       vals <- unlist(result$pI, use.names = FALSE)
-      as.numeric(vals[!is.na(vals)])
+      if (!is.numeric(vals)) {
+        .abort(
+          "{.arg result} pI values must be numeric.",
+          class = "pepvet_error_invalid_digest_result"
+        )
+      }
+      vals[!is.na(vals)]
     } else if ("pI" %in% names(result)) {
-      as.numeric(result$pI[!is.na(result$pI)])
+      if (!is.numeric(result$pI)) {
+        .abort(
+          "{.arg result} pI values must be numeric.",
+          class = "pepvet_error_invalid_digest_result"
+        )
+      }
+      result$pI[!is.na(result$pI)]
     } else {
       .abort(
         "{.arg result} data.frame must contain a {.field pI} column.",
@@ -915,8 +1092,10 @@ plot_pI_distribution <- function(
     )
   }
 
+  .validate_plot_fraction_values(pI_vals)
+
   ## Fraction bins
-  breaks <- sort(unique(as.numeric(fraction_breaks)))
+  breaks <- fraction_breaks
   lo_break <- breaks[[1L]]
   hi_break <- breaks[[length(breaks)]]
 
@@ -1050,7 +1229,7 @@ plot_pI_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "right"
+      legend.position = .get_plot_theme_value("legend.position", "right")
     )
 }
 
@@ -1071,11 +1250,7 @@ plot_pI_distribution <- function(
                                         show_fraction_lines, title) {
   rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
 
-  labels <- if (!is.null(names(results))) {
-    names(results)
-  } else {
-    vapply(results, .result_label, character(1L))
-  }
+  labels <- .plot_result_labels(results)
 
   pI_list <- lapply(seq_along(results), function(i) {
     vals <- .pI_from_result(results[[i]])
@@ -1136,7 +1311,7 @@ plot_pI_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom"
+      legend.position = .get_plot_theme_value("legend.position", "bottom")
     )
 }
 
@@ -1155,7 +1330,9 @@ plot_pI_distribution <- function(
 #' @param results A named list of [evaluate_digest()] results.  Names should
 #'   be the MC level (e.g., `list("MC=0" = r0, "MC=1" = r1, "MC=2" = r2)`).
 #'   **Or** an unnamed list of length 2-4, in which case names are auto-assigned
-#'   as `"MC=0"`, `"MC=1"`, etc.  If `NULL`, raises an error.
+#'   as `"MC=0"`, `"MC=1"`, etc.  All results must use the same protein and
+#'   enzyme; only the missed-cleavage setting may differ.  If `NULL`, raises
+#'   an error.
 #' @param components Character vector of component score columns to show.
 #'   Defaults to `c("S_length","S_coverage","S_count","S_hydro","S_charge")`.
 #'   If `NULL`, raises an error.
@@ -1199,30 +1376,86 @@ plot_missed_cleavage_impact <- function(
       class = "pepvet_error_invalid_digest_result"
     )
   }
+
+  if (is.null(names(results)) && length(results) > 4L) {
+    .abort(
+      "Unnamed {.arg results} must contain between 2 and 4 elements.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
+  if (!is.character(components) || length(components) < 1L ||
+      anyNA(components) || any(!nzchar(components)) ||
+      anyDuplicated(components) > 0L) {
+    .abort(
+      "{.arg components} must contain one or more unique score column names.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
+
   ## Auto-name if unnamed
   if (is.null(names(results))) {
     names(results) <- paste0("MC=", seq_along(results) - 1L)
+  } else if (anyNA(names(results)) || any(!nzchar(names(results))) ||
+      anyDuplicated(names(results)) > 0L) {
+    .abort(
+      "{.arg results} must have unique, non-empty names when names are supplied.",
+      class = "pepvet_error_invalid_digest_result"
+    )
   }
 
   ## Validate each leaf
   for (nm in names(results)) {
     r <- results[[nm]]
-    if (!is.list(r) || !"scores" %in% names(r)) {
-      .abort(
-        c(
-          "!" = paste0(
-            "Element {.val {nm}} is not a valid ",
-            "{.fn evaluate_digest} result."
-          ),
-          "i" = "Each element must be a list with a {.code scores} component."
-        ),
-        class = "pepvet_error_invalid_digest_result"
-      )
-    }
+    tryCatch(
+      .validate_digest_result_for_plot(r),
+      error = function(error) {
+        .abort(
+          "Element {.val {nm}} is not a valid {.fn evaluate_digest} result.",
+          class = "pepvet_error_invalid_digest_result"
+        )
+      }
+    )
+  }
+
+  reference <- results[[1L]]
+  same_proteins <- vapply(results, function(r) {
+    setequal(
+      as.character(r$params$protein_ids),
+      as.character(reference$params$protein_ids)
+    )
+  }, logical(1L))
+  same_enzyme <- vapply(results, function(r) {
+    identical(as.character(r$params$enzyme),
+      as.character(reference$params$enzyme))
+  }, logical(1L))
+  if (!all(same_proteins) || !all(same_enzyme)) {
+    .abort(
+      paste0(
+        "{.arg results} must contain one protein and enzyme series; ",
+        "only missed-cleavage settings may differ."
+      ),
+      class = "pepvet_error_invalid_digest_result"
+    )
   }
 
   ## Extract scores
   valid_comp <- components[components %in% names(results[[1L]]$scores)]
+  if (length(valid_comp) != length(components) ||
+      any(!valid_comp %in% c(
+        "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
+        "S_unique"
+      )) ||
+      any(!vapply(
+        results,
+        function(r) all(valid_comp %in% names(r$scores)),
+        logical(1L)
+      ))) {
+    .abort(
+      "{.arg components} must name score columns present in every result.",
+      class = "pepvet_error_invalid_digest_result"
+    )
+  }
   all_comp <- c(valid_comp, "composite_score")
 
   rows <- lapply(names(results), function(nm) {
@@ -1245,7 +1478,8 @@ plot_missed_cleavage_impact <- function(
     S_coverage = "Coverage",
     S_count    = "Count",
     S_hydro    = "Hydrophobicity",
-    S_charge   = "Charge"
+    S_charge   = "Charge",
+    S_unique   = "Uniqueness"
   )
   long_rows <- lapply(valid_comp, function(cn) {
     data.frame(
@@ -1377,7 +1611,9 @@ plot_missed_cleavage_impact <- function(
       y = "Score (0 \u2013 1)"
     ) +
     .pepvet_theme() +
-    ggplot2::theme(legend.position = "right")
+    ggplot2::theme(
+      legend.position = .get_plot_theme_value("legend.position", "right")
+    )
 }
 
 
@@ -1453,17 +1689,22 @@ plot_mz_distribution <- function(
     reason = "to use plot_mz_distribution()"
   )
 
+  show_rug <- .validate_plot_flag(show_rug, "show_rug")
+  length_range <- .validate_length_range(length_range)
+
   ## Validate scan_range
   if (
     !is.numeric(scan_range) ||
       length(scan_range) != 2L ||
       anyNA(scan_range) ||
+      any(!is.finite(scan_range)) ||
+      any(scan_range < 0) ||
       scan_range[[1L]] >= scan_range[[2L]]
   ) {
     .abort(
       paste0(
         "{.arg scan_range} must be a numeric vector ",
-        "of length 2 in ascending order."
+        "of length 2 containing non-negative values in ascending order."
       ),
       class = "pepvet_error_invalid_input"
     )
@@ -1490,7 +1731,9 @@ plot_mz_distribution <- function(
       all(c("peptides", "params") %in% names(result))
   ) {
     peps <- result$peptides
-    length_range <- result$params$length_range %||% length_range
+    length_range <- .resolve_plot_metadata_range(
+      result, length_range, "length_range", c(7L, 25L)
+    )
     auto_label <- if (!is.null(result$params$protein_ids)) {
       pid <- result$params$protein_ids[[1L]]
       enzyme <- result$params$enzyme
@@ -1515,9 +1758,44 @@ plot_mz_distribution <- function(
     )
   }
 
+  length_range <- .validate_length_range(length_range)
+
+  has_precomputed_mz <- all(c("mz", "charge_state") %in% names(peps))
+  .validate_plot_distribution_data(
+    peps,
+    if (has_precomputed_mz) c("mz", "charge_state") else character(0L)
+  )
+  if ("length" %in% names(peps)) {
+    .validate_plot_numeric_column(peps$length, "length", integerish = TRUE)
+  }
+
   ## If data already has mz + charge_state, use directly
-  if (all(c("mz", "charge_state") %in% names(peps))) {
+  if (has_precomputed_mz) {
     mz_long <- peps[, c("mz", "charge_state"), drop = FALSE]
+    .validate_plot_numeric_column(mz_long$mz, "mz")
+    if (any(mz_long$mz < 0)) {
+      .abort(
+        "Plot column {.field mz} must contain non-negative values.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
+    valid_charge_labels <- if (is.numeric(mz_long$charge_state)) {
+      !anyNA(mz_long$charge_state) && all(is.finite(mz_long$charge_state)) &&
+        all(mz_long$charge_state >= 1) &&
+        all(mz_long$charge_state <= .Machine$integer.max) &&
+        all(mz_long$charge_state == floor(mz_long$charge_state))
+    } else {
+      (is.character(mz_long$charge_state) ||
+        is.factor(mz_long$charge_state)) &&
+        !anyNA(mz_long$charge_state) &&
+        all(nzchar(trimws(as.character(mz_long$charge_state))))
+    }
+    if (!valid_charge_labels) {
+      .abort(
+        "Plot column {.field charge_state} must contain non-empty labels.",
+        class = "pepvet_error_invalid_digest_result"
+      )
+    }
     mz_long$charge_state <- as.character(mz_long$charge_state)
     n_total <- nrow(mz_long)
   } else {
@@ -1550,7 +1828,7 @@ plot_mz_distribution <- function(
       )
     }
 
-    charge_states_int <- sort(unique(as.integer(charge_states)))
+    charge_states_int <- .validate_plot_charge_states(charge_states)
     n_total <- nrow(valid_peps)
 
     mz_long <- .bind_rows(lapply(charge_states_int, function(z) {
@@ -1579,7 +1857,7 @@ plot_mz_distribution <- function(
   )
   z_levels <- levels(mz_long$charge_state)
   z_colors <- setNames(
-    z_color_palette[seq_along(z_levels)],
+    rep(z_color_palette, length.out = length(z_levels)),
     z_levels
   )
 
@@ -1743,7 +2021,7 @@ plot_mz_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom"
+      legend.position = .get_plot_theme_value("legend.position", "bottom")
     )
 
   p
@@ -1762,18 +2040,17 @@ plot_mz_distribution <- function(
     reason = "to use plot_mz_distribution()"
   )
 
-  labels <- if (!is.null(names(results))) {
-    names(results)
-  } else {
-    vapply(results, .result_label, character(1L))
-  }
+  charge_states <- .validate_plot_charge_states(charge_states)
+  length_range <- .validate_length_range(length_range)
+
+  labels <- .plot_result_labels(results)
 
   scan_lo <- as.numeric(scan_range[[1L]])
   scan_hi <- as.numeric(scan_range[[2L]])
 
   charge_states_int <- sort(unique(as.integer(charge_states)))
 
-  mz_all <- .bind_rows(lapply(seq_along(results), function(i) {
+  mz_list <- lapply(seq_along(results), function(i) {
     r <- results[[i]]
     lr <- r$params$length_range %||% length_range
     peps <- r$peptides
@@ -1796,7 +2073,9 @@ plot_mz_distribution <- function(
       )
     }))
     rows
-  }))
+  })
+  mz_list <- Filter(Negate(is.null), mz_list)
+  mz_all <- if (length(mz_list) == 0L) NULL else .bind_rows(mz_list)
 
   if (is.null(mz_all) || nrow(mz_all) == 0L) {
     .abort("No valid peptide m/z values could be computed.",
@@ -1814,7 +2093,7 @@ plot_mz_distribution <- function(
     .pepvet_pal$poor
   )
   z_colors <- setNames(
-    z_color_palette[seq_along(z_levels)],
+    rep(z_color_palette, length.out = length(z_levels)),
     z_levels
   )
 
@@ -1889,7 +2168,7 @@ plot_mz_distribution <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position = "bottom",
+      legend.position = .get_plot_theme_value("legend.position", "bottom"),
       strip.text = ggplot2::element_text(
         size = 9, face = "bold", color = .pepvet_pal$brand_dark
       )

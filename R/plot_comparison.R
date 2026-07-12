@@ -39,6 +39,52 @@
       class = "pepvet_error_invalid_comparison"
     )
   }
+
+  if (!(is.character(comparison$enzyme) || is.factor(comparison$enzyme)) ||
+      anyNA(comparison$enzyme) ||
+      any(!nzchar(trimws(as.character(comparison$enzyme)))) ||
+      anyDuplicated(as.character(comparison$enzyme)) > 0L ||
+      !is.numeric(comparison$composite_score) ||
+      anyNA(comparison$composite_score) ||
+      any(!is.finite(comparison$composite_score)) ||
+      any(comparison$composite_score < 0 | comparison$composite_score > 1)) {
+    .abort(
+      "{.arg comparison} contains invalid enzyme or composite-score values.",
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+
+  if ("protein_id" %in% names(comparison) &&
+      (!(is.character(comparison$protein_id) ||
+        is.factor(comparison$protein_id)) ||
+        anyNA(comparison$protein_id) ||
+        any(!nzchar(trimws(as.character(comparison$protein_id)))) ||
+        length(unique(as.character(comparison$protein_id))) != 1L)) {
+    .abort(
+      "{.field protein_id} must identify one non-empty protein across the comparison.",
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+
+  standard_scores <- c(
+    "S_coverage", "S_length", "S_count", "S_hydro", "S_charge",
+    "S_unique"
+  )
+  present_scores <- intersect(standard_scores, names(comparison))
+  if (any(!vapply(
+    comparison[present_scores],
+    function(values) {
+      is.numeric(values) && !anyNA(values) &&
+        all(is.finite(values)) && all(values >= 0 & values <= 1)
+    },
+    logical(1L)
+  ))) {
+    .abort(
+      "{.arg comparison} contains invalid component-score values.",
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+
   invisible(comparison)
 }
 
@@ -65,8 +111,9 @@
 #'   data frame, raises an error.
 #' @param scores Character vector of component-score column names to display
 #'   in Panel A.  Any column absent from `comparison` is silently dropped.
-#'   Defaults to all five standard component scores.  If `NULL`, raises an
-#'   error.
+#'   Defaults to all five standard component scores.  `S_unique` can be
+#'   requested when present in a proteome-aware comparison.  If `NULL`, raises
+#'   an error.
 #' @param recommend Logical.  When `TRUE` (default) a "Recommended" badge
 #'   marks the enzyme with the highest composite score in Panel B.  If `NULL`,
 #'   raises an error.
@@ -105,8 +152,24 @@ plot_enzyme_comparison <- function(
 
   .validate_comparison_for_plot(comparison)
 
+  if (!is.character(scores) || length(scores) < 1L || anyNA(scores) ||
+      anyDuplicated(scores) > 0L ||
+      !is.logical(recommend) || length(recommend) != 1L || is.na(recommend)) {
+    .abort(
+      "{.arg scores} must be unique names and {.arg recommend} must be logical.",
+      class = "pepvet_error_invalid_comparison"
+    )
+  }
+
   ## Restrict to requested scores that actually exist
   scores <- intersect(scores, names(comparison))
+  scores <- intersect(
+    scores,
+    c(
+      "S_coverage", "S_length", "S_count", "S_hydro", "S_charge",
+      "S_unique"
+    )
+  )
   if (length(scores) == 0L) {
     .abort(
       c(
@@ -124,7 +187,8 @@ plot_enzyme_comparison <- function(
     S_length   = "Length",
     S_count    = "Peptide count",
     S_hydro    = "Hydrophobicity",
-    S_charge   = "Charge"
+    S_charge   = "Charge",
+    S_unique   = "Uniqueness"
   )
   display_names <- ifelse(
     scores %in% names(score_labels),
@@ -138,6 +202,7 @@ plot_enzyme_comparison <- function(
   names(col_map) <- display_names
 
   ## Enzyme factor: sorted worst to best composite (top of chart = best)
+  comparison$enzyme <- as.character(comparison$enzyme)
   ordered_enzymes <- comparison$enzyme[order(comparison$composite_score)]
   comparison$enzyme <- factor(comparison$enzyme, levels = ordered_enzymes)
 
@@ -242,7 +307,7 @@ plot_enzyme_comparison <- function(
     ) +
     .pepvet_theme() +
     ggplot2::theme(
-      legend.position    = "bottom",
+      legend.position = .get_plot_theme_value("legend.position", "bottom"),
       panel.grid.major.y = ggplot2::element_blank(),
       panel.grid.minor   = ggplot2::element_blank()
     )

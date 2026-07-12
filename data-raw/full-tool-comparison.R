@@ -262,6 +262,7 @@ write.csv(preset_tbl, file.path(out_dir, "sectionC2-presets.csv"),
 ## ======================================================================
 cat("\nSection D: pepVet + PeptideRanger pipeline\n\n")
 
+peptideranger_output <- file.path(out_dir, "sectionD-peptideranger.csv")
 if (requireNamespace("PeptideRanger", quietly = TRUE)) {
   library(PeptideRanger)
   rf_model <- RFmodel_ProteomicsDB
@@ -305,7 +306,7 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
   }
   pr_tbl <- .bind_rows(pr_rows)
   print(pr_tbl, row.names = FALSE)
-  write.csv(pr_tbl, file.path(out_dir, "sectionD-peptideranger.csv"),
+  write.csv(pr_tbl, peptideranger_output,
     row.names = FALSE
   )
 
@@ -314,8 +315,10 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
   cat("  PeptideRanger scores detection probability on valid peptides.\n")
   cat("  Enrichment (valid PR - invalid PR) quantifies the overlap.\n")
 } else {
-  cat("PeptideRanger not installed. Install with:\n")
-  cat("  remotes::install_github('rr-2/PeptideRanger')\n")
+  stop(
+    "PeptideRanger is not installed; Section D cannot be regenerated.",
+    call. = FALSE
+  )
 }
 
 ## ======================================================================
@@ -341,6 +344,10 @@ pc_mass_table <- c(
 
 simulate_pc_identifiable <- function(pep_seq, min_len = 7, max_len = 35,
                                      min_mass = 400, max_mass = 4000) {
+  if (!is.character(pep_seq) || length(pep_seq) != 1L ||
+      is.na(pep_seq) || !grepl("^[ACDEFGHIKLMNPQRSTVWYOU]+$", pep_seq)) {
+    return(FALSE)
+  }
   len <- nchar(pep_seq)
   if (len < min_len || len > max_len) {
     return(FALSE)

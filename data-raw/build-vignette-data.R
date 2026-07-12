@@ -157,4 +157,4 @@ print(overlap_summary, row.names = FALSE)
 
 saveRDS(overlap_summary, file.path(out_dir, "vignette-overlap.rds"))
 
-cat("\nAll vignette data written to inst/extdata/\n")
+cat("\nAll vignette data written to", out_dir, "/\n")

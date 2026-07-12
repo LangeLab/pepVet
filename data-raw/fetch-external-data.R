@@ -6,10 +6,22 @@ library(tibble)
 out_dir <- file.path("inst", "extdata", "tool-data")
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
+raw_msd <- file.path("inst", "extdata", "tool-data", "msdigest-bsa-trypsin.csv")
+raw_expasy <- file.path("inst", "extdata", "tool-data", "expasy-bsa-trypsin.html")
+missing_inputs <- c(raw_msd, raw_expasy)[!file.exists(c(raw_msd, raw_expasy))]
+if (length(missing_inputs) > 0L) {
+  stop(
+    paste(
+      "Cannot regenerate tool-data outputs because required raw inputs are missing:",
+      paste(missing_inputs, collapse = ", ")
+    ),
+    call. = FALSE
+  )
+}
+
 ##
 ## 1. MS-Digest
 ##
-raw_msd <- file.path("inst", "extdata", "tool-data", "msdigest-bsa-trypsin.csv")
 if (file.exists(raw_msd)) {
   msd <- read.delim(raw_msd,
     skip = 1, header = FALSE, sep = "\t",
@@ -21,6 +33,9 @@ if (file.exists(raw_msd)) {
   )
 
   seq_pattern <- "^\\([A-Z-]+\\)([A-Z]+)\\([A-Z-]+\\)$"
+  if (any(!grepl(seq_pattern, msd$sequence_raw))) {
+    stop("MS-Digest contains an unparseable sequence record.", call. = FALSE)
+  }
   msd$peptide <- gsub(seq_pattern, "\\1", msd$sequence_raw)
   msd$length <- nchar(msd$peptide)
   msd$tool <- "MS-Digest"
@@ -43,7 +58,6 @@ if (file.exists(raw_msd)) {
 ##
 ## 2. ExPASy PeptideMass
 ##
-raw_expasy <- file.path("inst", "extdata", "tool-data", "expasy-bsa-trypsin.html")
 if (file.exists(raw_expasy)) {
   html <- readLines(raw_expasy, warn = FALSE)
 
@@ -75,6 +89,9 @@ if (file.exists(raw_expasy)) {
 
   expasy_list <- lapply(lines, parse_one)
   expasy_list <- expasy_list[!vapply(expasy_list, is.null, logical(1))]
+  if (length(expasy_list) == 0L) {
+    stop("ExPASy HTML contains no parseable peptide records.", call. = FALSE)
+  }
   expasy <- do.call(rbind, expasy_list)
   expasy$length <- nchar(expasy$peptide)
   expasy$tool <- "PeptideMass"

@@ -9,9 +9,9 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %VignetteIndexEntry{Visualising Digest Quality}
-  %VignetteEngine{knitr::rmarkdown}
-  %VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Visualising Digest Quality}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ## Overview

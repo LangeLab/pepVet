@@ -8,9 +8,9 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %VignetteIndexEntry{Understanding the pepVet Scoring Model}
-  %VignetteEngine{knitr::rmarkdown}
-  %VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Understanding the pepVet Scoring Model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

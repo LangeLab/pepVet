@@ -9,9 +9,9 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %VignetteIndexEntry{Weight Sensitivity Analysis}
-  %VignetteEngine{knitr::rmarkdown}
-  %VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Weight Sensitivity Analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

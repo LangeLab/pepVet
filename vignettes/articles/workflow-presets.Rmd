@@ -8,9 +8,9 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %VignetteIndexEntry{Workflow Presets in pepVet}
-  %VignetteEngine{knitr::rmarkdown}
-  %VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Workflow Presets in pepVet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

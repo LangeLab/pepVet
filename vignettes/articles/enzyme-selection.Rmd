@@ -9,9 +9,9 @@ output:
     toc: true
     toc_depth: 3
 vignette: >
-  %VignetteIndexEntry{Choosing a Proteolytic Enzyme with pepVet}
-  %VignetteEngine{knitr::rmarkdown}
-  %VignetteEncoding{UTF-8}
+  %\VignetteIndexEntry{Choosing a Proteolytic Enzyme with pepVet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}

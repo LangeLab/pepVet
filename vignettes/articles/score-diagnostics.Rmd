@@ -1,9 +1,7 @@
 ---
 title: "Score Diagnostics for pepVet Scoring Models"
 description: >
-  Use score_diagnostics() to assess multicollinearity, dimensionality,
-  and component importance in pepVet scoring models. A guide to VIF, PCA,
-  and ablation analysis with worked examples.
+  Use score_diagnostics() to inspect multicollinearity, dimensionality, and weighted component contributions with VIF, PCA, and ablation summaries.
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -26,9 +24,7 @@ small_fasta <- system.file(
 )
 ```
 
-pepVet's scoring model combines five (or six) component scores into a weighted composite. The component scores are designed to measure orthogonal digest-quality dimensions, but correlations among them are not guaranteed by the formula. `score_diagnostics()` quantifies three properties of the scoring model: multicollinearity, effective dimensionality, and the marginal contribution of each component.
-
-This article covers the three analyses, how to interpret them, and what to do if the diagnostics reveal issues.
+pepVet's scoring model combines five or six component scores into a weighted composite. The components describe different digest properties, but the formula does not require them to be statistically independent. `score_diagnostics()` reports multicollinearity, principal components, and the score change produced by setting one component to zero.
 
 ## Setup
 
@@ -55,36 +51,36 @@ names(d)
 
 ## VIF: multicollinearity
 
-Variance Inflation Factor measures how much the variance of each component score is inflated by linear dependence on the other components. For each component, we fit a linear model predicting it from the remaining components and compute VIF = 1 / (1 - R^2).
+Variance Inflation Factor measures how much linear dependence on the other components inflates the variance associated with each component score. For each component, the function fits a linear model from the remaining components and computes VIF = 1 / (1 - R^2).
 
-VIF < 5 is acceptable. VIF between 5 and 10 is concerning. VIF > 10 indicates problematic collinearity. These thresholds are standard statistical practice [REF: O'Brien 2007, Quality & Quantity 41:673].
+The plot uses VIF values of 5 and 10 as visual reference lines. They are rules of thumb, not pass or fail boundaries. O'Brien (2007) cautions against treating fixed VIF cutoffs as automatic evidence that a model requires correction.
 
 ```{r vif}
 d$vif
 ```
 
-Components with VIF > 5 are flagged. In this fixture, S_length has VIF = 5.78, slightly above the concerning threshold. This makes sense: peptide length correlates with coverage (longer proteins tend to have more valid peptides covering more of the sequence). The correlation is moderate and does not require corrective action.
+Components with VIF above 5 receive a plot flag. In this fixture, `S_length` has VIF = 5.78. This value should prompt inspection of the component relationships and intended model use, not automatic removal of a component.
 
 ## PCA: dimensionality
 
-Principal Component Analysis reveals how many effective dimensions the component scores occupy. If PC1 + PC2 explain more than 80% of variance, the scoring model has low effective dimensionality. Most of the variation across proteins is captured by two composite patterns.
+Principal component analysis expresses variation in the component matrix through linear combinations. The plot includes an 80% cumulative-variance reference line for description. It is not a model-validity threshold.
 
 ```{r pca}
 round(d$pca$var_explained, 3)
 ```
 
-In this fixture, PC1 + PC2 explain `r round(sum(d$pca$var_explained[1:2]) * 100)`% of variance. The scree plot shows one dominant PC followed by a gradual decline. This is the expected pattern for a well-designed multi-criteria score: components share some covariance (because they all measure aspects of digest quality), but each retains unique information.
+In this fixture, PC1 + PC2 explain `r round(sum(d$pca$var_explained[1:2]) * 100)`% of variance. The scree plot shows how quickly the remaining variance declines. PCA alone does not establish that each component contributes unique experimental information.
 
-The loadings matrix shows which original components contribute to each PC. PC1 is a weighted average of all five components (all loadings positive, ranging from 0.34 to 0.50). PC2 is driven primarily by hydrophobicity (loading -0.86), capturing the dimension that is most orthogonal to the others.
+The loadings matrix shows which original components contribute to each PC. PC1 is a weighted average of all five components (all loadings positive, ranging from 0.34 to 0.50). In this sample, PC2 is driven primarily by hydrophobicity (loading -0.86), which is less aligned with the other component loadings on that axis.
 
 ```{r loadings, echo = FALSE}
 knitr::kable(round(d$pca$loadings, 3),
   caption = "PCA loadings (rotation matrix)")
 ```
 
-## Ablation: component importance
+## Ablation: weighted score contribution
 
-Ablation measures what happens to the composite score when each component is set to zero. This answers: "if this component contributed nothing, how much would the composite drop, and how many proteins would change verdict?"
+Ablation sets each component to zero without renormalizing the other weights. It reports the resulting composite-score drop and verdict changes. Because the composite is a weighted sum, this analysis describes influence under the current weights rather than empirical importance.
 
 ```{r ablation}
 d$ablation
@@ -92,11 +88,11 @@ d$ablation
 
 Key patterns to look for:
 
-- **Mean drop**: components with large weights should produce proportionally large drops. S_coverage (weight 0.348) produces the largest mean drop (0.240). S_charge (weight 0.088) produces the smallest (0.062). This confirms the weights are consistent with the data.
+- **Mean drop**: the score is a weighted sum, so the drop equals the active weight multiplied by the observed component value. In this sample, `S_coverage` produces the largest mean drop at 0.240, while `S_charge` produces the smallest at 0.062. This describes the current weights and data. It does not show that the weights are empirically fitted.
 
-- **SD drop**: components with high variability across proteins produce larger SD. S_coverage varies the most (SD 0.061). This is expected: coverage depends on how well the enzyme cuts each specific protein.
+- **SD drop**: the standard deviation reports how much the score drop varies across proteins. In this fixture, the value is largest for `S_coverage` at 0.061.
 
-- **Verdict flips**: the number of proteins whose verdict changes when that component is removed. S_coverage removal flips 45 of 50 verdicts. S_charge removal flips only 14. This tells you which components are most critical for the final verdict classification.
+- **Verdict flips**: the count reports how many proteins change label in the zero-component calculation. `S_coverage` changes 45 of 50 labels, while `S_charge` changes 14. These counts depend on the current weights, thresholds, and fixture.
 
 ## The diagnostics plot
 
@@ -110,38 +106,37 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
 }
 ```
 
-**Panel A (VIF):** Bars colored by severity. Dashed lines at 5 and 10 mark the concerning and problematic thresholds. Components in orange or red should be investigated. Consider whether they are measuring a distinct dimension or could be merged with a correlated component.
+**Panel A (VIF):** Bars show VIF values. Dashed lines at 5 and 10 mark the package's reference bands. Values above a band warrant inspection in context.
 
-**Panel B (PCA):** Bar heights show the variance explained by each PC. The cumulative line (with points) shows total variance explained up to each PC. The dashed 80% reference helps assess dimensionality. The subtitle reports PC1+PC2 variance as a single summary number.
+**Panel B (PCA):** Bar heights show the variance explained by each principal component. The cumulative line shows total variance explained through each component. The dashed 80% line is a descriptive reference.
 
-**Panel C (Ablation):** Bars show the mean composite drop when each component is set to zero. Error bars show +/- 1 SD. The annotation shows the exact drop value and the number of verdict flips (out of total proteins). Components with small drops and few flips are candidates for down-weighting. Components with large drops and many flips are critical to the verdict.
+**Panel C (Ablation):** Bars show the mean composite drop when the calculation sets each component to zero. Error bars show plus or minus one standard deviation. The annotation gives the drop and number of verdict changes. This panel does not determine whether to remove or reweight a component.
 
 ## Interpreting the results
 
-### What good diagnostics look like
+### Reference patterns
 
-- All VIF values below 5.
-- PC1 + PC2 above 80%.
-- Ablation mean drops proportional to component weights.
-- No component has zero verdict flips (every component contributes something).
+- VIF values relative to the displayed 5 and 10 reference bands.
+- Cumulative variance relative to the displayed 80% reference line.
+- Ablation drops relative to the current weights and observed component values.
+- Verdict changes relative to the current 0.40 and 0.65 boundaries.
 
 ### What to do if VIF is high
 
-If a component has VIF > 10, it shares most of its variance with other components. Options:
-
-1. Remove the redundant component and redistribute its weight to the others.
-2. Keep the component and document the collinearity as a limitation.
-
-In practice, modest VIF values (5-10) are expected because all components measure aspects of digest quality. The AHP framework accounts for this by design. The pairwise comparisons explicitly consider that dimensions overlap.
+A high VIF shows that the component is linearly predictable from the other components in the supplied data. Inspect the component definitions, pairwise correlations, sample composition, and intended use before changing the score. AHP pairwise weighting does not remove multicollinearity.
 
 ### When to run diagnostics
 
 Run `score_diagnostics()` whenever you:
 
 - Change the default weights or add a new component.
-- Want to check that the scoring model behaves as expected on a new proteome.
-- Need evidence for a manuscript that the component scores are not redundant.
+- Want to describe score-component relationships in a new proteome.
+- Need to document component relationships in a specified dataset.
 - Suspect that two components may be measuring the same thing (for example, if S_count and S_coverage behave similarly on a particular enzyme).
+
+## References
+
+O'Brien RM. A Caution Regarding Rules of Thumb for Variance Inflation Factors. *Quality & Quantity*. 2007;41(5):673-690. doi: [10.1007/s11135-006-9018-6](https://doi.org/10.1007/s11135-006-9018-6).
 
 ## Session info
 

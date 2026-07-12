@@ -1,8 +1,7 @@
 ---
 title: "Getting Started with pepVet"
 description: >
-  A walkthrough of pepVet's core pipeline from a single protein digest to
-  multi-enzyme comparison, batch evaluation, and peptide export.
+  A walkthrough of pepVet's core pipeline from a single protein digest to multi-enzyme comparison, batch evaluation, and peptide export.
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -22,43 +21,43 @@ library(pepVet)
 data("aa_properties", package = "pepVet")
 ```
 
-pepVet evaluates proteolytic digests before bench work begins. Give it a protein sequence and an enzyme. It returns peptide coordinates, score components, a composite verdict, and workflow-aware parameters that let you inspect the result instead of treating it as a black box. A companion vignette ([tool comparison](pepVet-tool-comparison.html)) compares pepVet against five other digestion tools.
+pepVet evaluates proteolytic digests before acquisition. A protein sequence and enzyme produce peptide coordinates, score components, a composite label, and the resolved scoring parameters. The [tool comparison](pepVet-tool-comparison.html) describes differences between pepVet and five other digestion tools.
 
 ## The core pipeline
 
 ```
 Protein sequence
-      │
+      |
       v
     digest_protein()    ->  tibble of peptides (one row per peptide)
-      │
+      |
       v
     score_peptides()    ->  one-row tibble of component scores + verdict
-      │
+      |
       v
     evaluate_digest()   ->  convenience wrapper: digest + score + params in one call
-      │
+      |
       v
     pepvet_check()      ->  evaluate + print report in one interactive call
-      │
+      |
       v
     compare_digests()   ->  run evaluate_digest across N enzymes, rank by composite
-      │
+      |
       v
     recommend_enzyme()  ->  return the name of the top-ranked enzyme
-      │
+      |
       v
     batch_evaluate()    ->  run evaluate_digest across all proteins in a FASTA
-      │                     returns a flat tibble: one row per protein
+      |                     returns a flat tibble: one row per protein
       v
     summarize_batch()   ->  proteome-level verdict distribution and score stats
-      │
+      |
       v
-    triage_proteins()   ->  per-protein action recommendations (proceed / try other enzyme …)
-      │
+    triage_proteins()   ->  per-protein action labels
+      |
       v
     export_peptide_list()  ->  export valid peptides to Skyline, generic CSV, or FASTA
-      │
+      |
       v
     digest_report()     ->  styled console output for any of the above
 ```
@@ -74,7 +73,7 @@ Every pepVet function that takes a protein sequence accepts the same input shape
 - a `Biostrings::AAString` or `AAStringSet`
 - a path to a FASTA file (single- or multi-entry)
 
-The package ships pinned FASTA fixtures in `inst/extdata/` used throughout this vignette.
+The package ships fixed FASTA fixtures in `inst/extdata/` for these examples.
 
 ```{r paths}
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
@@ -104,7 +103,7 @@ The output columns are:
 | `length` | Peptide length in residues |
 | `missed_cleavages` | Number of internal cleavage sites skipped |
 
-Missed cleavages are expanded explicitly so that start/end coordinates remain exact and every combination of adjacent peptides is represented.
+`digest_protein()` expands missed cleavages explicitly and retains exact start and end coordinates for each joined product.
 
 ```{r digest-mc}
 # mc=0: strict cleavage only
@@ -114,11 +113,11 @@ digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 0L)
 digest_protein("AKRTPK", enzyme = "trypsin", missed_cleavages = 1L)
 ```
 
-Enzyme names are validated against a registry of 40 cleaver-compatible rules. Common examples: `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n endopeptidase`, `chymotrypsin-high`, `thermolysin`. The validation layer normalises case and trims whitespace, so `" Trypsin "` is accepted.
+The validation layer checks enzyme names against a registry of 40 cleaver-compatible rules, normalises case, and trims whitespace. Common examples include `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n endopeptidase`, `chymotrypsin-high`, and `thermolysin`. The input `" Trypsin "` therefore resolves to trypsin.
 
 ## Step 1a: Inspect cleavage efficiency
 
-`annotate_cleavage_sites()` adds a second layer for trypsin-family workflows: not just where cleavage can happen, but which local motifs are more likely to resist full digestion.
+`annotate_cleavage_sites()` classifies local trypsin-family motifs using the package's sequence rules.
 
 ```{r cleavage-annotations}
 annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
@@ -130,7 +129,7 @@ pepVet currently labels tryptic sites as:
 - `medium` for adjacent-basic sites such as `KK`, `KR`, and `RR`
 - `high` for other tryptic sites
 
-These labels are sequence-local only. They do not model structure, PTMs, or extended subsite preferences, so they should be read as digestion-risk annotations rather than abundance predictions.
+These labels are sequence-local annotations. They do not model structure, PTMs, extended subsite preferences, cleavage probability, or abundance.
 
 ## Step 2: Score the peptide set
 
@@ -146,39 +145,26 @@ score_peptides(digest_result)
 
 Only peptides inside the active `length_range` count as valid. The default window is 7 to 25 residues. Fragments outside that window still appear in the digest tibble, but they do not contribute to the component numerators. See the [scoring model](scoring-model.html) article for the formula of each component.
 
-Composite score verdict thresholds are `Good` at `>= 0.65`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These thresholds are heuristic. They are not calibrated probabilities. [REF]
+Composite score verdict thresholds are `Good` at `>= 0.65`, `Moderate` at `>= 0.40`, and `Poor` below `0.40`. These strict, conservative boundaries are package design choices for triage. They are not calibrated probabilities, and the current PeptideAtlas analysis did not reliably calibrate them. Treat the labels as prompts for review, not predictions of experimental success.
 
 ## Scoring model
 
-pepVet is not a peptide detectability predictor. Existing ML-based tools learn peptide-level detection patterns from experimental MS data. pepVet does something narrower and more transparent: it ranks the digest quality of a protein for a chosen enzyme-workflow combination using explicit physicochemical criteria.
+pepVet is not a peptide detectability predictor. Existing ML-based tools learn peptide-level detection patterns from experimental MS data. pepVet does something narrower: it ranks the digest quality of a protein for a chosen enzyme-workflow combination using explicit physicochemical criteria.
 
 - ML detectability tools learn nonlinear feature interactions from observed detections.
 - pepVet uses a rule-based multi-criteria decision analysis with linear weights.
-- ML detectability tools output per-peptide detection probabilities.
+- ML detectability tools output per-peptide predictions or suitability scores, depending on the model.
 - pepVet outputs per-protein digest-quality rankings.
 
-That distinction matters because pepVet scores are designed to explain why a digest looks promising or weak before acquisition, not to estimate the probability that a specific peptide will be observed.
+pepVet scores describe which digest-level components raise or lower a ranking. They do not estimate the observation probability of a specific peptide.
 
-## Evidence basis
-
-Every major scoring parameter has a different level of support. pepVet documents that support explicitly so users can see what is literature-backed, what is a physical constant, and what remains a heuristic pending later calibration.
-
-| Parameter | Category | Current basis | Phase 4 resolution |
-|---|---|---|---|
-| GRAVY range `[-1.0, +0.6]` | Literature-informed | C18 RP-LC elution guidance and observed under-detection of highly hydrophobic peptides | Calibrate against PeptideAtlas GRAVY distributions |
-| Length range `[7, 25]` | Literature-informed | Common bottom-up LC-MS guidance with conservative tails retained | Calibrate against PeptideAtlas peptide-length distributions |
-| Default component weights | Expert prior | Chosen for interpretability and digest-planning emphasis, not fit from data | Fit against observed detection summaries |
-| Preset weights | Expert prior | Workflow-specific directional logic from literature, not empirically fitted coefficients | Validate by workflow against public benchmark datasets |
-| Verdict thresholds `0.65 / 0.4` | Heuristic | Chosen as readable ranking cutoffs | Calibrate with ROC/logistic analysis |
-| Enzyme-class fallback constants | Literature-informed | Approximate peptide-length expectations from proteome-wide enzyme behavior | Validate against observed digest medians |
-| Fraction-based scoring form | Design choice | Simple, transparent normalization rather than a learned nonlinear model | Compare against alternative forms |
-| pKa set and proton mass | Literature-backed / physical constant | Lehninger-style pKa set and NIST proton mass | No calibration for proton mass; pI validated against ExPASy |
+The [scoring model](scoring-model.html) separates package design choices, expert priors, physical constants, and the limited PeptideAtlas evaluation. The [workflow presets](workflow-presets.html) article lists the resolved settings for each preset.
 
 ## Known limitations
 
 - Verdict thresholds are heuristic labels, not calibrated classifications.
 - Weight vectors are expert priors, not empirically trained coefficients.
-- PTMs, chemical labels, and digestion chemistry beyond the current rules are ignored.
+- The model omits PTMs, chemical labels, and digestion chemistry beyond the current rules.
 - GRAVY and peptide-length windows assume conventional C18 reversed-phase LC with ESI.
 - `S_charge` reflects extra internal basic-residue richness, not whether a peptide can ionize at all.
 - Proteome-aware uniqueness is only as relevant as the proteome digest you supply.
@@ -187,7 +173,7 @@ Every major scoring parameter has a different level of support. pepVet documents
 
 pepVet scores are interpretable rankings, not calibrated probabilities. The composite score has no unit. It ranks proteins by digest quality within a given enzyme-workflow combination.
 
-Cross-workflow comparisons are not valid when the resolved scoring configuration changes. To make that explicit, `score_peptides()` records a `preset_used` column. Named presets are reported when the resolved GRAVY window, peptide-length window, weights, and pI setting exactly match a shipped preset; otherwise the call is marked `"custom"`.
+Cross-workflow comparisons are not valid when the resolved scoring configuration changes. `score_peptides()` records a `preset_used` column. The function reports a preset name when the resolved GRAVY window, peptide-length window, weights, and pI setting exactly match a shipped preset. It marks other configurations as `"custom"`.
 
 ## Step 2a: Apply a workflow preset
 
@@ -210,11 +196,11 @@ do.call(
 
 Six presets ship with pepVet. Each bundles a length range, a GRAVY window, and scoring weights for a common experiment type. See the [workflow presets](workflow-presets.html) article for the full reference.
 
-Presets with non-zero `S_unique` weights require a proteome digest. pepVet rejects those presets when `proteome` is missing because the uniqueness term would otherwise be invented.
+Presets with non-zero `S_unique` weights require a proteome digest. pepVet rejects those presets when `proteome` is missing because the component is undefined without a comparison background.
 
 ### Proteome-aware uniqueness scoring
 
-When you supply a `proteome` digest, `score_peptides()` adds a sixth component, `S_unique`. It measures the fraction of valid peptides that appear in exactly one protein in the proteome. This matters for protein-level inference: shared peptides can be attributed to multiple proteins and inflate or confuse quantification.
+When you supply a `proteome` digest, `score_peptides()` adds a sixth component, `S_unique`. It measures the fraction of valid peptides that appear in exactly one protein in the supplied background. Shared sequences can map to more than one protein, so the relevance of this component depends on the background.
 
 ```{r score-proteome, eval=FALSE}
 # Digest the proteome background first
@@ -244,8 +230,7 @@ ev$scores
 ev$params
 ```
 
-The `$params` element records the resolved enzyme name, missed cleavages, and the full protein IDs found in the input.
-It also records `preset_used`, which is the simplest guard against comparing scores that came from different workflow assumptions.
+The `$params` element records the resolved enzyme name, missed cleavages, full protein IDs, and `preset_used` value.
 
 When you need peptide-level cleavage-risk context, request it explicitly. The flag adds a `cleavage_efficiency` column to the peptide table. The protein-level efficiency counts (`n_high_efficiency_sites`, `n_low_efficiency_sites`) are always present in the scores table regardless of this flag.
 
@@ -261,7 +246,7 @@ ev_eff$peptides
 ev_eff$scores[, c("protein_id", "n_high_efficiency_sites", "n_low_efficiency_sites")]
 ```
 
-The protein-level counts are informational. They are not score components, but they help flag proteins where missed cleavages are likely to remain prominent even before you inspect individual peptides.
+The protein-level counts are informational and do not contribute to the score. They summarize the sequence-local labels returned by the annotation rules.
 
 ## Step 4: Compare enzymes
 
@@ -279,11 +264,11 @@ comp <- compare_digests(
 comp
 ```
 
-`compare_digests()` rejects multi-protein input by design. Enzyme comparison is a protein-level decision, and mixing proteins would produce a meaningless aggregate score.
+`compare_digests()` defines one row per enzyme for one protein and therefore rejects multi-protein input.
 
 ## Step 5: Get a recommendation
 
-`recommend_enzyme()` runs `compare_digests()` internally and returns the name of the best-scoring enzyme as a character string. If multiple enzymes tie on the composite score, all tied names are returned in alphabetical order.
+`recommend_enzyme()` runs `compare_digests()` internally and returns the name of the highest-scoring enzyme as a character string. If multiple enzymes tie on the composite score, the function returns all tied names in alphabetical order.
 
 ```{r recommend}
 recommend_enzyme(
@@ -306,14 +291,14 @@ batch <- batch_evaluate(proteome_path,
   missed_cleavages = 1L
 )
 
-# How many proteins were evaluated?
+# Number of proteins evaluated
 nrow(batch)
 
 # Score and verdict for the first few proteins
 batch[, c("protein_id", "composite_score", "verdict")]
 ```
 
-Each protein is evaluated independently. Valid-peptide counts and hydrophobicity flags follow the active `length_range` and `gravy_range`. Short-protein and low-complexity flags remain fixed sequence-level heuristics. The returned tibble slots directly into `summarize_batch()` and `triage_proteins()`.
+`batch_evaluate()` evaluates each protein independently. Valid-peptide counts and hydrophobicity flags follow the active `length_range` and `gravy_range`. Short-protein and low-complexity flags remain fixed sequence-level heuristics. The returned tibble serves as input to `summarize_batch()` and `triage_proteins()`.
 
 For proteome-aware uniqueness scoring, supply a background proteome digest:
 
@@ -349,11 +334,11 @@ summary$problem_proteins
 summary$enzyme_switch_candidates
 ```
 
-`enzyme_switch_candidates` is a heuristic derived from sequence-level difficulty flags, not from running alternative enzymes. Use `compare_digests()` to confirm whether a specific alternative enzyme actually improves a flagged protein.
+`enzyme_switch_candidates` is a heuristic derived from sequence-level difficulty flags, not from running alternative enzymes. Use `compare_digests()` to assess a specific alternative enzyme under the active scoring settings.
 
 ## Step 6b: Triage proteins
 
-`triage_proteins()` appends an `action` column to the batch tibble with a deterministic recommendation for each protein.
+`triage_proteins()` appends a deterministic `action` label derived from the verdict and difficulty flags.
 
 ```{r triage, eval=FALSE}
 triaged <- triage_proteins(batch)
@@ -368,12 +353,14 @@ triaged[
 ]
 ```
 
-| Action | Meaning |
-|---|---|
-| `proceed` | Good verdict. No intervention indicated. |
-| `consider_alternative` | Moderate verdict with at least one component score below 0.5. A preset change or missed-cleavage adjustment may help. |
-| `try_other_enzyme` | Moderate or Poor verdict with hydrophobicity or short-protein flag. An alternative enzyme is the most likely improvement path. |
-| `skip` | No valid peptides or low-complexity sequence. No standard enzyme choice is expected to substantially improve the score. |
+The action rules are:
+
+- `proceed`: the verdict is `Good`.
+- `skip`: a non-Good row has no valid peptides or has the low-complexity flag.
+- `try_other_enzyme`: a remaining row has the hydrophobicity flag, the short-protein flag, or a `Poor` verdict.
+- `consider_alternative`: any remaining `Moderate` row.
+
+These labels do not run another enzyme or predict that the suggested action will improve an experiment.
 
 ## Step 6c: Export a peptide list
 
@@ -407,7 +394,7 @@ export_peptide_list(peps, format = "fasta", file = "bsa_peptides.fasta")
 
 ## Step 7: Quick interactive check
 
-`pepvet_check()` combines `evaluate_digest()` and `digest_report()` into a single call. It is the fastest way to inspect a protein interactively: one function call, one styled console report, result returned invisibly for further use.
+`pepvet_check()` combines `evaluate_digest()` and `digest_report()` in one interactive call. It prints a console report and returns the result invisibly.
 
 ```{r pepvet-check}
 result <- pepvet_check(bsa_path, enzyme = "trypsin")
@@ -423,7 +410,7 @@ result$peptides
 
 ## Step 8: Report to the console
 
-`digest_report()` produces a styled, colour-coded summary for either an `evaluate_digest()` result (single protein, bar-chart style) or a `compare_digests()` tibble (ranked table style). It returns its input invisibly so pipeline chains continue uninterrupted.
+`digest_report()` prints a styled summary for an `evaluate_digest()` result or a ranked table for a `compare_digests()` result. It returns its input invisibly.
 
 ```{r report-single}
 digest_report(ev)
@@ -433,7 +420,7 @@ digest_report(ev)
 digest_report(comp)
 ```
 
-`digest_report()` returns `invisible(x)`, so you can insert it anywhere in a pipeline to print a human-readable checkpoint without breaking the chain:
+`digest_report()` returns `invisible(x)`, so a script can print the report and retain the object:
 
 ```{r pipe, eval=FALSE}
 # Compare enzymes and print a report
@@ -450,14 +437,14 @@ winner <- recommend_enzyme(bsa_path,
 
 ## A challenging protein: Histone H3.1
 
-Histone H3.1 is a useful sanity check because trypsin performs poorly on it. The protein has a highly basic N-terminal tail rich in lysine and arginine. Trypsin over-digests it into dozens of very short fragments that fall below the 7-residue detection threshold.
+Histone H3.1 is a package example in which strict tryptic digestion produces many short fragments from its lysine- and arginine-rich N-terminal tail. Many of those fragments fall below pepVet's conservative 7-residue boundary. This is a scoring result under the active settings, not a universal detection threshold.
 
 ```{r h3-trypsin}
 ev_h3_trypsin <- evaluate_digest(h3_path, enzyme = "trypsin")
 ev_h3_trypsin$scores$verdict
 ```
 
-LysC recognises only lysine and cleaves less frequently on H3.1, producing longer peptides that score better overall:
+In this in-silico comparison, LysC recognises only lysine and cleaves less frequently on H3.1, producing longer peptides with a higher score under the default settings:
 
 ```{r h3-compare}
 compare_digests(
@@ -471,7 +458,7 @@ compare_digests(
 
 ## Amino acid reference data
 
-The package ships `aa_properties`, a 20-row tibble with physical and chemical properties for the standard amino acids used by the scoring engine.
+The package ships `aa_properties`, a 22-row tibble containing the 20 standard amino acids plus selenocysteine and pyrrolysine.
 
 ```{r aa-properties}
 aa_properties
@@ -481,23 +468,19 @@ The `kyte_doolittle` column contains the Kyte-Doolittle (1982) hydrophobicity sc
 
 ## How pepVet differs from common tools
 
-pepVet fills a narrow part of the workflow. It is not a spectral library builder and it is not a peptide detectability predictor. It is a decision-support layer for enzyme choice and digest quality before acquisition. [REF]
+pepVet covers a narrow part of the workflow. It is not a spectral library builder or a peptide detectability predictor. It compares enzyme-workflow combinations using explicit digest-level criteria before acquisition. This describes the package scope rather than an experimental performance claim.
 
 The [tool-comparison vignette](pepVet-tool-comparison.html) compares pepVet against five tools on a panel of five proteins and five enzymes. It covers baseline peptide overlap, capability differences across 16 dimensions, the scoring model in practice, workflow preset effects, pipeline integration with PeptideRanger, and a binary versus graded classification comparison with Protein Cleaver.
 
-## Where to go next
+## Related articles
 
-The remaining articles on this site go deeper into specific topics.
-
-| Article | What it covers |
-|---------|---------------|
-| [scoring model](scoring-model.html) | Formula and logic for each of the five component scores |
-| [enzyme selection](enzyme-selection.html) | Worked comparisons across multiple proteins with a decision table |
-| [workflow presets](workflow-presets.html) | The six shipped presets and how to modify them |
-| [visualisation](visualisation.html) | All plot functions with examples |
-| [weight sensitivity](weight-sensitivity.html) | Dirichlet Monte Carlo analysis of weight robustness |
-| [score diagnostics](score-diagnostics.html) | VIF, PCA, and ablation analysis of scoring model structure |
-| [tool comparison](pepVet-tool-comparison.html) | Detailed comparison against MS-Digest, ExPASy, Protein Cleaver, ProteaseGuru, and PeptideRanger |
+- [Scoring model](scoring-model.html): formulas, weights, thresholds, and limitations.
+- [Enzyme selection](enzyme-selection.html): worked comparisons across several proteins.
+- [Workflow presets](workflow-presets.html): resolved settings for the six shipped presets.
+- [Visualisation](visualisation.html): plotting functions with examples.
+- [Weight sensitivity](weight-sensitivity.html): Dirichlet Monte Carlo perturbation of the weights.
+- [Score diagnostics](score-diagnostics.html): VIF, PCA, and ablation summaries.
+- [Tool comparison](pepVet-tool-comparison.html): descriptive comparison with five other tools.
 
 ## Session info
 

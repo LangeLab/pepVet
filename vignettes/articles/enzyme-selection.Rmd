@@ -1,9 +1,7 @@
 ---
 title: "Choosing a Proteolytic Enzyme with pepVet"
 description: >
-  A practical guide to enzyme selection for LC-MS/MS proteomics. Covers score
-  interpretation, worked comparisons, and targeted advice for basic proteins,
-  membrane proteins, and isoform-aware workflows.
+  A practical guide to enzyme selection for LC-MS/MS proteomics with score interpretation and worked examples for basic, membrane, and isoform-aware proteins.
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -27,17 +25,17 @@ syn_path <- system.file("extdata", "P37840_isoforms.fasta", package = "pepVet")
 
 ## Why enzyme choice is not a formality
 
-Enzyme selection decides whether a protein yields peptides that fit routine LC-MS/MS. A poor enzyme can fail in several ways.
+Enzyme selection affects which peptides are available to a bottom-up LC-MS/MS workflow. Experimental comparisons have found that using different proteases can change protein identifications and sequence coverage, although the result depends on the sample and method (Swaney et al. 2010).
 
-- It can cut too often and flood the digest with peptides below the detection window.
-- It can cut too rarely and leave large regions in peptides that are too long to identify reproducibly.
-- It can bias the digest toward peptides that retain poorly, ionize poorly, or fail to separate isoforms.
+- It can cut often and produce many peptides below pepVet's active length window.
+- It can cut rarely and leave large regions in long peptides.
+- It can shift the digest toward peptide properties that are less suitable for the intended workflow.
 
-pepVet converts those tradeoffs into score components you can compare directly. The goal is not to predict identification with certainty. The goal is to rank enzyme options using transparent digest-level evidence. [REF]
+pepVet represents those tradeoffs as score components for direct comparison. It does not predict identification. It ranks enzyme options under an explicit set of digest-level assumptions.
 
 ## A fast comparison workflow
 
-The shortest useful workflow is a side-by-side enzyme comparison.
+A direct workflow uses a side-by-side enzyme comparison.
 
 ```{r bsa-compare}
 enzymes_standard <- c(
@@ -61,37 +59,37 @@ comp_bsa
 digest_report(comp_bsa)
 ```
 
-The comparison table is compact, but it exposes the scoring logic.
+The comparison table reports each score component alongside the composite.
 
 - `S_length` shows how much of the digest lands inside the active peptide-length window.
-- `S_coverage` shows how much of the parent protein is covered by valid peptides.
+- `S_coverage` reports the fraction of the parent protein covered by valid peptides.
 - `S_count` uses an enzyme-aware expected peptide length, so trypsin and GluC are not forced into the same denominator.
-- `S_hydro` and `S_charge` show whether the surviving peptides stay in the LC window and retain extra internal basic-residue richness for stronger multi-charge fragmentation.
+- `S_hydro` and `S_charge` report the active GRAVY-window fraction and internal basic-residue fraction.
 
-When two enzymes are close on the composite score, inspect the components before deciding. One enzyme may win on coverage while another wins on peptide quality. That difference matters when the experiment is targeted or proteome-aware.
+When two enzymes have similar composite scores, inspect the components. One enzyme can have higher coverage while another has a higher length- or GRAVY-window fraction.
 
 ## Worked example 1: BSA
 
-BSA is a stable positive-control protein. It is useful because most common enzymes produce interpretable digests, but they do not produce the same digest.
+BSA provides a fixed example for comparing several enzyme rules under one scoring configuration.
 
 ```{r bsa-slim}
 comp_bsa[, c("enzyme", "S_length", "S_coverage", "S_count", "composite_score", "verdict")]
 ```
 
-The main readout on BSA is not that one enzyme is universally correct. The main readout is that enzyme choice changes both the density and the detectability of the peptide set. The current release makes that clearer because `S_count` is tied to the observed digest structure instead of a fixed tryptic expectation.
+The BSA readout does not identify a universally correct enzyme. It shows how enzyme choice changes peptide density and the package's suitability components under the active settings. In the current release, `S_count` uses the observed digest structure instead of a fixed tryptic expectation.
 
 ### Cleavage efficiency is not uniform
 
-pepVet `0.1.0` also exposes a second question that matters in practice: not every theoretical cleavage site is equally likely to cut cleanly.
+pepVet also reports sequence-local cleavage-efficiency classes for supported trypsin-family rules.
 
 ```{r bsa-cleavage-efficiency}
 bsa_sites <- annotate_cleavage_sites(bsa_path, enzyme = "trypsin")
 bsa_sites[bsa_sites$position %in% c(140L, 155L, 167L), ]
 ```
 
-On the shipped BSA fixture, pepVet flags low-efficiency proline-blocked sites such as the KP motif at position 140, and medium-efficiency adjacent-basic sites such as KK at 155 and RR at 167. That does not mean those cuts fail completely. It means they are more likely to contribute to missed-cleavage products than an isolated high-efficiency tryptic site.
+On the shipped BSA fixture, pepVet labels the KP motif at position 140 as `low` and the adjacent-basic motifs KK at 155 and RR at 167 as `medium`. The labels come from local motif rules. They are not cleavage probabilities.
 
-Use these annotations to explain digest behavior, not to replace the score. The current rules are deliberately narrow: local P1-P1' sequence context only, with no structural accessibility or PTM modeling.
+The current annotation rules use local P1-P1' sequence context only. They do not model structural accessibility or PTMs and do not replace the digest score.
 
 ### Missed cleavages change the ranking
 
@@ -112,7 +110,7 @@ comp_mc0[, c("enzyme", "composite_score", "S_length", "median_peptide_length")]
 comp_mc1[, c("enzyme", "composite_score", "S_length", "median_peptide_length")]
 ```
 
-That shift is expected. Strict cleavage produces many short tryptic fragments. Allowing one missed cleavage often moves the digest toward a more realistic experimental distribution.
+The two tables show how allowing one missed cleavage changes peptide length and the component scores for this BSA example. They do not estimate an experimental missed-cleavage distribution.
 
 ## Worked example 2: Histone H3.1
 
@@ -131,7 +129,9 @@ comp_h3
 digest_report(comp_h3)
 ```
 
-The relevant pattern is usually a weak `S_length` and `S_coverage` for trypsin, followed by improvement under LysC or an orthogonal acidic-side enzyme. That is why histones are a standard counterexample to the assumption that trypsin is always the best first pass. [REF]
+In this in-silico example, trypsin has weak `S_length` and `S_coverage`, while LysC and the acidic-side enzymes have higher values for one or both components. This result is specific to the H3.1 sequence and the active pepVet settings. It does not establish a preferred enzyme for histone experiments.
+
+Histone workflows often require special digestion strategies because lysine- and arginine-rich sequences can yield many short tryptic products. One established bottom-up method blocks lysine residues before trypsin digestion so that cleavage occurs at arginine (Garcia et al. 2007). Middle-down methods retain longer histone-tail analytes and address a different experimental question (Sidoli et al. 2015).
 
 ## Worked example 3: Isoform-aware scoring
 
@@ -150,32 +150,32 @@ ev_syn <- evaluate_digest(
 ev_syn$scores
 ```
 
-If `S_unique` is weak, a high composite score without a proteome background can still be misleading for isoform-level work. That is why presets with non-zero uniqueness weights should be used only when you have a relevant comparison proteome.
+For isoform-level work, inspect `S_unique` against a relevant comparison proteome rather than relying on a protein-only composite score.
 
 ## A practical reading guide
 
-Use the score pattern to decide what to try next.
+The table maps component patterns to follow-up checks.
 
 | Pattern | Likely issue | Next action |
 |---|---|---|
-| Low `S_length`, low `S_count` | Over-digestion into short peptides | Allow one missed cleavage or compare against LysC |
-| Low `S_coverage`, moderate `S_count` | Cleavage leaves dark regions | Try a more orthogonal enzyme such as GluC or Asp-N |
-| Strong `S_length`, weak `S_hydro` | Peptides are detectable in size but poor for LC | Widen GRAVY expectations only if the biology justifies it |
+| Low `S_length`, low `S_count` | Few products inside the active length window | Inspect the length distribution, then compare a missed-cleavage setting or another enzyme |
+| Low `S_coverage`, moderate `S_count` | Valid peptides leave uncovered regions | Compare an enzyme with different cleavage specificity |
+| Strong `S_length`, weak `S_hydro` | Many valid-length peptides fall outside the active GRAVY window | Inspect the GRAVY distribution before changing the window |
 | Strong core scores, weak `S_unique` | Shared peptides across homologs or isoforms | Supply a proteome digest and use a uniqueness-aware preset |
 
 ## Special cases
 
 ### Membrane proteins
 
-Trypsin often avoids the transmembrane core. That hurts `S_coverage` even when the soluble loops digest cleanly. Compare trypsin with `chymotrypsin-high` or `thermolysin`, and consider the `membrane` preset if hydrophobic peptides are expected rather than treated as outliers.
+For a membrane target, inspect whether hydrophobic regions remain uncovered under the selected enzyme. Compare other cleavage rules and the `membrane` preset only when their resolved assumptions match the workflow.
 
 ### Degraded material
 
-For FFPE or otherwise degraded material, the standard 7 to 25 residue window can be too strict. Use `pepvet_preset("ffpe_degraded")` or pass a wider `length_range` explicitly. The change should be documented because it changes what pepVet counts as a valid peptide.
+The `ffpe_degraded` preset includes peptides from 6 to 30 residues. Use it or a custom range only when that inclusion rule matches the workflow, and record the resolved configuration.
 
 ### Targeted assays
 
-In SRM, PRM, and MRM workflows, you may care less about broad coverage and more about stable, unique peptides. Use the `targeted` preset and inspect `S_unique` before trusting the composite score.
+The `targeted` preset assigns more weight to `S_unique` and requires a relevant proteome digest. Inspect that component alongside the composite score.
 
 ## Using recommend_enzyme in scripts
 
@@ -186,11 +186,15 @@ recommend_enzyme(
 )
 ```
 
-`recommend_enzyme()` returns the top enzyme name, or several names if the top scores are tied within floating-point tolerance. That makes it safe for scripted triage, but you should still inspect the comparison table when the experiment has constraints beyond the default scoring model.
+`recommend_enzyme()` returns the top enzyme name. If scores tie within floating-point tolerance, it returns all tied names. Scripts can use the return value, but it contains no component-level explanation.
 
-## Summary
+## References
 
-pepVet is most useful when enzyme choice is uncertain, not when it is obvious. Start with `compare_digests()`, inspect the component pattern, then move to a preset or custom parameter set only when the experiment justifies it.
+Garcia BA, Mollah S, Ueberheide BM, et al. Chemical derivatization of histones for facilitated analysis by mass spectrometry. *Nature Protocols*. 2007;2:933-938. doi: [10.1038/nprot.2007.106](https://doi.org/10.1038/nprot.2007.106).
+
+Sidoli S, Lin S, Karch KR, Garcia BA. Bottom-Up and Middle-Down Proteomics Have Comparable Accuracies in Defining Histone Post-Translational Modification Relative Abundance and Stoichiometry. *Analytical Chemistry*. 2015;87(6):3129-3133. doi: [10.1021/acs.analchem.5b00072](https://doi.org/10.1021/acs.analchem.5b00072).
+
+Swaney DL, Wenger CD, Coon JJ. Value of Using Multiple Proteases for Large-Scale Mass Spectrometry-Based Proteomics. *Journal of Proteome Research*. 2010;9(3):1323-1329. doi: [10.1021/pr900863u](https://doi.org/10.1021/pr900863u).
 
 ```{r session-info}
 sessionInfo()

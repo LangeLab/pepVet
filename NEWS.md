@@ -11,10 +11,10 @@
 
 # pepVet 0.1.7
 
-## Empirical validation
+## Empirical concordance
 
-* Added the reproducible PeptideAtlas concordance analysis and article. On the sampled human proteins, pepVet-valid peptides showed 38.0 percentage points higher observation rates than invalid peptides. (Not quite the best emp.validation will need re-work)
-* Added grid-search and threshold-calibration results, documented the limits of the analysis, and retained the current defaults as conservative settings.
+* Added a reproducible PeptideAtlas concordance analysis. In the sampled human tryptic digests, peptides inside the default length and GRAVY windows had a 38.0 percentage-point higher mean observation rate than peptides outside them. The result is limited to the sampled data and is not an experimental calibration of pepVet scores.
+* Added bounded grid-search and threshold-calibration analyses, documented their limits, and retained the current defaults as strict, conservative settings by design.
 * Corrected the concordance artifacts to store full protein lengths and regenerated the committed CSV and RDS files.
 
 ## Package quality

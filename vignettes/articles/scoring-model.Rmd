@@ -1,8 +1,7 @@
 ---
 title: "Understanding the pepVet Scoring Model"
 description: >
-  A detailed guide to pepVet score components, weight handling, preset logic,
-  verdict thresholds, and the practical limits of the current model.
+  A detailed guide to pepVet score components, weight handling, preset logic, verdict thresholds, and the practical limits of the current model.
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -27,30 +26,30 @@ h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 
 `score_peptides()` reduces a digest tibble to one row per protein. That row contains component scores, a composite score, a verdict, and the digest-level `median_peptide_length` used to interpret peptide density.
 
-The model is intentionally simple. It is designed to expose why a digest looks promising or weak, not to hide the reasoning inside a single opaque number.
+The model uses explicit component scores and a weighted sum so that each contribution remains visible.
 
 ## Positioning
 
-pepVet is not a peptide detectability predictor. It does not try to estimate whether a specific peptide will be identified from empirical MS training data. Instead, it ranks the overall suitability of a protein digest for a chosen enzyme-workflow combination.
+pepVet is not a peptide detectability predictor. It does not estimate whether an experiment will identify a specific peptide from empirical MS training data. Instead, it ranks a protein digest for a chosen enzyme-workflow combination.
 
 - ML detectability models learn nonlinear interactions from observed peptide detections.
 - pepVet uses a rule-based multi-criteria decision analysis with explicit, linear weights.
-- ML detectability models output per-peptide probabilities.
+- ML detectability models output per-peptide predictions or suitability scores, depending on the model.
 - pepVet outputs per-protein digest-quality rankings.
 
-That means pepVet should be interpreted as a transparent decision-support model for pre-acquisition planning, not as a substitute for peptide-level detectability predictors.
+Interpret pepVet as a digest-ranking model for pre-acquisition planning, not as a substitute for peptide-level detectability prediction.
 
 ## Valid peptides
 
 Most pepVet components operate on valid peptides. A peptide is valid if its length falls inside the active `length_range`.
 
-The default window is 7 to 25 residues.
+The default window is 7 to 25 residues. It is a strict, conservative prior for routine workflows, not a universal LC-MS/MS detection boundary.
 
 $$
 v(p) = \mathbf{1}\{7 \le |p| \le 25\}
 $$
 
-Peptides outside that window still appear in `digest_protein()` output. They are real cleavage products. They are excluded because routine reversed-phase LC-MS/MS usually performs poorly at the extremes. [REF]
+Peptides outside that window still appear in `digest_protein()` output. They are real cleavage products, but the default score excludes them from its valid-peptide numerators. Empirical work shows that peptide observability depends on physicochemical properties and the analytical platform rather than on one universal length interval (Mallick et al. 2007). Use a preset or custom range when the workflow supports different boundaries.
 
 ```{r boundary-demo}
 short_seq <- "AKAKAKAKAKAKAKAKAKAKAKAKAKAKAKAKAK"
@@ -67,7 +66,7 @@ $$
 S_{length} = \frac{N_{valid}}{N_{total}}
 $$
 
-Low `S_length` usually means the enzyme is cutting too aggressively or too sparsely for the target sequence.
+Low `S_length` can result from many products below the active window or from long products above it.
 
 ### S_coverage
 
@@ -93,7 +92,7 @@ $$
 S_{count} = \min\left(\frac{N_{valid}}{N_{expected}}, 1\right)
 $$
 
-This is a bounded heuristic, not a mechanistic cleavage model. The change matters because a tryptic digest and a GluC digest should not be judged against the same peptide-density prior.
+This is a bounded heuristic, not a mechanistic cleavage model. Enzyme-aware medians keep tryptic and GluC digests from sharing one fixed peptide-density prior.
 
 ```{r count-demo}
 ev_bsa <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
@@ -114,7 +113,7 @@ $$
 S_{hydro} = \frac{N_{window}}{N_{valid}}
 $$
 
-The default range is `-1.0` to `0.6`. The `membrane` preset widens that range because transmembrane peptides are expected to be more hydrophobic.
+The default range is `-1.0` to `0.6`. The `membrane` preset assumes a wider hydrophobicity range and extends the upper boundary to `2.0`.
 
 ### S_charge
 
@@ -124,17 +123,17 @@ $$
 S_{\mathrm{charge\,richness}} = \frac{N_{basic}}{N_{valid}}
 $$
 
-This score is not a claim about whether a peptide can ionize. Tryptic peptides already retain a free N-terminus and frequently a terminal Lys or Arg, so baseline ionizability is still present when `S_charge = 0`. The implementation focuses on non-terminal basic residues because those additional charge sites are what tend to support higher charge states and richer b/y ion series.
+This score does not predict ionization or fragmentation. The implementation uses non-terminal basic residues as a charge-richness proxy. A value of zero means that no valid peptide contains such a residue.
 
 ### S_unique
 
-`S_unique` is optional. It is available only when a proteome digest is supplied.
+`S_unique` requires a supplied proteome digest.
 
 $$
 S_{unique} = \frac{N_{unique}}{N_{valid}}
 $$
 
-This score is useful for isoforms, paralogs, and family-level ambiguity. It is meaningless without a relevant proteome background, so pepVet does not invent it when `proteome` is missing.
+This score describes uniqueness against the supplied proteome digest. Without that background, pepVet cannot calculate the component and omits it.
 
 ## Weights and presets
 
@@ -147,13 +146,13 @@ $$
 Default weights depend on whether `S_unique` is in play.
 
 | Mode | Weight vector |
-|---|---|---|
+|---|---|
 | Protein-only | `c(S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)` |
 | Proteome-aware | `c(S_length = 0.160, S_coverage = 0.279, S_count = 0.181, S_hydro = 0.110, S_charge = 0.070, S_unique = 0.200)` |
 
-Default weights were derived using the Analytic Hierarchy Process (AHP), comparing each scoring dimension pairwise on a 1--9 Saaty scale grounded in the proteomics literature. Peptide length receives the base weight (length determines whether a peptide is detectable at all). Sequence coverage and peptide count --- both strongly correlated with digest quality --- together carry the main biological signal. Hydrophobicity and charge richness capture independent LC-MS dimensions that cannot be tuned by enzyme choice alone. The pairwise judgments are internally consistent (consistency ratio 0.03, well below the 0.10 acceptability threshold).
+Default weights came from pairwise Analytic Hierarchy Process judgments on a 1 to 9 Saaty scale. They encode the relative importance chosen for pepVet and were not fitted to experimental outcomes. Coverage and peptide count receive the largest combined weight. The pairwise matrix has a consistency ratio of 0.03 under the AHP calculation. That value describes internal consistency of the judgments, not empirical validity of the weights.
 
-`pepvet_preset()` exposes curated starting points for common workflows.
+`pepvet_preset()` returns shipped starting configurations for several workflows.
 
 ```{r preset-demo}
 pepvet_preset("dia")
@@ -166,9 +165,9 @@ These presets modify three things together.
 - `gravy_range`
 - `weights`
 
-That is deliberate. Changing weights alone often hides the fact that the peptide window itself should also change.
+Changing a preset can alter both the weights and the peptide windows. Inspect the resolved values before comparing scores.
 
-`score_peptides()` records the resolved configuration in `preset_used`. When the active GRAVY range, peptide-length range, weights, and pI flag exactly match a shipped preset, the preset name is reported. Otherwise the call is marked `"custom"`. This is a lightweight guard against comparing scores that were generated under different workflow assumptions.
+`score_peptides()` records the resolved configuration in `preset_used`. When the active GRAVY range, peptide-length range, weights, and pI flag exactly match a shipped preset, the function reports the preset name. Otherwise it reports `"custom"`. Use this field to identify scores produced under different workflow assumptions.
 
 ## Verdict thresholds
 
@@ -180,7 +179,7 @@ pepVet maps the composite score to three labels.
 | `Moderate` | `>= 0.40` |
 | `Poor` | `< 0.40` |
 
-These thresholds are heuristic defaults. They are not calibrated to an identification probability, a false discovery rate, or a fixed instrument platform. [REF]
+The package retains these strict, conservative thresholds as triage boundaries. No analysis has calibrated them to an identification probability, false discovery rate, or fixed instrument platform. The current PeptideAtlas analysis contained too few negative protein-level examples for reliable calibration. Use the labels for ranking and review, not as experimental outcome claims.
 
 ## Inspecting real outputs
 
@@ -192,7 +191,7 @@ digest_report(evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1
 digest_report(evaluate_digest(h3_path, enzyme = "trypsin"))
 ```
 
-The BSA example usually shows a balanced score pattern. The H3.1 example often exposes the classic trypsin failure mode: many peptides, weak valid-length yield, and poor usable coverage.
+The two reports show the component values for BSA and H3.1 under the specified trypsin settings. Interpret the displayed values rather than treating either protein as a universal positive or negative control.
 
 ## Limitations
 
@@ -205,30 +204,25 @@ The current model has several limits.
 - It assumes the active GRAVY and length windows describe a conventional C18 reversed-phase LC with ESI unless a different preset or custom configuration is supplied.
 - It treats the weight vectors as expert priors, not validated coefficients.
 
-Those limits do not make the score useless. They define what the score is for: digest planning, enzyme ranking, and transparent pre-acquisition triage.
+These limits define the intended use: digest planning, enzyme ranking, and pre-acquisition triage under an explicit scoring configuration.
 
 ## Scope
 
-pepVet scores are interpretable rankings, not calibrated probabilities. The composite score has no unit. It is most honest when used to rank proteins within one enzyme-workflow configuration.
+pepVet scores are rankings, not calibrated probabilities. The composite score has no unit. Comparisons should remain within one enzyme-workflow configuration.
 
 Cross-preset comparisons are not valid just because the numeric scale looks the same. A `standard` score of `0.75` and a `targeted` score of `0.60` reflect different weight vectors and can answer different questions.
 
-## Empirical validation
+## Empirical evaluation
 
-The default parameters were validated against the human PeptideAtlas build
-(Jan 2026, 5.3M unique observed peptides) and internal score diagnostics.
+A January 2026 analysis evaluated the default parameters against a human PeptideAtlas build containing 5.3 million unique observed peptide sequences. Internal score diagnostics also described component relationships. These analyses provide evidence about the sampled data and model behavior, but they do not establish performance across organisms, enzymes, instruments, or workflows.
 
-- **Score diagnostics** (`score_diagnostics()`): VIF, PCA, and ablation
-  analyses confirm the five scoring components are not redundant and the
-  weight vector is internally consistent. See the
-  [Score Diagnostics](score-diagnostics.html) article.
+- **Score diagnostics** (`score_diagnostics()`): VIF, PCA, and ablation describe component relationships and the effect of removing each component in the evaluated sample. See the [Score Diagnostics](score-diagnostics.html) article.
 
-- **PeptideAtlas concordance**: pepVet-valid peptides are 3x more likely to
-  be observed than invalid ones (38.0% enrichment, 95% CI [36.1%, 40.0%]).
-  The length and GRAVY defaults are validated as conservative. See the
-  [PeptideAtlas Concordance](peptideatlas-concordance.html) article for the
-  full analysis with signal decomposition, grid search, and threshold
-  calibration.
+- **PeptideAtlas concordance**: in the sampled human tryptic digests, the mean observation rate was 38.0 percentage points higher for peptides inside the default length and GRAVY windows than for peptides outside them (bootstrap 95% CI [36.1, 40.0] percentage points). Wider grid-search ranges produced greater enrichment, which is consistent with the defaults acting as strict, conservative filters rather than estimated detection boundaries. See the [PeptideAtlas Concordance](peptideatlas-concordance.html) article for the analysis and its limitations.
+
+## References
+
+Mallick P, Schirle M, Chen SS, et al. Computational prediction of proteotypic peptides for quantitative proteomics. *Nature Biotechnology*. 2007;25:125-131. doi: [10.1038/nbt1275](https://doi.org/10.1038/nbt1275).
 
 ```{r session-info}
 sessionInfo()

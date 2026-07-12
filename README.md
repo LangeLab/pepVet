@@ -29,7 +29,7 @@
 
 ## What pepVet does
 
-Enzyme choice is the first and most consequential decision in a bottom-up proteomics experiment. Cut too aggressively and you drown in tiny fragments below the detection threshold. Cut too conservatively and overlong peptides fail to fly, fragment, or resolve on the column. Most tools stop after listing which peptides an enzyme _could_ produce. pepVet goes further: it scores each peptide for LC-MS/MS suitability, ranks enzymes by digest quality, and triages proteins by expected difficulty, all before any sample touches the instrument.
+Enzyme choice affects the peptide set available to a bottom-up proteomics workflow. Frequent cleavage can produce many short fragments, while sparse cleavage can leave long products. pepVet compares enzyme-digest combinations using explicit length, coverage, peptide-count, hydrophobicity, and charge criteria. The resulting scores are intended for pre-acquisition ranking and review, not as predictions of peptide identification or experimental success.
 
 ## Quick start
 
@@ -77,7 +77,7 @@ See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/
 
 **Scoring**
 
-- `score_peptides()` summarises a peptide set into five orthogonal component scores (`S_length`, `S_coverage`, `S_count`, `S_hydro`, `S_charge`) plus an optional sixth (`S_unique`) when a background proteome digest is supplied.
+- `score_peptides()` summarises a peptide set into five component scores (`S_length`, `S_coverage`, `S_count`, `S_hydro`, `S_charge`) plus an optional sixth (`S_unique`) when a background proteome digest is supplied.
 - `pepvet_preset()` returns workflow-specific parameter sets for DDA, DIA, targeted, membrane, FFPE/degraded, and fractionated workflows.
 
 **Evaluation and comparison**

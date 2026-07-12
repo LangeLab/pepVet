@@ -1,8 +1,7 @@
 ---
 title: "Workflow Presets in pepVet"
 description: >
-  A practical guide to pepVet presets for standard DDA, DIA, targeted assays,
-  membrane proteins, degraded material, and fractionated workflows.
+  A practical guide to pepVet presets for standard DDA, DIA, targeted assays, membrane proteins, degraded material, and fractionated workflows.
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -33,9 +32,9 @@ Most digest-scoring tools expose a fixed set of assumptions. Real experiments do
 - the acceptable GRAVY window
 - the component weight vector
 
-That keeps the scoring logic explicit and easy to modify.
+The returned object keeps the scoring settings explicit and editable.
 
-`score_peptides()` records the resolved workflow label in `preset_used`. When a call exactly matches one of pepVet's shipped presets, that preset name is reported. Otherwise the call is marked `"custom"`.
+`score_peptides()` records the resolved workflow label in `preset_used`. When a call exactly matches one of pepVet's shipped presets, the function reports that preset name. Otherwise it reports `"custom"`.
 
 ## Available presets
 
@@ -43,18 +42,18 @@ That keeps the scoring logic explicit and easy to modify.
 pepvet_preset("standard")
 ```
 
-| Preset | Intended use | Key change | Literature basis |
-|---|---|---|---|---|
-| `standard` | Routine DDA | Default AHP weights | Tabb 2008 |
-| `dia` | DIA and SWATH | `[7,30]` aa, GRAVY `[-1,0.8]`, high coverage | Ludwig et al. 2018 |
-| `targeted` | SRM, PRM, MRM | `[8,20]` aa, GRAVY `[-0.8,0.4]`, S_unique 30% | Lange et al. 2008, Picotti & Aebersold 2012 |
-| `membrane` | Hydrophobic proteins | length `[7,30]`, GRAVY `[-1.0,2.0]`, S_hydro 5% | Vit & Petrak 2017 |
-| `ffpe_degraded` | Degraded material | `[6,30]` aa, high S_count weight | Coscia et al. 2020, Buczak et al. 2023 |
-| `fractionated` | Offline fractionation | Standard + pI annotation | - |
+| Preset | Intended use | Key change |
+|---|---|---|
+| `standard` | Routine DDA | Default AHP weights |
+| `dia` | DIA and SWATH | `[7,30]` aa, GRAVY `[-1,0.8]`, high coverage weight |
+| `targeted` | SRM, PRM, MRM | `[8,20]` aa, GRAVY `[-0.8,0.4]`, `S_unique` 30% |
+| `membrane` | Hydrophobic proteins | Length `[7,30]`, GRAVY `[-1.0,2.0]`, `S_hydro` 5% |
+| `ffpe_degraded` | Degraded material | `[6,30]` aa, higher `S_count` weight |
+| `fractionated` | Offline fractionation | Standard settings with pI annotation |
 
 ## Standard workflow
 
-The `standard` preset is a clear baseline for routine peptide-centric proteomics.
+The `standard` preset contains the package defaults for routine peptide-centric proteomics.
 
 ```{r standard-example}
 standard <- pepvet_preset("standard")
@@ -67,7 +66,7 @@ do.call(
 
 ## DIA workflow
 
-DIA benefits from broad peptide support across the protein because fragmentation is decoupled from precursor selection. The `dia` preset shifts weight toward coverage, widens the valid length window to 30 aa, and extends the GRAVY window to \[-1.0, 0.8\] since DIA tolerates more hydrophobic peptides (Ludwig et al. 2018, *Cell Systems*).
+The `dia` preset assigns more weight to coverage, widens the valid length window to 30 aa, and extends the GRAVY window to \[-1.0, 0.8\]. These values encode a broader inclusion prior for DIA workflows. They are not calibrated detection boundaries.
 
 ```{r dia-example}
 syn_proteome <- digest_protein(syn_path, enzyme = "trypsin")
@@ -81,7 +80,7 @@ do.call(
 
 ## Targeted workflow
 
-Targeted assays care about a smaller set of peptides, but those peptides need to be stable and specific. The `targeted` preset pushes more weight onto `S_unique` and expects a relevant comparison proteome.
+The `targeted` preset assigns more weight to `S_unique` and requires a relevant comparison proteome. It uses a narrower length and GRAVY window than the standard preset.
 
 ```{r targeted-example}
 proteome <- digest_protein(syn_path, enzyme = "trypsin")
@@ -93,21 +92,21 @@ do.call(
 )$scores
 ```
 
-Without a proteome digest, a non-zero uniqueness weight is not valid. pepVet raises an error instead of pretending the score can be computed.
+Without a proteome digest, pepVet cannot calculate a non-zero uniqueness component and raises an error.
 
 ## Membrane workflow
 
-Membrane proteins are a common reason to reject default hydrophobicity assumptions. The `membrane` preset extends the GRAVY window to \[-1.0, 2.0\] and the length window to \[7, 30\] because transmembrane helices contain long hydrophobic stretches with GRAVY values far exceeding soluble proteins (Vit & Petrak 2017, *J Proteomics*). The S_hydro weight drops to 5% to avoid penalising the very hydrophobicity that defines this class.
+The `membrane` preset extends the GRAVY window to \[-1.0, 2.0\], extends the length window to \[7, 30\], and lowers the `S_hydro` weight to 5%. These settings reduce the score penalty for hydrophobic peptides. They remain workflow priors and do not predict peptide observation.
 
 ```{r membrane-example}
 pepvet_preset("membrane")
 ```
 
-This does not guarantee a membrane digest is good. It only stops the scoring model from treating all hydrophobic peptides as implausible by default.
+The preset changes how the score treats hydrophobic peptides. It does not predict whether the digest will succeed experimentally.
 
 ## Degraded samples
 
-The `ffpe_degraded` preset lowers the minimum length to 6 aa because FFPE-derived peptides are shorter due to formalin-induced cross-linking and degradation (Coscia et al. 2020, *Nat Commun*; Buczak et al. 2023, *Mol Cell Proteomics*). The elevated S_count weight prioritises having more quantifiable peptides to compensate for reduced overall signal.
+The `ffpe_degraded` preset lowers the minimum length to 6 aa and increases the `S_count` weight. This configuration includes more short products and gives peptide count more influence on the composite score. It does not model formalin chemistry or degradation directly.
 
 ```{r ffpe-example}
 pepvet_preset("ffpe_degraded")
@@ -117,11 +116,11 @@ Use this preset only when the sample context justifies it. A wider window change
 
 ## Fractionated workflows
 
-The `fractionated` preset keeps a conventional scoring profile but is useful when planning offline fractionation. The digest still needs strong peptides, but you may tolerate a broader peptide inventory because the acquisition strategy is designed to spread complexity over several runs.
+The `fractionated` preset keeps the standard score settings and requests pI annotation for planning offline fractionation.
 
 ## Editing a preset
 
-Presets are plain R lists. The easiest way to customize them is to start with one and change the fields you need.
+Presets are plain R lists. Copy one and change the fields required by the workflow.
 
 ```{r modify-preset}
 custom_fractionated <- pepvet_preset("fractionated")
@@ -136,27 +135,25 @@ do.call(
 )$scores
 ```
 
-This is deliberate API design. Presets are data, not hidden state. You can inspect them, store them, version them, and adapt them to local methods without rewriting package internals.
+Presets are data, not hidden state. You can inspect, store, version, and modify them without changing package internals.
 
-## Real workflow examples
+## When presets help
 
-The presets are most useful in three situations.
+Presets provide a recorded starting configuration when:
 
-- You need a defensible starting point for a new assay.
+- You need a starting point for a new assay.
 - You want comparisons to stay consistent across a panel of proteins.
 - You need to explain why a score changed when the workflow changed.
 
-That third case matters in practice. If a membrane target improves only after widening the GRAVY window, the result is interpretable. The score changed because the workflow assumptions changed, not because the package silently drifted.
+If a membrane target receives a higher score only after widening the GRAVY window, the recorded configuration shows which assumption changed.
 
 ## Cross-preset interpretation
 
 Do not compare composite scores across different presets as if they were on one universal scale. A `standard` score and a `targeted` score can differ because the weight vector, peptide-length window, and GRAVY window changed, not because the protein became intrinsically better or worse.
 
-Use `preset_used` as a guardrail when you save or compare results. Scores are directly comparable only when the resolved scoring configuration matches.
+Use `preset_used` when saving or comparing results. Compare scores only when the resolved scoring configuration matches.
 
-## Summary
-
-Use presets as starting points, not as immutable truth. They are there to make workflow assumptions explicit, reproducible, and easy to modify.
+Presets are starting points, not experimentally fitted parameter sets. Modify them when the workflow requires different assumptions.
 
 ```{r session-info}
 sessionInfo()

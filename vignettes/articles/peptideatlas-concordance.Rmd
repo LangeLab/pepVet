@@ -1,15 +1,13 @@
 ---
-title: "Validating pepVet Parameters Against PeptideAtlas"
+title: "Evaluating pepVet Parameters Against PeptideAtlas"
 description: >
-  Tests whether pepVet-valid peptides are observed in PeptideAtlas at higher
-  rates than invalid peptides. Grid-searches length and GRAVY boundaries to
-  find data-optimal ranges. Calibrates the composite threshold.
+  Tests whether pepVet-valid peptides have higher PeptideAtlas observation rates than invalid peptides and examines bounded parameter and threshold grids.
 output:
   rmarkdown::html_vignette:
     toc: true
     toc_depth: 3
 vignette: >
-  %\VignetteIndexEntry{Validating pepVet Parameters Against PeptideAtlas}
+  %\VignetteIndexEntry{Evaluating pepVet Parameters Against PeptideAtlas}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -33,38 +31,25 @@ gs <- readRDS(file.path(data_dir, "grid-search-results.rds"))
 tc <- readRDS(file.path(data_dir, "threshold-calibration.rds"))
 ```
 
-pepVet's default scoring parameters (length range `[7, 25]`, GRAVY range
-`[-1.0, 0.6]`, verdict thresholds `0.65` / `0.40`) are literature-based
-heuristics. They are reasonable starting points for conventional C18 LC-MS,
-but prior to this analysis there was no direct evidence that pepVet-valid
-peptides are actually detected at higher rates than pepVet-invalid peptides.
+pepVet's default scoring parameters (length range `[7, 25]`, GRAVY range `[-1.0, 0.6]`, verdict thresholds `0.65` / `0.40`) are literature-informed priors and package design choices. The package uses intentionally strict and conservative length and GRAVY windows. Before this work, no analysis had evaluated their relationship with peptide observations using pepVet outputs.
 
-This article tests that question using the human PeptideAtlas build (January
-2026, 5.3M unique observed peptides).
+This article uses a January 2026 human PeptideAtlas build with 5.3 million unique observed peptide sequences.
 
 ## Approach
 
-We sampled 500 proteins from the UniProt human reference proteome (length
->= 50 AA, standard amino acids only), digested each with trypsin at MC = 1
-using pepVet's `digest_protein()`, and checked whether each peptide appeared
-in the PeptideAtlas observed peptide list.
+We sampled 500 proteins from the UniProt human reference proteome, limited to sequences at least 50 residues long with standard amino acids. We digested each sequence with trypsin and one missed cleavage, then checked whether each theoretical peptide appeared in the PeptideAtlas sequence list.
 
 The analysis has three parts:
 
-1. **Enrichment measurement**: for each protein, compute the detection rate
-   among pepVet-valid peptides and among pepVet-invalid peptides. Enrichment
-   is the mean difference across proteins, with bootstrap confidence interval.
+1. **Observation-rate difference**: for each protein, compute the observation rate among pepVet-valid and pepVet-invalid peptides. Report the mean difference across proteins with a bootstrap interval.
 
-2. **Grid search**: systematically vary length and GRAVY boundaries (900
-   combinations) to find the ranges that maximize enrichment.
+2. **Grid search**: vary length and GRAVY boundaries across 900 specified combinations and identify the highest enrichment within that grid.
 
-3. **Threshold calibration**: fit logistic regression predicting
-   protein-level detection from composite score, then compute Youden's J
-   across thresholds to find the optimal verdict cutoff.
+3. **Threshold assessment**: fit logistic regression for protein-level observation status and compute Youden's J across a threshold grid. Inspect the class balance before interpreting the selected threshold.
 
 ## Enrichment
 
-Using the default parameters, the mean detection rate across proteins is:
+Using the default parameters, the mean observation rates across proteins are:
 
 ```{r enrichment}
 valid_rate   <- mean(pp$detection_rate_valid, na.rm = TRUE)
@@ -74,48 +59,32 @@ enrichment   <- valid_rate - invalid_rate
 
 | Metric | Value |
 |--------|-------|
-| Detection rate (pepVet-valid peptides) | `r sprintf("%.1f%%", 100 * valid_rate)` |
-| Detection rate (pepVet-invalid peptides) | `r sprintf("%.1f%%", 100 * invalid_rate)` |
-| Enrichment | `r sprintf("%.1f%%", 100 * enrichment)` |
-| Likelihood ratio | `r sprintf("%.1fx", valid_rate / invalid_rate)` |
+| Observation rate (pepVet-valid peptides) | `r sprintf("%.1f%%", 100 * valid_rate)` |
+| Observation rate (pepVet-invalid peptides) | `r sprintf("%.1f%%", 100 * invalid_rate)` |
+| Mean observation-rate difference | `r sprintf("%.1f percentage points", 100 * enrichment)` |
+| Observation-rate ratio | `r sprintf("%.1fx", valid_rate / invalid_rate)` |
 
-The bootstrap 95% CI is `r sprintf("[%.1f%%, %.1f%%]", 100 * 0.3613, 100 * 0.3999)`,
-confirming the enrichment is significantly positive.
+The bootstrap 95% interval for the mean difference is `r sprintf("[%.1f, %.1f] percentage points", 100 * 0.3613, 100 * 0.3999)`. The interval is above zero for this sample and resampling procedure.
 
-Valid peptides are about 3 times more likely to be observed than invalid ones.
-This is genuine validation: the length and GRAVY filters, which were derived
-from general LC-MS literature, distinguish empirically observed peptides from
-unobserved ones in an independent dataset.
+Within these sampled human tryptic digests, peptides inside the default windows had a higher mean PeptideAtlas observation rate than peptides outside them. This is concordance evidence for the sampled data. It does not estimate a causal effect of the filters or establish performance for other enzymes, organisms, instruments, or acquisition methods.
 
 ### Signal decomposition
 
-Which filter drives the signal? We measured enrichment for each filter alone:
+The full script calculates the observation-rate difference for each filter alone.
 
 ```{r decomposition}
 len_mask   <- pp$detection_rate_valid # not per-peptide; handled below
 ```
 
-This analysis is done at the peptide level in the full script. The key result
-is that the length filter `[7, 25]` does most of the work (47.5pp enrichment
-alone), while the GRAVY filter `[-1.0, 0.6]` contributes less (18.9pp alone).
-Combined enrichment (38.0pp) is sub-additive because the filters identify
-overlapping sets of peptides.
+This analysis is done at the peptide level in the full script. In this sample, the length filter `[7, 25]` alone has a 47.5 percentage-point difference, while the GRAVY filter `[-1.0, 0.6]` alone has an 18.9 percentage-point difference. The combined difference is 38.0 percentage points because the selected sets overlap.
 
-This makes physical sense: tryptic peptide length is the primary determinant
-of LC-MS/MS detection. GRAVY (hydrophobicity) is a secondary factor that
-modulates retention and ionization.
+In this decomposition, the length filter had the larger individual association with observation status. The analysis does not establish a general ordering of determinants of LC-MS/MS detection.
 
 ### GRAVY min finding
 
-23.8% of observed peptides have GRAVY below -1.0. These are more hydrophilic
-peptides that the default window excludes. Lowering the GRAVY minimum to -1.5
-raises enrichment from 38.0% to 42.1% while barely reducing the valid
-detection rate (57.3% to 57.0%). This is the single most impactful parameter
-change identified in the grid search.
+23.8% of observed peptides have GRAVY below -1.0. These are more hydrophilic peptides that the default window excludes. Lowering the GRAVY minimum to -1.5 raises enrichment from 38.0 to 42.1 percentage points while changing the valid-peptide observation rate from 57.3% to 57.0%. This was the largest individual change among the tested GRAVY-floor values.
 
-The existing dia preset already includes wider GRAVY limits ([-1.0, 0.8]).
-This analysis suggests the GRAVY floor could be relaxed further for routine
-DDA.
+The existing DIA preset includes wider GRAVY limits of [-1.0, 0.8]. The package default remains unchanged because this analysis covers one human tryptic sample.
 
 ## Grid search
 
@@ -127,26 +96,18 @@ top <- head(gs, 5)[, c("length_min", "length_max", "gravy_min", "gravy_max",
 knitr::kable(top, digits = 4)
 ```
 
-The best combination found is `length [7, 35]` and `GRAVY [-1.5, 1.0]` with
-enrichment 45.1%. Compared to the default 38.0%, this is a 7.1pp improvement
-(95% CI on difference: [6.2pp, 7.9pp]).
+The highest enrichment among the 900 evaluated combinations occurs at `length [7, 35]` and `GRAVY [-1.5, 1.0]`: 45.1%, or 7.1 percentage points above the default result (bootstrap 95% interval for the difference [6.2, 7.9] percentage points). This is a bounded grid-search result, not an estimate of universally optimal boundaries.
 
-The optimal boundaries are wider than the defaults in two ways:
+The highest-enrichment boundaries in this grid are wider than the defaults in two ways:
 
-- **GRAVY**: wider on both ends (-1.5 to 1.0 vs -1.0 to 0.6). The lower end
-  contributes more to the improvement.
-- **Length**: max at 35 vs 25. Alone this hurts enrichment (adding long
-  peptides that are less detectable), but combined with wider GRAVY it works
-  synergistically.
+- **GRAVY**: wider on both ends (-1.5 to 1.0 vs -1.0 to 0.6). The lower end contributes more to the improvement.
+- **Length**: the upper boundary is 35 rather than 25. Within the tested grid, widening this boundary alone lowers enrichment, while the combination with the wider GRAVY range has the highest observed enrichment.
 
-The fact that the optimal range is wider does not invalidate the defaults. The
-defaults serve a specific purpose: conservative pre-filtering for routine DDA.
-Tighter ranges produce higher precision at the cost of recall. Users who want
-maximum detection coverage should consider the dia preset or custom ranges.
+The wider selected range reflects a different tradeoff from the package defaults. pepVet retains strict, conservative defaults for triage rather than claiming that they are estimated detection boundaries. Users can inspect the DIA preset or custom ranges when broader inclusion is appropriate for their workflow.
 
-## Threshold calibration
+## Threshold assessment
 
-Logistic regression predicting protein-level detection from composite score:
+The following logistic regression relates composite score to protein-level observation status in this sample:
 
 ```{r logit}
 # Re-fit from pre-computed data to display coefficients
@@ -155,9 +116,7 @@ logit_fit <- glm(I(n_observed > 0) ~ composite_score,
 knitr::kable(summary(logit_fit)$coefficients, digits = 4)
 ```
 
-The composite score is a significant predictor (p = 0.024), but the effect
-is modest. The coefficient implies that a 0.1 increase in composite score
-raises the log-odds of detection by about 0.26.
+In this sample, the fitted model associates composite score with binary protein-level observation status (coefficient test p = 0.024). A 0.1 increase in composite score corresponds to an estimated 0.26 increase in log-odds under this model. The analysis describes the sampled data and does not provide calibrated probabilities for new data.
 
 Youden's J across the threshold grid:
 
@@ -173,51 +132,32 @@ knitr::kable(data.frame(
 ), digits = 3)
 ```
 
-The Youden-optimal threshold is 0.875, far from the default 0.65. This
-sounds alarming until you look at the class distribution: 461 of 500 proteins
-(92.2%) have at least one observed peptide. With only 39 negative samples,
-specificity estimates are unstable. The Youden J of 0.174 is close to random.
+The threshold with the highest Youden J on this grid is 0.875, compared with the default 0.65. However, 461 of 500 proteins (92.2%) have at least one observed peptide. With only 39 negative examples, the specificity and selected threshold are unstable. The maximum Youden J is 0.174.
 
-This analysis cannot reliably calibrate the verdict threshold. The default
-0.65 / 0.40 thresholds are retained as heuristic defaults, consistent with
-the existing documentation.
+This analysis does not provide a reliable calibration of the verdict thresholds. The package retains 0.65 and 0.40 as heuristic defaults.
 
-## What was validated
+## What this analysis supports
 
 | Parameter | Status | Evidence |
 |-----------|--------|----------|
-| Length range [7, 25] | Validated | 47.5pp enrichment alone; optimal is wider but conservatism is design intent |
-| GRAVY range [-1.0, 0.6] | Validated as conservative | 18.9pp enrichment; widening to -1.5 improves recall without hurting precision |
+| Length range [7, 25] | Concordant in this sample | 47.5 percentage-point difference alone. The highest-enrichment grid range was wider. |
+| GRAVY range [-1.0, 0.6] | Concordant in this sample | 18.9 percentage-point difference alone. A lower floor increased the difference in the tested grid. |
 | Verdict thresholds 0.65 / 0.40 | Retained, not validated | Class imbalance prevents reliable calibration |
-| AHP weight vector | Not tested | Weight validation needs a different experiment design; sensitivity analysis (Phase 3) confirms verdict stability under perturbation |
+| AHP weight vector | Not tested | A separate sensitivity analysis measures stability only under its specified perturbation model |
 
 ## Limitations
 
-- **Human + trypsin only.** The PeptideAtlas build is human-specific and
-  trypsin is the only enzyme tested. Generalizability to other organisms or
-  enzymes is plausible (the length and GRAVY filters are physico-chemical, not
-  organism-specific) but unvalidated.
+- **Human + trypsin only.** The PeptideAtlas build is human-specific and trypsin is the only enzyme tested. Transfer to other organisms or enzymes was not evaluated.
 
-- **No abundance weighting.** Proteins that are not expressed in the samples
-  that contributed to PeptideAtlas will appear as "unobserved" regardless of
-  digest quality. PaxDB abundance scores were not integrated.
+- **No abundance weighting.** Proteins that are not expressed in the samples that contributed to PeptideAtlas will appear as "unobserved" regardless of digest quality. PaxDB abundance scores were not integrated.
 
-- **Binary observation status.** PeptideAtlas records presence/absence, not
-  detection confidence or intensity. Peptides observed once and peptides
-  observed in hundreds of experiments are treated identically.
+- **Binary observation status.** PeptideAtlas records presence or absence, not detection confidence or intensity. The analysis treats a peptide observed once and a peptide observed in hundreds of experiments identically.
 
-- **Protein-level threshold analysis is underpowered.** With 92% of proteins
-  having at least one observed peptide, the negative class is too small for
-  reliable specificity estimation. A peptide-level analysis with a composite
-  score that varies per peptide (not per protein) would be more informative
-  but is not supported by the current scoring model.
+- **Protein-level threshold analysis has 39 negative examples.** With 92.2% of proteins having at least one observed peptide, specificity estimates and the selected threshold are unstable.
 
 ## Reproducibility
 
-The full analysis script is at `data-raw/peptideatlas-concordance.R`. It
-requires the PeptideAtlas build FASTA (168 MB) and UniProt human reference
-proteome (14 MB), which are not shipped with the package. Pre-computed
-results are in `inst/extdata/peptideatlas-concordance/`.
+The full analysis script is at `data-raw/peptideatlas-concordance.R`. It requires the PeptideAtlas build FASTA (168 MB) and UniProt human reference proteome (14 MB), which are not shipped with the package. Pre-computed results are in `inst/extdata/peptideatlas-concordance/`.
 
 ## Session info
 

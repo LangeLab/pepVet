@@ -20,14 +20,37 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 library(pepVet)
+has_ggplot2 <- requireNamespace("ggplot2", quietly = TRUE)
 ```
 
 ```{r data, include = FALSE}
 base_dir <- system.file("extdata", "comparison-data", package = "pepVet")
-overlap    <- read.csv(file.path(base_dir, "sectionA-overlap.csv"))
-caps       <- read.csv(file.path(base_dir, "sectionB-capabilities.csv"))
-pr_data    <- read.csv(file.path(base_dir, "sectionD-peptideranger.csv"))
-pc_data    <- read.csv(file.path(base_dir, "sectionE-protein-cleaver.csv"))
+overlap <- read.csv(file.path(base_dir, "sectionA-overlap.csv"))
+caps <- read.csv(file.path(base_dir, "sectionB-capabilities.csv"))
+scores <- read.csv(file.path(base_dir, "sectionC-scores-all.csv"))
+presets <- read.csv(file.path(base_dir, "sectionC2-presets.csv"))
+pr_data <- read.csv(file.path(base_dir, "sectionD-peptideranger.csv"))
+pc_data <- read.csv(file.path(base_dir, "sectionE-protein-cleaver.csv"))
+
+enzyme_labels <- c(
+  "trypsin" = "Trypsin",
+  "lysc" = "Lys-C",
+  "chymotrypsin-high" = "Chymotrypsin",
+  "glutamyl endopeptidase" = "Glu-C",
+  "asp-n endopeptidase" = "Asp-N"
+)
+enzyme_fill <- c(
+  "trypsin" = "#3B7A9E",
+  "lysc" = "#6BA292",
+  "chymotrypsin-high" = "#D4A76A",
+  "glutamyl endopeptidase" = "#C46A6A",
+  "asp-n endopeptidase" = "#8B7EB5"
+)
+verdict_fill <- c(
+  "Good" = "#3A8C5F",
+  "Moderate" = "#D4A76A",
+  "Poor" = "#C46A6A"
+)
 ```
 
 You are choosing an enzyme for a bottom-up proteomics experiment. Six tools
@@ -48,8 +71,31 @@ peptide set from BSA at MC=1.
 knitr::kable(overlap, caption = "BSA + trypsin MC=1 peptide overlap")
 ```
 
-```{r overlap-fig, fig.cap="Peptide overlap among MS-Digest, ExPASy PeptideMass, and pepVet for BSA trypsin MC=1. 116 peptides are common to all three.", fig.alt="Overlap figure: 116 peptides common to all three, 154 from pepVet, 130 from MS-Digest, 151 from ExPASy."}
-knitr::include_graphics("fig4_overlap.png")
+```{r overlap-fig, eval=has_ggplot2, fig.width=8, fig.height=5, fig.cap="Peptide overlap among MS-Digest, ExPASy PeptideMass, and pepVet for BSA trypsin MC=1. The lighter segment marks peptides outside the 116 shared by all three tools.", fig.alt="Stacked bars showing 154 peptides from pepVet, 130 from MS-Digest, and 151 from ExPASy, with 116 common to all three."}
+ggplot2::ggplot(overlap, ggplot2::aes(x = Tool)) +
+  ggplot2::geom_col(
+    ggplot2::aes(y = N_unique),
+    fill = "#AFC6D5", color = "black", width = 0.65
+  ) +
+  ggplot2::geom_col(
+    ggplot2::aes(y = Shared_all_three),
+    fill = "#3B7A9E", color = "black", width = 0.65
+  ) +
+  ggplot2::geom_text(
+    ggplot2::aes(y = N_unique, label = N_unique),
+    vjust = -0.35
+  ) +
+  ggplot2::scale_y_continuous(
+    limits = c(0, max(overlap$N_unique) * 1.12),
+    expand = c(0, 0)
+  ) +
+  ggplot2::labs(
+    title = "Peptide overlap: BSA trypsin MC=1",
+    subtitle = "Dark bars show the 116 peptides shared by all three tools",
+    x = NULL, y = "Number of peptides"
+  ) +
+  ggplot2::theme_minimal(base_size = 10) +
+  ggplot2::theme(panel.grid.major.x = ggplot2::element_blank())
 ```
 
 116 peptides are common to all three. pepVet returns the most because it
@@ -102,8 +148,32 @@ pepVet scores 5 proteins across 5 enzymes. The composite score (0 to 1)
 combines 5 components: length suitability, sequence coverage, peptide
 count, hydrophobicity, and charge.
 
-```{r enzyme-fig, fig.cap="Enzyme comparison across five proteins. Background shading shows verdict zones (green = Good, yellow = Moderate, red = Poor). Each bar is one enzyme. pepVet's composite score is a weighted sum of 5 components.", fig.alt="Grouped bar chart of composite scores by protein and enzyme with verdict zone backgrounds."}
-knitr::include_graphics("fig2_enzyme_comparison.png")
+```{r enzyme-fig, eval=has_ggplot2, fig.width=8, fig.height=5, fig.cap="Enzyme comparison across five proteins. Dashed lines mark the Moderate and Good verdict thresholds. Each bar is one enzyme. pepVet's composite score is a weighted sum of 5 components.", fig.alt="Grouped bar chart of composite scores by protein and enzyme with dashed verdict thresholds."}
+ggplot2::ggplot(
+  scores,
+  ggplot2::aes(x = protein, y = composite, fill = enzyme)
+) +
+  ggplot2::geom_col(
+    position = "dodge", color = "black", alpha = 0.85
+  ) +
+  ggplot2::geom_hline(
+    yintercept = c(0.40, 0.65),
+    linetype = "dashed", linewidth = 0.5,
+    color = c("#D4A76A", "#3A8C5F")
+  ) +
+  ggplot2::scale_fill_manual(
+    values = enzyme_fill,
+    labels = enzyme_labels[names(enzyme_fill)]
+  ) +
+  ggplot2::scale_y_continuous(
+    limits = c(0, 1), expand = c(0, 0.02)
+  ) +
+  ggplot2::labs(
+    title = "Enzyme comparison across proteins",
+    y = "Composite score", x = NULL, fill = "Enzyme"
+  ) +
+  ggplot2::theme_minimal(base_size = 11) +
+  ggplot2::theme(legend.position = "bottom")
 ```
 
 Best enzyme per protein:
@@ -125,8 +195,37 @@ easy protein like BSA, all presets give similar results. For BACE1,
 a transmembrane protein, presets that widen the length and GRAVY windows
 include more peptides.
 
-```{r preset-fig, fig.cap="Workflow preset effects on valid peptide count. Facets by protein. Each x-axis label shows the length and GRAVY window for that preset. BSA is easy (all presets accept all peptides). BACE1 and H3 show variation.", fig.alt="Faceted bar chart of valid peptide counts across 6 presets for BSA, H3, and BACE1 with criteria annotations."}
-knitr::include_graphics("fig5_preset_effect.png")
+```{r preset-fig, eval=has_ggplot2, fig.width=10, fig.height=5, fig.cap="Workflow preset effects on valid peptide count. Grey bars show all digested peptides and coloured bars show peptides accepted by each preset. BSA is comparatively stable, while BACE1 and H3 show greater variation.", fig.alt="Faceted bar chart of total and valid peptide counts across 6 presets for BSA, H3, and BACE1."}
+ggplot2::ggplot(presets, ggplot2::aes(x = preset)) +
+  ggplot2::geom_col(
+    ggplot2::aes(y = n_total),
+    fill = "#D8DDE6", alpha = 0.7, width = 0.85
+  ) +
+  ggplot2::geom_col(
+    ggplot2::aes(y = n_valid, fill = verdict),
+    color = "black", alpha = 0.85, width = 0.85
+  ) +
+  ggplot2::geom_text(
+    ggplot2::aes(y = n_valid, label = n_valid),
+    vjust = -0.3, size = 3.2
+  ) +
+  ggplot2::facet_wrap(~protein, nrow = 1) +
+  ggplot2::scale_fill_manual(values = verdict_fill) +
+  ggplot2::labs(
+    title = "Preset effects on valid peptide count",
+    x = NULL, y = "Number of peptides", fill = "Verdict"
+  ) +
+  ggplot2::theme_minimal(base_size = 10) +
+  ggplot2::theme(
+    axis.text.x = ggplot2::element_text(
+      angle = 35, hjust = 1, size = 8
+    ),
+    legend.position = "bottom",
+    strip.background = ggplot2::element_rect(
+      fill = "#F0F0F0", color = NA
+    ),
+    strip.text = ggplot2::element_text(face = "bold")
+  )
 ```
 
 The targeted preset (narrow length 8-20, narrow GRAVY -0.8 to 0.4) keeps
@@ -145,8 +244,46 @@ overlap. Enrichment is the difference in mean PR score between
 pepVet-valid and pepVet-invalid peptides. Positive enrichment means
 pepVet's filter selects higher-detectability peptides.
 
-```{r pr-fig, fig.cap="PeptideRanger enrichment: mean PR(valid) minus mean PR(invalid). Positive values (green) mean pepVet selects higher-detectability peptides. 18 of 25 combinations show positive enrichment.", fig.alt="Horizontal bar chart of enrichment values for 25 protein-enzyme combinations, colored by sign."}
-knitr::include_graphics("fig3_pr_enrichment.png")
+```{r pr-fig, eval=has_ggplot2, fig.width=9, fig.height=6, fig.cap="PeptideRanger enrichment: mean PR(valid) minus mean PR(invalid). Positive values (green) mean pepVet selects higher-detectability peptides. 18 of 25 combinations show positive enrichment.", fig.alt="Horizontal bar chart of enrichment values for 25 protein-enzyme combinations, colored by sign."}
+pr_plot <- pr_data[!is.na(pr_data$enrichment), ]
+pr_plot$sign <- ifelse(
+  pr_plot$enrichment >= 0, "positive", "negative"
+)
+pr_plot$enzyme_label <- enzyme_labels[pr_plot$enzyme]
+enzyme_order <- tapply(
+  pr_plot$enrichment, pr_plot$enzyme_label, mean, na.rm = TRUE
+)
+pr_plot$enzyme_label <- factor(
+  pr_plot$enzyme_label, levels = names(sort(enzyme_order))
+)
+
+ggplot2::ggplot(
+  pr_plot,
+  ggplot2::aes(x = enrichment, y = enzyme_label, fill = sign)
+) +
+  ggplot2::geom_col(color = "black", alpha = 0.85, width = 0.7) +
+  ggplot2::geom_vline(
+    xintercept = 0, linewidth = 0.5, color = "grey50"
+  ) +
+  ggplot2::scale_fill_manual(values = c(
+    "positive" = "#3A8C5F", "negative" = "#C46A6A"
+  )) +
+  ggplot2::facet_grid(protein ~ ., scales = "free_y", space = "free_y") +
+  ggplot2::labs(
+    title = "PeptideRanger enrichment by pepVet validity filter",
+    x = "Enrichment in PR score", y = NULL, fill = NULL
+  ) +
+  ggplot2::theme_minimal(base_size = 10) +
+  ggplot2::theme(
+    legend.position = "none",
+    panel.grid.major.y = ggplot2::element_blank(),
+    strip.text.y = ggplot2::element_text(
+      angle = 0, hjust = 1, face = "bold", size = 9
+    ),
+    strip.background = ggplot2::element_rect(
+      fill = "#F0F0F0", color = NA
+    )
+  )
 ```
 
 Enrichment is positive in 18 of 25 combinations. Largest effects: BACE1
@@ -188,8 +325,42 @@ knitr::kable(pc_data,
              caption = "Protein Cleaver identifiability vs pepVet validity")
 ```
 
-```{r pc-fig, fig.cap="Overlap of pepVet valid peptides with Protein Cleaver identifiable peptides. 'Both' means both tools accept the peptide. 'PC identifiable only' passes PC filter but not pepVet's GRAVY filter. Every pepVet-valid peptide is PC-identifiable. PC marks more as identifiable because it has no GRAVY filter and uses a different mass table.", fig.alt="Bar chart comparing both and pc_only counts for BSA, H3, and BACE1."}
-knitr::include_graphics("fig6_pc_comparison.png")
+```{r pc-fig, eval=has_ggplot2, fig.width=8, fig.height=5, fig.cap="Overlap of pepVet valid peptides with Protein Cleaver identifiable peptides. 'Both' means both tools accept the peptide. 'PC identifiable only' passes the Protein Cleaver filter but not pepVet's GRAVY filter.", fig.alt="Bar chart comparing peptides accepted by both tools with peptides accepted only by Protein Cleaver for BSA, H3, and BACE1."}
+pc_plot <- rbind(
+  data.frame(
+    protein = pc_data$protein,
+    classifier = "Both (pepVet + PC)",
+    count = pc_data$both
+  ),
+  data.frame(
+    protein = pc_data$protein,
+    classifier = "PC identifiable only",
+    count = pc_data$pc_only
+  )
+)
+
+ggplot2::ggplot(
+  pc_plot,
+  ggplot2::aes(x = protein, y = count, fill = classifier)
+) +
+  ggplot2::geom_col(
+    position = "dodge", color = "black", alpha = 0.85, width = 0.6
+  ) +
+  ggplot2::geom_text(
+    ggplot2::aes(label = count),
+    position = ggplot2::position_dodge(width = 0.6),
+    vjust = -0.3, size = 3.5
+  ) +
+  ggplot2::scale_fill_manual(values = c(
+    "Both (pepVet + PC)" = "#3A8C5F",
+    "PC identifiable only" = "#C46A6A"
+  )) +
+  ggplot2::labs(
+    title = "pepVet vs Protein Cleaver",
+    x = NULL, y = "Number of peptides", fill = "Classification"
+  ) +
+  ggplot2::theme_minimal(base_size = 10) +
+  ggplot2::theme(legend.position = "bottom")
 ```
 
 Every pepVet-valid peptide is also PC-identifiable. PC marks more as

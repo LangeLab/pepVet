@@ -19,8 +19,9 @@ data frame, raises an error.}
 
 \item{scores}{Character vector of component-score column names to display
 in Panel A.  Any column absent from \code{comparison} is silently dropped.
-Defaults to all five standard component scores.  If \code{NULL}, raises an
-error.}
+Defaults to all five standard component scores.  \code{S_unique} can be
+requested when present in a proteome-aware comparison.  If \code{NULL}, raises
+an error.}
 
 \item{recommend}{Logical.  When \code{TRUE} (default) a "Recommended" badge
 marks the enzyme with the highest composite score in Panel B.  If \code{NULL},

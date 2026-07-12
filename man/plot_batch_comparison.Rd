@@ -9,8 +9,9 @@ plot_batch_comparison(comparison, title = NULL)
 \arguments{
 \item{comparison}{A \code{pepvet_batch_comparison} tibble returned by
 \code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}}, with columns \code{protein_id}, \code{enzyme},
-\code{composite_score}, \code{verdict}, and the five component score columns. If
-\code{NULL} or empty, raises an error.}
+\code{composite_score}, \code{verdict}, and the five component score columns.  A
+proteome-aware comparison may also contain \code{S_unique}, which is included
+in the component heatmap.  If \code{NULL} or empty, raises an error.}
 
 \item{title}{Optional character title for the combined figure. When \code{NULL}
 (default), generates an auto-title with protein and enzyme counts.}

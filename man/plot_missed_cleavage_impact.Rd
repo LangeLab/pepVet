@@ -14,7 +14,9 @@ plot_missed_cleavage_impact(
 \item{results}{A named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results.  Names should
 be the MC level (e.g., \code{list("MC=0" = r0, "MC=1" = r1, "MC=2" = r2)}).
 \strong{Or} an unnamed list of length 2-4, in which case names are auto-assigned
-as \code{"MC=0"}, \code{"MC=1"}, etc.  If \code{NULL}, raises an error.}
+as \code{"MC=0"}, \code{"MC=1"}, etc.  All results must use the same protein and
+enzyme; only the missed-cleavage setting may differ.  If \code{NULL}, raises
+an error.}
 
 \item{components}{Character vector of component score columns to show.
 Defaults to \code{c("S_length","S_coverage","S_count","S_hydro","S_charge")}.

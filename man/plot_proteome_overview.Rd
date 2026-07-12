@@ -9,8 +9,9 @@ plot_proteome_overview(batch, title = NULL)
 \arguments{
 \item{batch}{A tibble returned by \code{\link[=batch_evaluate]{batch_evaluate()}}, with columns
 \code{protein_id}, \code{composite_score}, \code{verdict}, the five component score
-columns, and the four difficulty flag columns. If \code{NULL} or empty, raises
-an error.}
+columns, and the four difficulty flag columns.  A proteome-aware batch
+may also contain \code{S_unique}, which is included in the component profile.
+If \code{NULL} or empty, raises an error.}
 
 \item{title}{Optional character title for the combined figure. When \code{NULL}
 (default), generates an auto-title with protein count.}

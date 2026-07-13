@@ -25,8 +25,8 @@ across the proteome.}
 composite score, ordered ascending, with all score and flag columns.}
 \item{\code{enzyme_switch_candidates}}{A tibble of Moderate or Poor
 proteins where \code{flag_hydrophobic} or \code{flag_short_protein} is
-\code{TRUE}, indicating that enzyme or preset choice is the likely
-limiting factor.}
+\code{TRUE}. These rows are candidates for direct comparison with
+another enzyme or preset.}
 }
 }
 \description{

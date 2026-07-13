@@ -2,7 +2,7 @@
 % Please edit documentation in R/evaluation.R
 \name{recommend_enzyme}
 \alias{recommend_enzyme}
-\title{Recommend the best enzyme for a single protein}
+\title{Return the highest-scoring enzyme for a single protein}
 \usage{
 recommend_enzyme(
   sequence,
@@ -39,8 +39,7 @@ one only when top scores are tied within floating-point tolerance.
 \code{recommend_enzyme()} calls \code{\link[=compare_digests]{compare_digests()}} and returns the name of the
 enzyme with the highest composite score. When two or more enzymes are tied,
 all tied enzyme names are returned in alphabetical order. Compact
-recommendation for scripted triage pipelines that stays aligned with
-\code{\link[=compare_digests]{compare_digests()}}.
+result for scripted triage that stays aligned with \code{\link[=compare_digests]{compare_digests()}}.
 }
 \section{Limitations}{
 

@@ -155,8 +155,8 @@ plot_digest_profile <- function(result,
 #'     \item{`"length_class"`}{Three-way coloring: valid (blue), too short
 #'       (amber), too long (rose-red).}
 #'     \item{`"hydrophobicity"`}{Continuous GRAVY gradient for every peptide:
-#'       brand blue (very hydrophilic) to green (LC-optimal) to amber
-#'       (borderline) to rose-red (very hydrophobic).}
+#'       brand blue at the low end, green and amber through the middle, and
+#'       rose-red at the high end of the displayed GRAVY range.}
 #'   }
 #' @param length_range Integer vector of length 2.  Valid peptide window.
 #'   Defaults to `c(7L, 25L)`.

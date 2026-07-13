@@ -21,11 +21,11 @@ sequence-level difficulty flag. Review component scores and consider a
 preset or missed-cleavage adjustment.}
 \item{\code{"try_other_enzyme"}}{Moderate or Poor verdict with
 \code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor
-verdict without an intrinsic complexity flag. An alternative enzyme
-is the most likely improvement path.}
-\item{\code{"skip"}}{No valid peptides or low-complexity sequence. No
-standard enzyme choice is expected to substantially improve the
-score.}
+verdict without an intrinsic complexity flag. This action marks the
+protein for an explicit alternative-enzyme comparison.}
+\item{\code{"skip"}}{No valid peptides or a low-complexity sequence.
+This action marks the row for manual review rather than asserting that
+another enzyme cannot help.}
 }
 }
 \description{

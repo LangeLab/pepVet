@@ -315,13 +315,12 @@ compare_digests <- function(sequence,
 }
 # nolint end
 
-#' Recommend the best enzyme for a single protein
+#' Return the highest-scoring enzyme for a single protein
 #'
 #' `recommend_enzyme()` calls [compare_digests()] and returns the name of the
 #' enzyme with the highest composite score. When two or more enzymes are tied,
 #' all tied enzyme names are returned in alphabetical order. Compact
-#' recommendation for scripted triage pipelines that stays aligned with
-#' [compare_digests()].
+#' result for scripted triage that stays aligned with [compare_digests()].
 #'
 #' @param sequence A single-protein input passed to [compare_digests()]. If
 #'   `NULL` or empty, raises an error.
@@ -374,8 +373,55 @@ recommend_enzyme <- function(sequence,
 }
 # nolint end
 
-.batch_parallel_map <- function(index_list, worker, cores) {
-  parallel::mclapply(index_list, worker, mc.cores = cores)
+.batch_socket_map <- function(index_list, worker, cores) {
+  cluster <- try(parallel::makeCluster(cores), silent = TRUE)
+  if (inherits(cluster, "try-error")) {
+    return(rep(list(cluster), length(index_list)))
+  }
+  on.exit(try(parallel::stopCluster(cluster), silent = TRUE), add = TRUE)
+
+  library_paths <- .libPaths()
+  initialize_worker <- function(paths) {
+    .libPaths(paths)
+    loadNamespace("pepVet")
+    NULL
+  }
+  environment(initialize_worker) <- baseenv()
+  startup <- try(
+    parallel::clusterCall(
+      cluster,
+      initialize_worker,
+      paths = library_paths
+    ),
+    silent = TRUE
+  )
+  if (inherits(startup, "try-error")) {
+    return(rep(list(startup), length(index_list)))
+  }
+
+  results <- try(
+    parallel::parLapply(
+      cluster,
+      index_list,
+      function(index, worker) try(worker(index), silent = TRUE),
+      worker = worker
+    ),
+    silent = TRUE
+  )
+  if (inherits(results, "try-error")) {
+    return(rep(list(results), length(index_list)))
+  }
+  results
+}
+
+.batch_parallel_map <- function(index_list, worker, cores,
+                                os_type = .Platform$OS.type) {
+  if (identical(os_type, "windows")) {
+    return(.batch_socket_map(index_list, worker, cores))
+  }
+
+  safe_worker <- function(index) try(worker(index), silent = TRUE)
+  parallel::mclapply(index_list, safe_worker, mc.cores = cores)
 }
 
 #' Batch-evaluate multiple proteins
@@ -407,8 +453,8 @@ recommend_enzyme <- function(sequence,
 #' @param cores Number of parallel workers for protein-level chunking.
 #'   `1L` (default) runs sequentially with no extra dependencies. Values
 #'   greater than `1L` split the input into equal chunks and process each
-#'   chunk in a forked worker via `parallel::mclapply` (Unix only; on Windows
-#'   `cores` is silently capped to `1L`).
+#'   chunk with `parallel::mclapply()` on Unix or a
+#'   `parallel::parLapply()` socket cluster on Windows.
 #' @param ... Additional scoring arguments passed to [score_peptides()], such
 #'   as `gravy_range` and `length_range`.
 #'
@@ -428,9 +474,9 @@ recommend_enzyme <- function(sequence,
 #'   remain sequence-level heuristics.
 #'
 #' @section Limitations:
-#' Parallel execution only on Unix (`parallel::mclapply`). Windows falls
-#' back to serial silently. If a worker crashes, the failed chunk is retried
-#' sequentially, which is slower but produces correct results.
+#' Windows socket workers receive serialized copies of their input, while Unix
+#' fork workers use copy-on-write memory. If a worker or socket cluster fails,
+#' the affected chunks are retried sequentially with a warning.
 #'
 #' @family evaluation
 #'
@@ -469,12 +515,7 @@ batch_evaluate <- function(sequences,
   )
   n_proteins <- length(normalized_input)
 
-  ## On Windows mclapply is unavailable; silently run serial.
-  effective_cores <- if (.Platform$OS.type == "windows") {
-    1L
-  } else {
-    min(cores, n_proteins)
-  }
+  effective_cores <- min(cores, n_proteins)
 
   if (effective_cores > 1L) {
     idx_list <- parallel::splitIndices(n_proteins, effective_cores)
@@ -523,9 +564,9 @@ batch_evaluate <- function(sequences,
 
 ## Private batch helpers
 
-## Core pipeline for a pre-parsed AAStringSet, called by batch_evaluate() both
-## in serial mode and from within each mclapply worker. Accepts extra scoring
-## arguments as a captured list (extra_args) so they survive fork serialization.
+## Core pipeline for a pre-parsed AAStringSet, called by batch_evaluate() in
+## serial mode and from fork or socket workers. Accepts extra scoring arguments
+## as a captured list so they survive worker serialization.
 .batch_evaluate_inner <- function(normalized_input, enzyme, missed_cleavages,
                                   include_cleavage_efficiency, proteome,
                                   weights, extra_args, scoring_config) {
@@ -809,8 +850,8 @@ batch_evaluate <- function(sequences,
 #'       composite score, ordered ascending, with all score and flag columns.}
 #'     \item{\code{enzyme_switch_candidates}}{A tibble of Moderate or Poor
 #'       proteins where \code{flag_hydrophobic} or \code{flag_short_protein} is
-#'       \code{TRUE}, indicating that enzyme or preset choice is the likely
-#'       limiting factor.}
+#'       \code{TRUE}. These rows are candidates for direct comparison with
+#'       another enzyme or preset.}
 #'   }
 #'
 #' @section Limitations:
@@ -914,8 +955,8 @@ summarize_batch <- function(batch_result) {
 #'   asp-n endopeptidase, and arg-c proteinase.
 #' @param cores Number of parallel workers passed to [batch_evaluate()] for
 #'   each enzyme. Proteins are split into `cores` equal chunks and processed
-#'   in parallel via `parallel::mclapply` (Unix only; silently serial on
-#'   Windows). Enzymes are always processed sequentially.
+#'   with `parallel::mclapply()` on Unix or `parallel::parLapply()` on Windows.
+#'   Enzymes are always processed sequentially.
 #' @param missed_cleavages Maximum missed cleavages passed to
 #'   [batch_evaluate()] for every enzyme. Defaults to `1L`.
 #' @param proteome Optional proteome digest tibble passed to [batch_evaluate()]
@@ -937,7 +978,8 @@ summarize_batch <- function(batch_result) {
 #'
 #' @section Limitations:
 #' Enzymes run sequentially even when `cores > 1`; only proteins within each
-#' enzyme are parallelized. Parallel execution requires Unix.
+#' enzyme are parallelized. Windows socket workers serialize the input for each
+#' enzyme, so their memory and startup costs differ from Unix fork workers.
 #'
 #' @family evaluation
 #'
@@ -1095,11 +1137,11 @@ print.pepvet_batch_comparison <- function(x, ...) {
 #'       preset or missed-cleavage adjustment.}
 #'     \item{\code{"try_other_enzyme"}}{Moderate or Poor verdict with
 #'       \code{flag_hydrophobic} or \code{flag_short_protein}, or any Poor
-#'       verdict without an intrinsic complexity flag. An alternative enzyme
-#'       is the most likely improvement path.}
-#'     \item{\code{"skip"}}{No valid peptides or low-complexity sequence. No
-#'       standard enzyme choice is expected to substantially improve the
-#'       score.}
+#'       verdict without an intrinsic complexity flag. This action marks the
+#'       protein for an explicit alternative-enzyme comparison.}
+#'     \item{\code{"skip"}}{No valid peptides or a low-complexity sequence.
+#'       This action marks the row for manual review rather than asserting that
+#'       another enzyme cannot help.}
 #'   }
 #'
 #' @section Limitations:
@@ -1394,7 +1436,8 @@ triage_proteins <- function(batch_result) {
 #'
 #' @return A list.  For single-protein input: `iterations` (tibble of per-draw
 #'   weights and composites), `convergence` (cumulative stability trace),
-#'   `summary` (probabilistic verdict, composite CI, reference score and
+#'   `summary` (simulated verdict frequencies, composite interval, reference
+#'   score and
 #'   weights, optional R squared values, and corner-case table). For
 #'   multi-enzyme input, it also reports `top1_stability`, reference
 #'   composites, and Kendall rank correlation. When requested, multi-enzyme

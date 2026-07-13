@@ -41,8 +41,8 @@ When \code{NULL} (default), uses pepVet's default scoring weights.}
 \item{cores}{Number of parallel workers for protein-level chunking.
 \code{1L} (default) runs sequentially with no extra dependencies. Values
 greater than \code{1L} split the input into equal chunks and process each
-chunk in a forked worker via \code{parallel::mclapply} (Unix only; on Windows
-\code{cores} is silently capped to \code{1L}).}
+chunk with \code{parallel::mclapply()} on Unix or a
+\code{parallel::parLapply()} socket cluster on Windows.}
 
 \item{...}{Additional scoring arguments passed to \code{\link[=score_peptides]{score_peptides()}}, such
 as \code{gravy_range} and \code{length_range}.}
@@ -74,9 +74,9 @@ remain sequence-level heuristics.
 }
 \section{Limitations}{
 
-Parallel execution only on Unix (\code{parallel::mclapply}). Windows falls
-back to serial silently. If a worker crashes, the failed chunk is retried
-sequentially, which is slower but produces correct results.
+Windows socket workers receive serialized copies of their input, while Unix
+fork workers use copy-on-write memory. If a worker or socket cluster fails,
+the affected chunks are retried sequentially with a warning.
 }
 
 \examples{

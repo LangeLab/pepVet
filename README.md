@@ -14,9 +14,6 @@
   <img src="https://img.shields.io/badge/version-v0.1.8-2C5F8A?style=flat-square" alt="v0.1.8">
   <img src="https://img.shields.io/badge/R-%3E%3D4.6-276DC3?style=flat-square&logo=r&logoColor=white" alt="R >= 4.6">
   <img src="https://img.shields.io/badge/Bioconductor-3.23-87B13F?style=flat-square" alt="Bioconductor 3.23">
-  <a href="https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml">
-    <img src="https://img.shields.io/github/actions/workflow/status/LangeLab/pepVet/R-CMD-check.yaml?label=R%20CMD%20check&style=flat-square" alt="R CMD check">
-  </a>
   <a href="LICENSE.md">
     <img src="https://img.shields.io/badge/license-MIT-4B9D6E?style=flat-square" alt="MIT">
   </a>
@@ -73,7 +70,7 @@ See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/
 **Digest simulation**
 
 - `digest_protein()` cleaves any protein sequence with any of 40 cleaver-compatible enzyme rules and returns a peptide tibble with coordinates and missed-cleavage counts.
-- `annotate_cleavage_sites()` labels each trypsin-family cleavage site as high, medium, or low efficiency using local P1-P1' sequence context.
+- `annotate_cleavage_sites()` applies the package's high, medium, or low cleavage-efficiency categories to trypsin-family sites using local P1-P1' sequence context.
 
 **Scoring**
 
@@ -84,7 +81,7 @@ See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/
 
 - `evaluate_digest()` wraps digest and scoring into one call and returns a named list with scores, peptides, and resolved parameters.
 - `compare_digests()` runs across a vector of enzymes for a single protein and returns a ranked tibble.
-- `recommend_enzyme()` returns the name of the best-scoring enzyme.
+- `recommend_enzyme()` returns the enzyme or tied enzymes with the highest composite score under the selected settings.
 
 **Batch workflows**
 
@@ -108,20 +105,20 @@ Valid-count and hydrophobicity flags follow the active scoring ranges. Short-pro
 
 Six components, one weighted composite, one advisory verdict.
 
-| Score        | What it measures                                                  | Why it matters                                              |
-| ------------ | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| `S_length`   | Fraction of peptides in the active length window [7, 25] aa       | Short and long peptides lower identification rates          |
-| `S_coverage` | Fraction of the protein covered by valid peptides                 | Dark regions weaken protein-level inference                 |
-| `S_count`    | Valid count relative to enzyme-aware expected density             | Too few weakens evidence; too many signals over-digestion   |
-| `S_hydro`    | Fraction of valid peptides in the active GRAVY window [-1.0, 0.6] | Extreme hydrophobicity or hydrophilicity hurts LC retention |
-| `S_charge`   | Valid peptides with non-terminal K/R/H                            | Proxy for multi-charge potential and fragment ion richness  |
-| `S_unique`   | Fraction of valid peptides unique in a supplied proteome          | Shared peptides cannot distinguish isoforms or paralogs     |
+| Score        | What it measures                                                  | Role in the package model                                 |
+| ------------ | ----------------------------------------------------------------- | --------------------------------------------------------- |
+| `S_length`   | Fraction of peptides in the active length window [7, 25] aa       | Applies the selected peptide-length prior                 |
+| `S_coverage` | Fraction of the protein covered by valid peptides                 | Rewards valid-peptide coverage across the source sequence |
+| `S_count`    | Valid count relative to enzyme-aware expected density             | Compares the digest with an enzyme-specific count prior   |
+| `S_hydro`    | Fraction of valid peptides in the active GRAVY window [-1.0, 0.6] | Applies the selected hydrophobicity prior                 |
+| `S_charge`   | Valid peptides with non-terminal K/R/H                            | Records a basic-residue heuristic                         |
+| `S_unique`   | Fraction of valid peptides unique in a supplied proteome          | Rewards absence from the supplied background digest       |
 
 Default weights (AHP-derived, consistency ratio 0.028): `S_length` 0.200, `S_coverage` 0.348, `S_count` 0.226, `S_hydro` 0.138, `S_charge` 0.088.
 
 Verdict thresholds: Good >= 0.65, Moderate >= 0.40, Poor < 0.40. These are heuristic ranking labels, not calibrated probabilities.
 
-A zero `S_count` is a failed digest. pepVet sets the composite score to zero and the verdict to Poor when an enzyme produces no cleavage sites or no usable peptides, regardless of the other component values.
+A zero `S_count` triggers the package's hard-fail rule. pepVet sets the composite score to zero and the verdict to Poor when an enzyme produces no cleavage sites or no peptides inside the active length window, regardless of the other component values.
 
 ## Workflow presets
 
@@ -132,14 +129,16 @@ preset <- pepvet_preset("targeted")
 do.call(evaluate_digest, c(list(sequence = bsa, enzyme = "trypsin"), preset))
 ```
 
-| Preset          | Best fit             | Key shift                                       | Source                   |
-| --------------- | -------------------- | ----------------------------------------------- | ------------------------ |
-| `standard`      | Routine DDA          | [7,25] aa, GRAVY [-1,0.6], AHP defaults         | Tabb 2008                |
-| `dia`           | DIA and SWATH        | [7,30] aa, GRAVY [-1,0.8], high coverage weight | Ludwig 2018              |
-| `targeted`      | SRM, PRM, MRM        | [8,20] aa, GRAVY [-0.8,0.4], S_unique 30%       | Lange 2008, Picotti 2012 |
-| `membrane`      | Hydrophobic proteins | GRAVY [-1.0,2.0], S_hydro 5%                    | Vit & Petrak 2017        |
-| `ffpe_degraded` | Degraded samples     | [6,30] aa, high S_count weight                  | Coscia 2020, Buczak 2023 |
-| `fractionated`  | SCX / high-pH RP     | Same as standard, include_pI = TRUE             | -                        |
+| Preset          | Intended context     | Package settings                                  |
+| --------------- | -------------------- | ------------------------------------------------- |
+| `standard`      | Routine DDA          | [7,25] aa, GRAVY [-1,0.6], default weights        |
+| `dia`           | DIA and SWATH        | [7,30] aa, GRAVY [-1,0.8], larger coverage weight |
+| `targeted`      | SRM, PRM, MRM        | [8,20] aa, GRAVY [-0.8,0.4], S_unique 30%         |
+| `membrane`      | Hydrophobic proteins | GRAVY [-1.0,2.0], S_hydro 5%                      |
+| `ffpe_degraded` | Degraded samples     | [6,30] aa, larger S_count weight                  |
+| `fractionated`  | SCX / high-pH RP     | Standard settings with include_pI = TRUE          |
+
+These presets are editable package priors. They do not establish experimental suitability for a sample or acquisition method.
 
 ## Installation
 
@@ -159,16 +158,16 @@ remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
 
 The package ships pinned FASTA files for reproducible examples and regression tests.
 
-| File                               | Protein                           | Use                                              |
-| ---------------------------------- | --------------------------------- | ------------------------------------------------ |
-| `P02769.fasta`                     | BSA (607 aa)                      | Canonical positive-control digest                |
-| `P68431.fasta`                     | Histone H3.1 (136 aa)             | Exposes trypsin over-digestion on basic proteins |
-| `P56817.fasta`                     | BACE1 (501 aa)                    | Membrane protein with mixed hydrophobicity       |
-| `P00698.fasta`                     | Lysozyme C (147 aa)               | Small protein, well-characterised digest         |
-| `Q8WZ42.fasta`                     | Titin (34350 aa)                  | Very large protein for scale testing             |
-| `P0CG48.fasta`                     | Ubiquitin (685 aa)                | Short protein edge case                          |
-| `P37840_isoforms.fasta`            | Alpha-synuclein isoforms (3 seqs) | Proteome-aware uniqueness example                |
-| `small_proteome_50_proteins.fasta` | 50 human proteins                 | Batch workflow fixture                           |
+| File                               | Protein                            | Test or example role              |
+| ---------------------------------- | ---------------------------------- | --------------------------------- |
+| `P02769.fasta`                     | BSA (607 aa)                       | Reference digestion fixture       |
+| `P68431.fasta`                     | Histone H3.1 (136 aa)              | Basic-protein digestion fixture   |
+| `P56817.fasta`                     | BACE1 (501 aa)                     | Membrane-protein fixture          |
+| `P00698.fasta`                     | Lysozyme C (147 aa)                | Small globular-protein fixture    |
+| `Q8WZ42.fasta`                     | Titin (34350 aa)                   | Long-sequence scale fixture       |
+| `P0CG48.fasta`                     | Polyubiquitin-C precursor (685 aa) | Repeated-sequence fixture         |
+| `P37840_isoforms.fasta`            | Alpha-synuclein isoforms (3 seqs)  | Proteome-aware uniqueness example |
+| `small_proteome_50_proteins.fasta` | 50 human proteins                  | Batch workflow fixture            |
 
 ## Scope
 

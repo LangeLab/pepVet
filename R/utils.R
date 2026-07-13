@@ -536,7 +536,8 @@ NULL
 #' `pepvet_preset()` returns a named list containing a GRAVY range, peptide
 #' length range, and scoring weights for a supported proteomics workflow.
 #' Presets are intended as editable starting points rather than hard rules.
-#' Each preset is grounded in workflow-specific proteomics literature.
+#' Their exact ranges and weights are conservative package choices, not
+#' empirically calibrated boundaries.
 #'
 #' @param type Preset name. Defaults to `"standard"`. Supported values are
 #'   `"standard"`, `"dia"`, `"targeted"`, `"membrane"`, `"ffpe_degraded"`, and
@@ -544,40 +545,26 @@ NULL
 #'
 #' @section Presets:
 #'
-#' **`"standard"`** : Routine DDA. Default scoring configuration with default
-#' AHP-derived weights. Length range `[7, 25]` captures ~85% of identified
-#' tryptic peptides (Tabb 2008, \emph{J Proteome Res}). GRAVY range
-#' `[-1.0, 0.6]`
-#' covers the Kyte-Doolittle window for standard C18 LC-MS.
+#' **`"standard"`** : Default scoring configuration for routine DDA examples.
+#' Uses the `[7, 25]` length range, `[-1.0, 0.6]` GRAVY range, and default
+#' protein-only weights.
 #'
-#' **`"dia"`** : Data-independent acquisition (DIA / SWATH). Wider length range
-#' `[7, 30]` because DIA fragments all precursors simultaneously and longer
-#' peptides can still be identified from fragment traces (Ludwig et al. 2018,
-#' \emph{Cell Systems}). Wider GRAVY range `[-1.0, 0.8]` since DIA decouples
-#' fragmentation from precursor selection, tolerating more hydrophobic peptides.
-#' Elevated coverage weight reflects the importance of sequence coverage in DIA.
+#' **`"dia"`** : A wider starting configuration for DIA or SWATH examples.
+#' Uses the `[7, 30]` length range, `[-1.0, 0.8]` GRAVY range, and a larger
+#' coverage weight than the standard preset.
 #'
-#' **`"targeted"`** : SRM / PRM / MRM quantification. Narrow length range
-#' `[8, 20]`; shorter peptides fragment more reproducibly and produce cleaner
-#' transition traces (Lange et al. 2008, \emph{Mol Syst Biol}). Tight GRAVY
-#' range `[-0.8, 0.4]` for reliable LC retention. \code{S_unique} at 30\%
-#' shared peptides cannot be used for quantification (Picotti & Aebersold 2012,
-#' \emph{Nat Methods}).
+#' **`"targeted"`** : A narrower starting configuration for SRM, PRM, or MRM
+#' examples. Uses the `[8, 20]` length range and `[-0.8, 0.4]` GRAVY range.
+#' When a background proteome digest is supplied, uniqueness receives 30 percent
+#' of the composite weight.
 #'
-#' **`"membrane"`** : Hydrophobic and membrane proteins. Extended GRAVY range
-#' `[-1.0, 2.0]` to accommodate transmembrane helices; membrane proteins contain
-#' long hydrophobic stretches with GRAVY values far exceeding soluble proteins
-#' (Vit & Petrak 2017, \emph{J Proteomics}; Helbig et al. 2010). Low
-#' \code{S_hydro} weight (5\%) avoids penalising the very hydrophobicity that
-#' defines this class. Wider length range `[7, 30]` captures longer
-#' transmembrane segments.
+#' **`"membrane"`** : A wider hydrophobicity configuration for membrane-protein
+#' review. Uses the `[7, 30]` length range, extends the upper GRAVY boundary to
+#' `2.0`, and assigns 5 percent of the composite weight to \code{S_hydro}.
 #'
-#' **`"ffpe_degraded"`** : Archived FFPE tissue and degraded samples. Lowered
-#' minimum length `[6, 30]` because FFPE-derived peptides are shorter due to
-#' formalin-induced cross-linking and degradation (Coscia et al. 2020,
-#' \emph{Nat Commun}; Buczak et al. 2023, \emph{Mol Cell Proteomics}).
-#' Elevated \code{S_count} weight prioritises having more quantifiable
-#' peptides to compensate for reduced overall signal.
+#' **`"ffpe_degraded"`** : A broader length configuration for exploratory work
+#' with degraded or FFPE-derived material. Uses the `[6, 30]` length range and
+#' assigns more weight to \code{S_count} than the standard preset.
 #'
 #' **`"fractionated"`** : SCX / high-pH RP fractionation planning. Same
 #' scoring parameters as \code{"standard"} but with \code{include_pI = TRUE}
@@ -585,7 +572,8 @@ NULL
 #'
 #' @family utils
 #' @section Limitations:
-#'   Only 6 named presets are provided. Custom presets are not validated.
+#'   The six presets encode package priors. Inspect the returned values and use
+#'   explicit arguments when the experimental context calls for other choices.
 #'
 #' @return A named list with `gravy_range`, `length_range`, `weights`, and
 #'   `include_pI`.

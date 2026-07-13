@@ -39,7 +39,8 @@ default and renormalised).}
 \value{
 A list.  For single-protein input: \code{iterations} (tibble of per-draw
 weights and composites), \code{convergence} (cumulative stability trace),
-\code{summary} (probabilistic verdict, composite CI, reference score and
+\code{summary} (simulated verdict frequencies, composite interval, reference
+score and
 weights, optional R squared values, and corner-case table). For
 multi-enzyme input, it also reports \code{top1_stability}, reference
 composites, and Kendall rank correlation. When requested, multi-enzyme

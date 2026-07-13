@@ -590,6 +590,89 @@ test_that("batch_evaluate serial and Unix parallel results agree", {
   expect_equal(parallel, serial)
 })
 
+test_that("Windows parallel dispatch selects the socket backend", {
+  calls <- new.env(parent = emptyenv())
+  calls$cores <- NULL
+  testthat::local_mocked_bindings(
+    .batch_socket_map = function(index_list, worker, cores) {
+      calls$cores <- cores
+      lapply(index_list, worker)
+    },
+    .package = "pepVet"
+  )
+
+  result <- pepVet:::.batch_parallel_map(
+    as.list(1:3),
+    function(index) index * 2L,
+    cores = 2L,
+    os_type = "windows"
+  )
+
+  expect_identical(result, as.list(c(2L, 4L, 6L)))
+  expect_identical(calls$cores, 2L)
+})
+
+test_that("Windows socket workers preserve chunk order and values", {
+  skip_if_not(.Platform$OS.type == "windows")
+  running_from_pkgload <- "pkgload" %in% loadedNamespaces() && isTRUE(
+    get("is_dev_package", asNamespace("pkgload"))("pepVet")
+  )
+  skip_if(running_from_pkgload, "requires an installed package")
+
+  package_path <- normalizePath(find.package("pepVet"), mustWork = TRUE)
+  result <- pepVet:::.batch_socket_map(
+    as.list(1:3),
+    function(index) {
+      list(
+        value = index * 2L,
+        package_path = normalizePath(find.package("pepVet"), mustWork = TRUE)
+      )
+    },
+    cores = 2L
+  )
+
+  expect_identical(
+    vapply(result, `[[`, integer(1), "value"),
+    c(2L, 4L, 6L)
+  )
+  expect_identical(
+    vapply(result, `[[`, character(1), "package_path"),
+    rep(package_path, 3L)
+  )
+})
+
+test_that("Windows socket batch paths agree with serial results", {
+  skip_if_not(.Platform$OS.type == "windows")
+  running_from_pkgload <- "pkgload" %in% loadedNamespaces() && isTRUE(
+    get("is_dev_package", asNamespace("pkgload"))("pepVet")
+  )
+  skip_if(running_from_pkgload, "requires an installed package")
+  sequences <- Biostrings::AAStringSet(c(
+    first = "AKAAAAAAK",
+    second = "AKRTPK",
+    third = "MKWVTFISLLFLFSSAYSR",
+    fourth = "AAAAAAAKAAAAAAAK"
+  ))
+
+  serial <- batch_evaluate(sequences, missed_cleavages = 0L, cores = 1L)
+  socket <- batch_evaluate(sequences, missed_cleavages = 0L, cores = 2L)
+  expect_equal(socket, serial)
+
+  serial_comparison <- suppressMessages(batch_compare_enzymes(
+    sequences,
+    enzymes = c("trypsin", "lysc"),
+    missed_cleavages = 0L,
+    cores = 1L
+  ))
+  socket_comparison <- suppressMessages(batch_compare_enzymes(
+    sequences,
+    enzymes = c("trypsin", "lysc"),
+    missed_cleavages = 0L,
+    cores = 2L
+  ))
+  expect_equal(socket_comparison, serial_comparison)
+})
+
 test_that("batch_evaluate retries failed parallel chunks with a classed warning", {
   skip_on_os("windows")
   testthat::local_mocked_bindings(

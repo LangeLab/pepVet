@@ -55,14 +55,13 @@ per-charge-state window-coverage annotations.
 \description{
 \code{plot_mz_distribution()} draws overlapping density fills for precursor
 m/z values at charge states \eqn{z = +2} and \eqn{z = +3}, overlaid on a
-shaded instrument scan window.  This closes the key coverage gap in the
-pepVet distribution suite: length, GRAVY, and pI characterise peptide
-properties; m/z characterises instrument detectability.
+shaded instrument scan window. It adds a scan-window view alongside the
+package's length, GRAVY, and pI summaries.
 }
 \details{
-An enzyme can produce ideal-length, well-behaved peptides that still fall
-outside the instrument's MS1 scan window at the predominant charge states.
-This function makes that problem immediately visible.
+Peptides inside the active length window can still fall outside a selected
+MS1 scan window at the displayed charge states. The plot shows those values
+against the user-supplied window.
 
 The function accepts four input types with the following
 precedence: (1) named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results (multi-input

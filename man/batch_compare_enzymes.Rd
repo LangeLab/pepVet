@@ -27,8 +27,8 @@ asp-n endopeptidase, and arg-c proteinase.}
 
 \item{cores}{Number of parallel workers passed to \code{\link[=batch_evaluate]{batch_evaluate()}} for
 each enzyme. Proteins are split into \code{cores} equal chunks and processed
-in parallel via \code{parallel::mclapply} (Unix only; silently serial on
-Windows). Enzymes are always processed sequentially.}
+with \code{parallel::mclapply()} on Unix or \code{parallel::parLapply()} on Windows.
+Enzymes are always processed sequentially.}
 
 \item{missed_cleavages}{Maximum missed cleavages passed to
 \code{\link[=batch_evaluate]{batch_evaluate()}} for every enzyme. Defaults to \code{1L}.}
@@ -65,7 +65,8 @@ are compared, and the speedup applies equally to single-enzyme calls.
 \section{Limitations}{
 
 Enzymes run sequentially even when \code{cores > 1}; only proteins within each
-enzyme are parallelized. Parallel execution requires Unix.
+enzyme are parallelized. Windows socket workers serialize the input for each
+enzyme, so their memory and startup costs differ from Unix fork workers.
 }
 
 \examples{

@@ -16,7 +16,7 @@ template:
 home:
   title: "pepVet: Proteolytic Digest Evaluation for Proteomics"
   description: >
-    Simulate, score, compare, and report proteolytic digests for LC-MS/MS proteomics workflows. Given a protein and an enzyme, pepVet shows how the resulting peptide set behaves, which workflow preset fits the experiment, and which enzyme is the best starting point before any sample reaches the instrument.
+    Simulate, score, compare, and report proteolytic digests for LC-MS/MS proteomics workflows. pepVet ranks enzyme-digest combinations under explicit package priors so users can inspect the peptide set and compare candidate settings before acquisition.
 
 url: https://langelab.github.io/pepVet/
 
@@ -68,7 +68,7 @@ reference:
 
   - title: "Scoring"
     desc: >
-      Summarise a peptide set into component scores, workflow-aware scoring parameters, and a weighted composite suitability verdict.
+      Summarise a peptide set into component scores, explicit scoring parameters, and an advisory weighted composite verdict.
     contents:
       - score_peptides
       - pepvet_preset
@@ -84,7 +84,8 @@ reference:
   - title: "Evaluation and comparison"
     desc: >
       Combine digest and scoring into a single call, compare enzymes
-      side-by-side, or get a programmatic enzyme recommendation.
+      side-by-side, or return the highest-scoring enzyme under the selected
+      settings.
     contents:
       - evaluate_digest
       - compare_digests

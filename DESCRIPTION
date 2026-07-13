@@ -7,8 +7,8 @@ Authors@R:
            comment = c(ORCID = "0000-0001-9810-7399"))
 Description: Simulates proteolytic digestion, scores the resulting peptides
     for LC-MS/MS suitability, compares candidate enzymes, and reports digest
-    quality at the protein level. Includes validated cleavage rules for 40
-    enzymes, workflow presets, peptide mass and pI utilities, sequence-local
+    quality at the protein level. Includes 40 cleaver-compatible enzyme rules,
+    workflow presets, peptide mass and pI utilities, sequence-local
     cleavage-efficiency annotations for trypsin-family digests,
     proteome-aware uniqueness scoring, batch evaluation across multi-FASTA
     files with per-protein triage and proteome-level summarisation, peptide

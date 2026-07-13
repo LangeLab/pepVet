@@ -4,8 +4,9 @@
 
 ## Testing and reliability
 
-* Reworked the test suite around public contracts, scientific invariants, classed conditions, metadata, and plot semantics. The suite now contains 400 source-aligned test blocks.
-* Hardened validation across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Malformed inputs now fail through package conditions before reaching base R errors, and zero-count digests consistently receive a zero composite and Poor verdict.
+* Reworked the test suite around public contracts, scientific invariants, classed conditions, metadata, plot semantics, and platform-specific batch execution.
+* Added focused validation cases across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Covered malformed inputs fail through package conditions before reaching base R errors, and zero-count digests consistently receive a zero composite and Poor verdict.
+* Restored Windows protein-chunk parallelism through base R socket workers. Unix uses fork workers, and failed chunks on either backend are retried sequentially with a classed warning.
 * Preserved resolved scoring metadata through single-protein, comparison, batch, sensitivity, and plotting workflows.
 * Added fast contract tests for shipped FASTA, tool-comparison, and PeptideAtlas artifacts. Data-generation workflows now run as separate offline audits and fail clearly when required inputs are missing.
 
@@ -62,7 +63,7 @@
 
 ## New functions
 
-* `sensitivity_analysis()` performs Monte Carlo weight perturbation via Dirichlet sampling. Reports probabilistic verdicts, composite CI, rank stability (top-1, Kendall tau), per-protein instability in batch mode, weight importance (R squared), and corner-case composites. Optional `importance` and `corner_cases` diagnostics.
+* `sensitivity_analysis()` performs Monte Carlo weight perturbation via Dirichlet sampling. Reports simulated verdict frequencies, composite intervals, rank stability (top-1, Kendall tau), per-protein instability in batch mode, weight importance (R squared), and corner-case composites. Optional `importance` and `corner_cases` diagnostics.
 * `plot_weight_sensitivity()` generates a verdict-coloured density ridge plot from a sensitivity analysis result, with threshold lines and a rug mark at the default composite score.
 
 ## Scoring
@@ -139,7 +140,7 @@
 
 ## Visualization
 
-* Added `plot_digest_profile()` as the flagship single-protein diagnostic. Four-panel layout showing length distribution, GRAVY scatter, coverage map, and component scores.
+* Added `plot_digest_profile()` as a four-panel single-protein diagnostic showing length distribution, GRAVY scatter, coverage map, and component scores.
 * Added `plot_coverage_map()` for horizontal sequence coverage visualisation with valid/invalid peptide segments and missed-cleavage expansion lanes.
 * Added `plot_cleavage_map()` for vertical cleavage-site ticks with fragment blocks and optional efficiency coloring from `annotate_cleavage_sites()`.
 * Added `plot_enzyme_comparison()` for comparing component scores across multiple enzymes with sorted bars and recommendation badge.

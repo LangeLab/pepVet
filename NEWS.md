@@ -35,6 +35,7 @@
 * Added a source-package artifact build alongside parallel release-R checks on Linux, macOS, and Windows, with unfinished checks cancelled after the first check failure.
 * Split CI installation into role-specific `pak` dependency plans and preserved resolved-library caches when later workflow stages fail.
 * Bounded dependency installation in every workflow so a stalled package resolver fails promptly instead of consuming an entire job timeout.
+* Consolidated routine Linux build, check, coverage, and pkgdown work behind one uncached dependency installation while retaining parallel macOS and Windows checks. This avoids intermittent cache-service stalls across duplicated Linux setup jobs.
 * Added version-tag release-candidate builds and tag/published-release BiocCheck workflows. Release artifacts are built in temporary storage and are not published automatically.
 
 # pepVet 0.1.7

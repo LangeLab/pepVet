@@ -14,13 +14,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: R CMD build
+  linux:
+    name: Linux build, check, coverage, and pkgdown
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -34,12 +38,14 @@ jobs:
           r-version: release
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        timeout-minutes: 10
+      - name: Install Linux quality dependencies once
+        uses: r-lib/actions/setup-r-dependencies@v2
+        timeout-minutes: 15
         with:
-          cache: always
+          cache: false
           dependencies: '"hard"'
-          needs: build
+          extra-packages: local::.
+          needs: build, check, coverage, website
 
       - name: Build source package
         run: R CMD build --no-manual .
@@ -50,7 +56,72 @@ jobs:
           if (length(tarballs) != 1L) {
             stop("Expected exactly one pepVet source tarball.")
           }
-          cat("Built ", tarballs, " (", file.info(tarballs)$size, " bytes)\n", sep = "")
+          cat(
+            "Built ", tarballs, " (", file.info(tarballs)$size, " bytes)\n",
+            sep = ""
+          )
+        shell: Rscript {0}
+
+      - name: Check Linux source package
+        run: |
+          tarballs <- list.files(
+            pattern = "^pepVet_.*[.]tar[.]gz$",
+            full.names = TRUE
+          )
+          check_dir <- file.path(
+            normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"),
+            "check-linux"
+          )
+          rcmdcheck::rcmdcheck(
+            path = tarballs,
+            args = c("--no-manual", "--as-cran"),
+            check_dir = check_dir,
+            timeout = 1800,
+            error_on = "note"
+          )
+        shell: Rscript {0}
+
+      - name: Measure test coverage
+        timeout-minutes: 7
+        run: |
+          cov <- covr::package_coverage(
+            type = "tests",
+            quiet = FALSE,
+            clean = FALSE,
+            install_path = file.path(
+              normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"),
+              "coverage-package"
+            )
+          )
+          coverage <- covr::percent_coverage(cov)
+          print(cov)
+          cat(sprintf("Coverage: %.5f%%\n", coverage))
+          writeLines(capture.output(print(cov)), "coverage.txt")
+          covr::to_cobertura(cov, filename = "cobertura.xml")
+          writeLines(
+            c("## Test coverage", "", sprintf("Overall coverage: %.2f%%", coverage)),
+            Sys.getenv("GITHUB_STEP_SUMMARY")
+          )
+          if (coverage < 90) {
+            stop(sprintf("Coverage %.5f%% is below the 90%% project floor.", coverage))
+          }
+        shell: Rscript {0}
+
+      - name: Upload coverage to Codecov
+        timeout-minutes: 3
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
+        with:
+          use_oidc: true
+          files: ./cobertura.xml
+          flags: unittests
+          name: linux-r-release
+          fail_ci_if_error: true
+          plugins: noop
+          disable_search: true
+
+      - name: Build pkgdown site
+        timeout-minutes: 5
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
       - name: Upload source package
@@ -61,6 +132,38 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: docs
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-report
+          path: |
+            cobertura.xml
+            coverage.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Linux check results after failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-results-Linux
+          path: ${{ runner.temp }}/check-linux
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Show coverage test output after a failure
+        if: failure()
+        run: |
+          find '${{ runner.temp }}/coverage-package' -name 'testthat.Rout*' -exec cat '{}' \; || true
+        shell: bash
+
   check:
     name: R CMD check (${{ matrix.config.label }})
     runs-on: ${{ matrix.config.os }}
@@ -69,7 +172,6 @@ jobs:
       fail-fast: true
       matrix:
         config:
-          - {os: ubuntu-latest, label: Linux, r: release}
           - {os: macos-latest, label: macOS, r: release}
           - {os: windows-latest, label: Windows, r: release}
     env:
@@ -119,3 +221,20 @@ jobs:
           path: ${{ runner.temp }}/check
           if-no-files-found: ignore
           retention-days: 7
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

@@ -57,6 +57,9 @@ workflows: scoring, enzyme comparison, and batch evaluation.
 FASTA record names are preserved as \code{protein_id} values when they
 are present, including irregular headers that do not use UniProt pipe
 formatting. Unnamed input sequences receive generated \verb{sequence_<n>} IDs.
+For named multi-record input, protein groups follow the supplied record
+order. Reordering uniquely named records changes group order only; each
+record retains the same peptide values and coordinates.
 pepVet uses cleaver-compatible cleavage rules for the strict cut sites and
 expands missed cleavages itself so repeated peptides and overlapping ranges
 retain exact start and end coordinates. Peptides are returned whether or

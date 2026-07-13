@@ -119,6 +119,10 @@
 #' ranges, active weights, proteome-aware mode, and pI mode. The
 #' cleavage-efficiency counts summarize annotated trypsin-family cleavage
 #' sites only; unsupported enzymes receive `NA` in these informational fields.
+#' For uniquely named multi-record input, score rows, peptide groups, and
+#' `params$protein_ids` follow the supplied record order. Reordering input
+#' records changes that presentation order but not the named per-protein
+#' results.
 #'
 #' @return A named list with three elements:
 #'   \describe{
@@ -471,7 +475,9 @@ recommend_enzyme <- function(sequence,
 #'   resolved ranges, weights, proteome-aware mode, and pI mode. Batch
 #'   inputs must have unique protein identifiers. Difficulty flags use the
 #'   active scoring ranges; `flag_short_protein` and `flag_low_complexity`
-#'   remain sequence-level heuristics.
+#'   remain sequence-level heuristics. Rows follow the supplied input-record
+#'   order. Reordering uniquely named records changes row order but not the
+#'   named per-protein results.
 #'
 #' @section Limitations:
 #' Windows socket workers receive serialized copies of their input, while Unix

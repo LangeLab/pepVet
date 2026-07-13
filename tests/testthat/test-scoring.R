@@ -410,24 +410,77 @@ test_that("preset identity distinguishes named and custom configurations", {
   expect_false(pepVet:::.same_named_weights(c(a = 1), c(b = 1)))
 })
 
-test_that("score_peptides respects configurable length and GRAVY ranges", {
+test_that("widening length and GRAVY ranges is non-decreasing", {
   digest_result <- make_digest_result(
-    c("AAAAAA", "AAAAAAAA", "AIVVWWWK"),
-    starts = c(1L, 7L, 14L)
+    c("AAAAAA", "ALIVDEK", "AAAAAAAA", "RRRRRRRK"),
+    starts = c(1L, 7L, 14L, 22L)
+  )
+  peptide_lengths <- nchar(digest_result$peptide, type = "chars")
+  length_ranges <- list(
+    default = c(7L, 25L),
+    equal_widening = c(7L, 30L),
+    strict_widening = c(6L, 30L)
+  )
+  length_results <- lapply(
+    length_ranges,
+    function(length_range) {
+      score_peptides(digest_result, length_range = length_range)
+    }
+  )
+  valid_counts <- vapply(
+    length_ranges,
+    function(length_range) {
+      sum(
+        peptide_lengths >= length_range[[1L]] &
+          peptide_lengths <= length_range[[2L]]
+      )
+    },
+    integer(1)
+  )
+  length_scores <- vapply(
+    length_results,
+    function(result) result$S_length[[1L]],
+    numeric(1)
   )
 
-  default_length_result <- score_peptides(digest_result)
-  widened_length_result <- score_peptides(
-    digest_result,
-    length_range = c(6L, 25L)
+  expect_identical(valid_counts, c(
+    default = 3L,
+    equal_widening = 3L,
+    strict_widening = 4L
+  ))
+  expect_true(all(diff(valid_counts) >= 0L))
+  expect_true(all(diff(length_scores) >= 0))
+  expect_identical(
+    length_scores[["default"]],
+    length_scores[["equal_widening"]]
   )
-  widened_hydro_result <- score_peptides(
-    digest_result,
-    gravy_range = c(-1.0, 1.5)
+  expect_gt(
+    length_scores[["strict_widening"]],
+    length_scores[["equal_widening"]]
   )
 
-  expect_lt(default_length_result$S_length, widened_length_result$S_length)
-  expect_lt(default_length_result$S_hydro, widened_hydro_result$S_hydro)
+  gravy_ranges <- list(
+    default = c(-1.0, 0.6),
+    equal_widening = c(-1.0, 0.8),
+    strict_widening = c(-5.0, 2.0)
+  )
+  hydro_scores <- vapply(
+    gravy_ranges,
+    function(gravy_range) {
+      score_peptides(digest_result, gravy_range = gravy_range)$S_hydro[[1L]]
+    },
+    numeric(1)
+  )
+
+  expect_true(all(diff(hydro_scores) >= 0))
+  expect_identical(
+    hydro_scores[["default"]],
+    hydro_scores[["equal_widening"]]
+  )
+  expect_gt(
+    hydro_scores[["strict_widening"]],
+    hydro_scores[["equal_widening"]]
+  )
 })
 
 test_that("presets can be applied directly to evaluate_digest", {
@@ -938,6 +991,53 @@ test_that("coverage scoring reduces unsorted and adjacent intervals independentl
     pepVet:::.score_coverage(adjacent, length_range = c(1L, 25L)),
     1
   )
+})
+
+test_that("adding valid covered residues cannot lower coverage", {
+  base <- make_digest_result(
+    c(strrep("A", 10L), strrep("A", 3L)),
+    starts = c(1L, 38L)
+  )
+  overlap_only <- make_digest_result(
+    c(strrep("A", 10L), strrep("A", 7L), strrep("A", 3L)),
+    starts = c(1L, 2L, 38L)
+  )
+  expanded <- make_digest_result(
+    c(
+      strrep("A", 10L),
+      strrep("A", 7L),
+      strrep("A", 7L),
+      strrep("A", 3L)
+    ),
+    starts = c(1L, 2L, 11L, 38L)
+  )
+  coverage_steps <- list(base, overlap_only, expanded)
+  expected_scores <- vapply(
+    coverage_steps,
+    function(digest_result) {
+      protein_length <- max(digest_result$end)
+      valid_rows <- digest_result$length >= 7L & digest_result$length <= 25L
+      covered <- rep(FALSE, protein_length)
+      for (row_index in which(valid_rows)) {
+        covered[
+          digest_result$start[[row_index]]:digest_result$end[[row_index]]
+        ] <- TRUE
+      }
+      sum(covered) / protein_length
+    },
+    numeric(1)
+  )
+  observed_scores <- vapply(
+    coverage_steps,
+    pepVet:::.score_coverage,
+    numeric(1)
+  )
+
+  expect_equal(expected_scores, c(10 / 40, 10 / 40, 17 / 40))
+  expect_equal(observed_scores, expected_scores, tolerance = 1e-12)
+  expect_true(all(diff(observed_scores) >= 0))
+  expect_identical(observed_scores[[1L]], observed_scores[[2L]])
+  expect_gt(observed_scores[[3L]], observed_scores[[2L]])
 })
 
 test_that("count scoring handles caps, ratios, and edge protein sizes", {

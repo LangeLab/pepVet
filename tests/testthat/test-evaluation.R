@@ -41,6 +41,118 @@ test_that("batch_evaluate returns a tibble with one row per protein and required
   )
 })
 
+test_that("named input order changes presentation but not named results", {
+  sequences <- Biostrings::AAStringSet(c(
+    zeta = "AAAAAAAKAAAAAAARAAAAAAAK",
+    alpha = "CCCCCCCKCCCCCCCRCCCCCCCK",
+    mu = "PEPTIDEKAPEPTIDERAPEPTIDEK"
+  ))
+  reordered_sequences <- sequences[rev(seq_along(sequences))]
+
+  forward_evaluation <- evaluate_digest(
+    sequences,
+    enzyme = "trypsin",
+    missed_cleavages = 0L
+  )
+  reverse_evaluation <- evaluate_digest(
+    reordered_sequences,
+    enzyme = "trypsin",
+    missed_cleavages = 0L
+  )
+
+  expect_identical(
+    forward_evaluation$params$protein_ids,
+    names(sequences)
+  )
+  expect_identical(
+    reverse_evaluation$params$protein_ids,
+    names(reordered_sequences)
+  )
+  expect_identical(
+    forward_evaluation$scores$protein_id,
+    names(sequences)
+  )
+  expect_identical(
+    reverse_evaluation$scores$protein_id,
+    names(reordered_sequences)
+  )
+  expect_identical(
+    unique(forward_evaluation$peptides$protein_id),
+    names(sequences)
+  )
+  expect_identical(
+    unique(reverse_evaluation$peptides$protein_id),
+    names(reordered_sequences)
+  )
+
+  aligned_score_index <- match(
+    forward_evaluation$scores$protein_id,
+    reverse_evaluation$scores$protein_id
+  )
+  aligned_reverse_scores <- reverse_evaluation$scores[
+    aligned_score_index, , drop = FALSE
+  ]
+  expect_equal(
+    forward_evaluation$scores,
+    aligned_reverse_scores,
+    tolerance = 1e-15
+  )
+
+  peptide_columns <- setdiff(
+    names(forward_evaluation$peptides),
+    "protein_id"
+  )
+  for (protein_id in names(sequences)) {
+    forward_peptides <- forward_evaluation$peptides[
+      forward_evaluation$peptides$protein_id == protein_id,
+      peptide_columns,
+      drop = FALSE
+    ]
+    reverse_peptides <- reverse_evaluation$peptides[
+      reverse_evaluation$peptides$protein_id == protein_id,
+      peptide_columns,
+      drop = FALSE
+    ]
+    expect_identical(
+      forward_peptides,
+      reverse_peptides,
+      info = protein_id
+    )
+  }
+
+  forward_batch <- batch_evaluate(
+    sequences,
+    enzyme = "trypsin",
+    missed_cleavages = 0L,
+    cores = 1L
+  )
+  reverse_batch <- batch_evaluate(
+    reordered_sequences,
+    enzyme = "trypsin",
+    missed_cleavages = 0L,
+    cores = 1L
+  )
+  expect_identical(forward_batch$protein_id, names(sequences))
+  expect_identical(reverse_batch$protein_id, names(reordered_sequences))
+
+  aligned_batch_index <- match(
+    forward_batch$protein_id,
+    reverse_batch$protein_id
+  )
+  aligned_reverse_batch <- reverse_batch[
+    aligned_batch_index, , drop = FALSE
+  ]
+  expect_equal(
+    as.data.frame(forward_batch),
+    as.data.frame(aligned_reverse_batch),
+    tolerance = 1e-15
+  )
+  expect_identical(
+    attr(forward_batch, "scoring_config"),
+    attr(reverse_batch, "scoring_config")
+  )
+})
+
 test_that("batch_evaluate composite_score and verdict match evaluate_digest for the same protein", {
   batch <- .fix_batch_bsa
   individual <- .fix_bsa_trypsin

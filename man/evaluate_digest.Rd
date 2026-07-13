@@ -75,6 +75,10 @@ treated as \code{"custom"}. \code{params} also stores the resolved GRAVY and len
 ranges, active weights, proteome-aware mode, and pI mode. The
 cleavage-efficiency counts summarize annotated trypsin-family cleavage
 sites only; unsupported enzymes receive \code{NA} in these informational fields.
+For uniquely named multi-record input, score rows, peptide groups, and
+\code{params$protein_ids} follow the supplied record order. Reordering input
+records changes that presentation order but not the named per-protein
+results.
 }
 \section{Limitations}{
 

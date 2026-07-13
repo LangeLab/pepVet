@@ -45,6 +45,36 @@ strict_ranges <- function(result) {
   result[result$missed_cleavages == 0L, , drop = FALSE]
 }
 
+generated_property_sequences <- function(n_records = 6L) {
+  amino_acids <- strsplit(
+    "ACDEFGHIKLMNPQRSTVWY", "", fixed = TRUE
+  )[[1L]]
+  cleavage_motif <- strsplit("AKADMAFWYRP", "", fixed = TRUE)[[1L]]
+  sequence_lengths <- sample(48L:96L, n_records, replace = FALSE)
+
+  sequences <- vapply(
+    seq_len(n_records),
+    function(index) {
+      residues <- sample(
+        amino_acids,
+        sequence_lengths[[index]],
+        replace = TRUE
+      )
+      motif_start <- sample.int(
+        length(residues) - length(cleavage_motif) - 8L,
+        1L
+      ) + 4L
+      motif_positions <- motif_start + seq_along(cleavage_motif) - 1L
+      residues[motif_positions] <- cleavage_motif
+      paste0(residues, collapse = "")
+    },
+    character(1)
+  )
+  names(sequences) <- sprintf("generated_%02d", seq_len(n_records))
+
+  Biostrings::AAStringSet(sequences)
+}
+
 test_that("supported enzyme registry is pinned exactly", {
   expect_identical(pepVet:::.supported_digest_enzymes, expected_enzymes)
 })
@@ -346,6 +376,91 @@ test_that("single protein digestion roundtrips and preserves positions", {
   expect_identical(mc0$length, mc0$end - mc0$start + 1L)
   expect_identical(IRanges::start(coverage), 1L)
   expect_identical(IRanges::end(coverage), nchar(sequence))
+})
+
+test_that("generated digests match source coordinates across enzyme families", {
+  withr::local_seed(20260712)
+  sequences <- generated_property_sequences()
+  source_sequences <- as.character(sequences)
+  enzymes <- c(
+    "trypsin",
+    "asp-n endopeptidase",
+    "cnbr",
+    "chymotrypsin-high"
+  )
+
+  for (enzyme in enzymes) {
+    result <- digest_protein(
+      sequences,
+      enzyme = enzyme,
+      missed_cleavages = 2L
+    )
+    source_index <- match(result$protein_id, names(source_sequences))
+    row_sources <- unname(source_sequences[source_index])
+    expected_peptides <- substring(
+      row_sources,
+      first = result$start,
+      last = result$end
+    )
+
+    expect_false(anyNA(source_index), info = enzyme)
+    expect_identical(unique(result$protein_id), names(sequences), info = enzyme)
+    expect_true(all(result$start >= 1L), info = enzyme)
+    expect_true(all(result$start <= result$end), info = enzyme)
+    expect_true(
+      all(result$end <= nchar(row_sources, type = "chars")),
+      info = enzyme
+    )
+    expect_identical(result$peptide, expected_peptides, info = enzyme)
+    expect_identical(
+      result$length,
+      as.integer(nchar(result$peptide, type = "chars")),
+      info = enzyme
+    )
+  }
+})
+
+test_that("strict generated digests reconstruct under complete coverage", {
+  withr::local_seed(20260713)
+  sequences <- generated_property_sequences(n_records = 8L)
+  source_sequences <- as.character(sequences)
+  enzymes <- c("trypsin", "asp-n endopeptidase", "cnbr")
+
+  for (enzyme in enzymes) {
+    strict_digest <- digest_protein(
+      sequences,
+      enzyme = enzyme,
+      missed_cleavages = 0L
+    )
+
+    for (protein_id in names(source_sequences)) {
+      rows <- strict_digest[
+        strict_digest$protein_id == protein_id, , drop = FALSE
+      ]
+      rows <- rows[order(rows$start, rows$end), , drop = FALSE]
+      source_length <- nchar(
+        source_sequences[[protein_id]],
+        type = "chars"
+      )
+
+      ## Reconstruction requires a gap-free, non-overlapping strict partition.
+      has_complete_coverage <- nrow(rows) > 0L &&
+        rows$start[[1L]] == 1L &&
+        rows$end[[nrow(rows)]] == source_length &&
+        (
+          nrow(rows) == 1L ||
+            all(rows$start[-1L] == rows$end[-nrow(rows)] + 1L)
+        )
+      case_label <- paste(enzyme, protein_id)
+
+      expect_true(has_complete_coverage, info = case_label)
+      expect_identical(
+        paste0(rows$peptide, collapse = ""),
+        unname(source_sequences[[protein_id]]),
+        info = case_label
+      )
+    }
+  }
 })
 
 test_that("character and AAString input produce identical digestion results", {

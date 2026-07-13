@@ -2,14 +2,36 @@
 
 # pepVet 0.1.8 (unreleased)
 
-## Testing and reliability
+## User-visible changes
+
+* Redesigned interactive digest reports with ASCII-safe score profiles, explicit scoring settings and peptide counts, wrapped identifiers, and width-aware enzyme comparisons.
+* Preserved resolved scoring metadata through single-protein, comparison, batch, sensitivity, and plotting workflows.
+* Restored Windows protein-chunk parallelism through base R socket workers. Unix uses fork workers, and failed chunks on either backend are retried sequentially with a classed warning.
+
+## Validation and fixes
+
+* Standardized malformed-input handling across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Invalid inputs now fail through package conditions before reaching base R errors.
+* Rejected duplicate protein identifiers and duplicate data-frame columns before they can collapse or corrupt downstream results.
+* Applied the zero-count digest rule consistently: digests without valid peptide counts receive a zero composite score and a Poor verdict.
+* Fixed missed-cleavage filtering in peptide-overlap plots when all levels are requested, and validated plot titles and figure dimensions before rendering.
+
+## Testing
 
 * Reworked the test suite around public contracts, scientific invariants, classed conditions, metadata, plot semantics, and platform-specific batch execution.
-* Added focused validation cases across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Covered malformed inputs fail through package conditions before reaching base R errors, and zero-count digests consistently receive a zero composite and Poor verdict.
-* Restored Windows protein-chunk parallelism through base R socket workers. Unix uses fork workers, and failed chunks on either backend are retried sequentially with a classed warning.
-* Preserved resolved scoring metadata through single-protein, comparison, batch, sensitivity, and plotting workflows.
-* Redesigned interactive digest reports with ASCII-safe score profiles, explicit scoring settings and peptide counts, wrapped identifiers, and width-aware enzyme comparisons.
+* Added generated-sequence properties and a malformed-input audit covering all 37 exported functions.
 * Added fast contract tests for shipped FASTA, tool-comparison, and PeptideAtlas artifacts. Data-generation workflows now run as separate offline audits and fail clearly when required inputs are missing.
+
+## Documentation and metadata
+
+* Reconciled the README, vignettes, help pages, package metadata, and generated site with the current scoring and validation contracts.
+* Removed the redundant custom package citation because pepVet does not yet have an associated publication DOI. Installed citations now come from DESCRIPTION metadata.
+
+## Release infrastructure
+
+* Added Linux coverage reporting with a 90 percent floor, retained coverage artifacts, and Codecov upload support.
+* Added pkgdown builds for pull requests and GitHub Pages deployment from `main`.
+* Added one source-package build followed by release-R checks on Linux, macOS, and Windows.
+* Added version-tag release-candidate builds and tag/published-release BiocCheck workflows. Release artifacts are built in temporary storage and are not published automatically.
 
 # pepVet 0.1.7
 

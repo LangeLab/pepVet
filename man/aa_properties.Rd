@@ -37,6 +37,10 @@ values and their contribution to protein stability and solubility."
 \usage{
 aa_properties
 }
+\value{
+A tibble with 22 rows and six columns; see Format for column
+definitions.
+}
 \description{
 Curates a reference table for the 22 amino acids (20 standard + U + O) used
 by pepVet scoring and validation utilities. The \code{molecular_weight} column

@@ -19,6 +19,8 @@
 #'   \code{NA} for non-ionizable residues.}
 #'   \item{is_basic}{Logical flag for basic residues H, K, and R.}
 #' }
+#' @return A tibble with 22 rows and six columns; see Format for column
+#'   definitions.
 #'
 #' @source
 #' Hydrophobicity values follow Kyte J, Doolittle RF (1982). "A simple method

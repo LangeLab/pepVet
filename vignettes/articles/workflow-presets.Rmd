@@ -51,7 +51,7 @@ pepvet_preset("standard")
 | `ffpe_degraded` | Degraded material | `[6,30]` aa, higher `S_count` weight |
 | `fractionated` | Offline fractionation | Standard settings with pI annotation |
 
-## Standard workflow
+### Standard workflow
 
 The `standard` preset contains the package defaults for routine peptide-centric proteomics.
 
@@ -64,7 +64,7 @@ do.call(
 )$scores
 ```
 
-## DIA workflow
+### DIA workflow
 
 The `dia` preset assigns more weight to coverage, widens the valid length window to 30 aa, and extends the GRAVY window to \[-1.0, 0.8\]. These values encode a broader inclusion prior for DIA workflows. They are not calibrated detection boundaries.
 
@@ -78,7 +78,7 @@ do.call(
 )$scores
 ```
 
-## Targeted workflow
+### Targeted workflow
 
 The `targeted` preset assigns more weight to `S_unique` and requires a relevant comparison proteome. It uses a narrower length and GRAVY window than the standard preset.
 
@@ -94,7 +94,7 @@ do.call(
 
 Without a proteome digest, pepVet cannot calculate a non-zero uniqueness component and raises an error.
 
-## Membrane workflow
+### Membrane workflow
 
 The `membrane` preset extends the GRAVY window to \[-1.0, 2.0\], extends the length window to \[7, 30\], and lowers the `S_hydro` weight to 5%. These settings reduce the score penalty for hydrophobic peptides. They remain workflow priors and do not predict peptide observation.
 
@@ -104,7 +104,7 @@ pepvet_preset("membrane")
 
 The preset changes how the score treats hydrophobic peptides. It does not predict whether the digest will succeed experimentally.
 
-## Degraded samples
+### Degraded samples
 
 The `ffpe_degraded` preset lowers the minimum length to 6 aa and increases the `S_count` weight. This configuration includes more short products and gives peptide count more influence on the composite score. It does not model formalin chemistry or degradation directly.
 
@@ -114,7 +114,7 @@ pepvet_preset("ffpe_degraded")
 
 Use this preset only when the sample context justifies it. A wider window changes the meaning of `S_length`, `S_coverage`, and `S_count`.
 
-## Fractionated workflows
+### Fractionated workflows
 
 The `fractionated` preset keeps the standard score settings and requests pI annotation for planning offline fractionation.
 
@@ -137,7 +137,11 @@ do.call(
 
 Presets are data, not hidden state. You can inspect, store, version, and modify them without changing package internals.
 
-## When presets help
+## Interpreting presets
+
+The preset name records the assumptions used for a score. It does not make scores from different configurations directly comparable.
+
+### When presets help
 
 Presets provide a recorded starting configuration when:
 
@@ -147,13 +151,15 @@ Presets provide a recorded starting configuration when:
 
 If a membrane target receives a higher score only after widening the GRAVY window, the recorded configuration shows which assumption changed.
 
-## Cross-preset interpretation
+### Cross-preset interpretation
 
 Do not compare composite scores across different presets as if they were on one universal scale. A `standard` score and a `targeted` score can differ because the weight vector, peptide-length window, and GRAVY window changed, not because the protein became intrinsically better or worse.
 
 Use `preset_used` when saving or comparing results. Compare scores only when the resolved scoring configuration matches.
 
 Presets are starting points, not experimentally fitted parameter sets. Modify them when the workflow requires different assumptions.
+
+## Session info
 
 ```{r session-info}
 sessionInfo()

@@ -47,7 +47,11 @@ The analysis has three parts:
 
 3. **Threshold assessment**: fit logistic regression for protein-level observation status and compute Youden's J across a threshold grid. Inspect the class balance before interpreting the selected threshold.
 
-## Enrichment
+## Results
+
+The three analyses report the default-window association, the bounded parameter grid, and the protein-level threshold assessment separately.
+
+### Enrichment
 
 Using the default parameters, the mean observation rates across proteins are:
 
@@ -68,7 +72,7 @@ The bootstrap 95% interval for the mean difference is `r sprintf("[%.1f, %.1f] p
 
 Within these sampled human tryptic digests, peptides inside the default windows had a higher mean PeptideAtlas observation rate than peptides outside them. This is concordance evidence for the sampled data. It does not estimate a causal effect of the filters or establish performance for other enzymes, organisms, instruments, or acquisition methods.
 
-### Signal decomposition
+#### Signal decomposition
 
 The full script calculates the observation-rate difference for each filter alone.
 
@@ -80,13 +84,13 @@ This analysis is done at the peptide level in the full script. In this sample, t
 
 In this decomposition, the length filter had the larger individual association with observation status. The analysis does not establish a general ordering of determinants of LC-MS/MS detection.
 
-### GRAVY min finding
+#### GRAVY min finding
 
 23.8% of observed peptides have GRAVY below -1.0. These are more hydrophilic peptides that the default window excludes. Lowering the GRAVY minimum to -1.5 raises enrichment from 38.0 to 42.1 percentage points while changing the valid-peptide observation rate from 57.3% to 57.0%. This was the largest individual change among the tested GRAVY-floor values.
 
 The existing DIA preset includes wider GRAVY limits of [-1.0, 0.8]. The package default remains unchanged because this analysis covers one human tryptic sample.
 
-## Grid search
+### Grid search
 
 The full grid search evaluated 900 combinations of length and GRAVY boundaries.
 
@@ -105,7 +109,7 @@ The highest-enrichment boundaries in this grid are wider than the defaults in tw
 
 The wider selected range reflects a different tradeoff from the package defaults. pepVet retains strict, conservative defaults for triage rather than claiming that they are estimated detection boundaries. Users can inspect the DIA preset or custom ranges when broader inclusion is appropriate for their workflow.
 
-## Threshold assessment
+### Threshold assessment
 
 The following logistic regression relates composite score to protein-level observation status in this sample:
 
@@ -136,7 +140,11 @@ The threshold with the highest Youden J on this grid is 0.875, compared with the
 
 This analysis does not provide a reliable calibration of the verdict thresholds. The package retains 0.65 and 0.40 as heuristic defaults.
 
-## What this analysis supports
+## Interpretation
+
+The result supports a limited statement about the sampled human tryptic data. It does not calibrate pepVet for other datasets or workflows.
+
+### What this analysis supports
 
 | Parameter | Status | Evidence |
 |-----------|--------|----------|
@@ -145,7 +153,7 @@ This analysis does not provide a reliable calibration of the verdict thresholds.
 | Verdict thresholds 0.65 / 0.40 | Retained, not validated | Class imbalance prevents reliable calibration |
 | AHP weight vector | Not tested | A separate sensitivity analysis measures stability only under its specified perturbation model |
 
-## Limitations
+### Limitations
 
 - **Human + trypsin only.** The PeptideAtlas build is human-specific and trypsin is the only enzyme tested. Transfer to other organisms or enzymes was not evaluated.
 

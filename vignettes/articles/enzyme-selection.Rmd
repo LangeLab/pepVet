@@ -68,7 +68,11 @@ The comparison table reports each score component alongside the composite.
 
 When two enzymes have similar composite scores, inspect the components. One enzyme can have higher coverage while another has a higher length- or GRAVY-window fraction.
 
-## Worked example 1: BSA
+## Worked examples
+
+Three fixed examples show how the same comparison workflow behaves for a reference protein, a basic protein, and a small isoform set.
+
+### Worked example 1: BSA
 
 BSA provides a fixed example for comparing several enzyme rules under one scoring configuration.
 
@@ -78,7 +82,7 @@ comp_bsa[, c("enzyme", "S_length", "S_coverage", "S_count", "composite_score", "
 
 The BSA readout does not identify a universally correct enzyme. It shows how enzyme choice changes peptide density and the package's suitability components under the active settings. In the current release, `S_count` uses the observed digest structure instead of a fixed tryptic expectation.
 
-### Cleavage efficiency is not uniform
+#### Cleavage efficiency is not uniform
 
 pepVet also reports sequence-local cleavage-efficiency classes for supported trypsin-family rules.
 
@@ -91,7 +95,7 @@ On the shipped BSA fixture, pepVet labels the KP motif at position 140 as `low` 
 
 The current annotation rules use local P1-P1' sequence context only. They do not model structural accessibility or PTMs and do not replace the digest score.
 
-### Missed cleavages change the ranking
+#### Missed cleavages change the ranking
 
 ```{r bsa-missed-cleavages}
 comp_mc0 <- compare_digests(
@@ -112,7 +116,7 @@ comp_mc1[, c("enzyme", "composite_score", "S_length", "median_peptide_length")]
 
 The two tables show how allowing one missed cleavage changes peptide length and the component scores for this BSA example. They do not estimate an experimental missed-cleavage distribution.
 
-## Worked example 2: Histone H3.1
+### Worked example 2: Histone H3.1
 
 Histone H3.1 is a basic protein with a lysine- and arginine-rich N-terminal tail. Trypsin often over-cuts this class of target.
 
@@ -133,7 +137,7 @@ In this in-silico example, trypsin has weak `S_length` and `S_coverage`, while L
 
 Histone workflows often require special digestion strategies because lysine- and arginine-rich sequences can yield many short tryptic products. One established bottom-up method blocks lysine residues before trypsin digestion so that cleavage occurs at arginine (Garcia et al. 2007). Middle-down methods retain longer histone-tail analytes and address a different experimental question (Sidoli et al. 2015).
 
-## Worked example 3: Isoform-aware scoring
+### Worked example 3: Isoform-aware scoring
 
 Alpha-synuclein isoforms are a compact example of when uniqueness matters as much as length and coverage.
 
@@ -195,6 +199,8 @@ Garcia BA, Mollah S, Ueberheide BM, et al. Chemical derivatization of histones f
 Sidoli S, Lin S, Karch KR, Garcia BA. Bottom-Up and Middle-Down Proteomics Have Comparable Accuracies in Defining Histone Post-Translational Modification Relative Abundance and Stoichiometry. *Analytical Chemistry*. 2015;87(6):3129-3133. doi: [10.1021/acs.analchem.5b00072](https://doi.org/10.1021/acs.analchem.5b00072).
 
 Swaney DL, Wenger CD, Coon JJ. Value of Using Multiple Proteases for Large-Scale Mass Spectrometry-Based Proteomics. *Journal of Proteome Research*. 2010;9(3):1323-1329. doi: [10.1021/pr900863u](https://doi.org/10.1021/pr900863u).
+
+## Session info
 
 ```{r session-info}
 sessionInfo()

@@ -5,7 +5,7 @@ description: >
 output:
   rmarkdown::html_vignette:
     toc: true
-    toc_depth: 2
+    toc_depth: 3
 vignette: >
   %\VignetteIndexEntry{pepVet Compared to Other Tools}
   %\VignetteEngine{knitr::rmarkdown}
@@ -55,7 +55,11 @@ Six tools in this comparison simulate or evaluate proteolytic digests. The analy
 
 This vignette is the companion to the [getting-started guide](pepVet-introduction.html). It compares pepVet against five other tools on a panel of 5 proteins and 5 enzymes.
 
-## Common ground
+## Comparison basis
+
+The overlap analysis establishes the common digestion output before the capability review separates the tools by purpose and interface.
+
+### Common ground
 
 The first analysis compares peptide sets from MS-Digest, ExPASy PeptideMass, and pepVet for BSA with trypsin and one missed cleavage.
 
@@ -92,7 +96,7 @@ ggplot2::ggplot(overlap, ggplot2::aes(x = Tool)) +
 
 The three outputs share 116 peptides. pepVet returns 154 because it reports all fragments from the cleavage engine before scoring filters. The assessed MS-Digest and ExPASy outputs contain 130 and 151 peptides. On peptides shared by each pair, the mass correlations are 0.999983 for MS-Digest and ExPASy, 0.999821 for pepVet and MS-Digest, and 1.000000 for pepVet and ExPASy. These values describe the assessed configuration and do not establish equivalence across other inputs or tool versions.
 
-## How tools differ
+### How tools differ
 
 The capability matrix records the assessed interfaces and outputs.
 
@@ -110,7 +114,11 @@ ProteaseGuru (Miller et al. 2021) is a desktop application for comparing multipl
 
 PeptideRanger (Riley et al. 2023) is an R package that uses a random forest to prioritize peptides for MS analysis. It produces an RF score from 0 to 1 per peptide. In this comparison, pepVet summarizes digest-level criteria and PeptideRanger supplies a peptide-level suitability score. We do not treat either score as a calibrated probability.
 
-## pepVet scoring in practice
+## Worked comparisons
+
+The following analyses compare digest-level scores, workflow settings, and peptide-level classifications without treating the tools as interchangeable.
+
+### pepVet scoring in practice
 
 The benchmark contains five proteins and five enzymes. The pepVet composite combines five components: length, sequence coverage, peptide count, hydrophobicity, and charge richness.
 
@@ -152,7 +160,7 @@ Highest composite score within the five-enzyme grid:
 
 Two pairs receive `Poor`: BACE1 with Lys-C at 0.389 and Lysozyme C with Glu-C at 0.269. These labels follow the current pepVet settings and are not experimental outcomes.
 
-### Workflow presets
+### Workflow preset effects
 
 Six presets adjust the length range, GRAVY range, and scoring weights. The figure reports how those settings change valid-peptide counts for BSA, H3.1, and BACE1.
 
@@ -191,7 +199,7 @@ ggplot2::ggplot(presets, ggplot2::aes(x = preset)) +
 
 Within these rows, the targeted preset keeps the fewest valid peptides and the FFPE preset keeps the most. The BACE1 label changes from `Moderate` under the standard preset at 0.573 to `Good` under `ffpe_degraded` at 0.655. The label change reflects different scoring configurations.
 
-## Pipeline with PeptideRanger
+### Pipeline with PeptideRanger
 
 pepVet ranks enzyme-digest combinations and identifies peptides inside the active validity windows. PeptideRanger scores peptides for predicted MS suitability. The combined example therefore compares a digest-level filter with a peptide-level model.
 
@@ -263,7 +271,7 @@ pr_res <- pr_predict(
 head(pr_res)
 ```
 
-## Binary versus graded: pepVet and Protein Cleaver
+### Binary versus graded: pepVet and Protein Cleaver
 
 The comparison applies a simulated Protein Cleaver length-and-mass rule to the same peptides used by pepVet. Protein Cleaver uses a binary flag, while pepVet calculates digest-level components and a composite score.
 

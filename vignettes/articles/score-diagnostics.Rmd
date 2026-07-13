@@ -26,7 +26,11 @@ small_fasta <- system.file(
 
 pepVet's scoring model combines five or six component scores into a weighted composite. The components describe different digest properties, but the formula does not require them to be statistically independent. `score_diagnostics()` reports multicollinearity, principal components, and the score change produced by setting one component to zero.
 
-## Setup
+## Run the diagnostics
+
+The workflow first creates a batch result and then passes that table to `score_diagnostics()`.
+
+### Setup
 
 Evaluate the 50-protein fixture with trypsin. This gives a batch result with five component scores per protein.
 
@@ -35,7 +39,7 @@ batch <- batch_evaluate(small_fasta, enzyme = "trypsin")
 dim(batch)
 ```
 
-## Running diagnostics
+### Running diagnostics
 
 A single call to `score_diagnostics()` runs all three analyses:
 
@@ -49,7 +53,11 @@ The result is a list with six elements. The three analysis results are in `$vif`
 names(d)
 ```
 
-## VIF: multicollinearity
+## Diagnostic outputs
+
+The returned object contains three numerical analyses and a plot that presents them together.
+
+### VIF: multicollinearity
 
 Variance Inflation Factor measures how much linear dependence on the other components inflates the variance associated with each component score. For each component, the function fits a linear model from the remaining components and computes VIF = 1 / (1 - R^2).
 
@@ -61,7 +69,7 @@ d$vif
 
 Components with VIF above 5 receive a plot flag. In this fixture, `S_length` has VIF = 5.78. This value should prompt inspection of the component relationships and intended model use, not automatic removal of a component.
 
-## PCA: dimensionality
+### PCA: dimensionality
 
 Principal component analysis expresses variation in the component matrix through linear combinations. The plot includes an 80% cumulative-variance reference line for description. It is not a model-validity threshold.
 
@@ -78,7 +86,7 @@ knitr::kable(round(d$pca$loadings, 3),
   caption = "PCA loadings (rotation matrix)")
 ```
 
-## Ablation: weighted score contribution
+### Ablation: weighted score contribution
 
 Ablation sets each component to zero without renormalizing the other weights. It reports the resulting composite-score drop and verdict changes. Because the composite is a weighted sum, this analysis describes influence under the current weights rather than empirical importance.
 
@@ -94,7 +102,7 @@ Key patterns to look for:
 
 - **Verdict flips**: the count reports how many proteins change label in the zero-component calculation. `S_coverage` changes 45 of 50 labels, while `S_charge` changes 14. These counts depend on the current weights, thresholds, and fixture.
 
-## The diagnostics plot
+### The diagnostics plot
 
 `plot_score_diagnostics()` produces a three-panel figure combining all three analyses:
 

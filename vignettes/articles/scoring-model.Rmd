@@ -22,13 +22,13 @@ bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 ```
 
-## Overview
+## Model overview
 
 `score_peptides()` reduces a digest tibble to one row per protein. That row contains component scores, a composite score, a verdict, and the digest-level `median_peptide_length` used to interpret peptide density.
 
 The model uses explicit component scores and a weighted sum so that each contribution remains visible.
 
-## Positioning
+### Positioning
 
 pepVet is not a peptide detectability predictor. It does not estimate whether an experiment will identify a specific peptide from empirical MS training data. Instead, it ranks a protein digest for a chosen enzyme-workflow combination.
 
@@ -39,7 +39,7 @@ pepVet is not a peptide detectability predictor. It does not estimate whether an
 
 Interpret pepVet as a digest-ranking model for pre-acquisition planning, not as a substitute for peptide-level detectability prediction.
 
-## Valid peptides
+### Valid peptides
 
 Most pepVet components operate on valid peptides. A peptide is valid if its length falls inside the active `length_range`.
 
@@ -135,7 +135,11 @@ $$
 
 This score describes uniqueness against the supplied proteome digest. Without that background, pepVet cannot calculate the component and omits it.
 
-## Weights and presets
+## Composite score and verdicts
+
+The component scores enter a weighted sum, which the package then maps to one of three advisory labels.
+
+### Weights and presets
 
 The composite score is a weighted sum.
 
@@ -169,7 +173,7 @@ Changing a preset can alter both the weights and the peptide windows. Inspect th
 
 `score_peptides()` records the resolved configuration in `preset_used`. When the active GRAVY range, peptide-length range, weights, and pI flag exactly match a shipped preset, the function reports the preset name. Otherwise it reports `"custom"`. Use this field to identify scores produced under different workflow assumptions.
 
-## Verdict thresholds
+### Verdict thresholds
 
 pepVet maps the composite score to three labels.
 
@@ -181,7 +185,7 @@ pepVet maps the composite score to three labels.
 
 The package retains these strict, conservative thresholds as triage boundaries. No analysis has calibrated them to an identification probability, false discovery rate, or fixed instrument platform. The current PeptideAtlas analysis contained too few negative protein-level examples for reliable calibration. Use the labels for ranking and review, not as experimental outcome claims.
 
-## Inspecting real outputs
+## Worked outputs
 
 ```{r bsa-report}
 digest_report(evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L))
@@ -193,7 +197,11 @@ digest_report(evaluate_digest(h3_path, enzyme = "trypsin"))
 
 The two reports show the component values for BSA and H3.1 under the specified trypsin settings. Interpret the displayed values rather than treating either protein as a universal positive or negative control.
 
-## Limitations
+## Interpretation boundaries
+
+The model is intended for within-configuration digest ranking. Its limits and the available empirical checks define how far that interpretation can go.
+
+### Limitations
 
 The current model has several limits.
 
@@ -206,13 +214,13 @@ The current model has several limits.
 
 These limits define the intended use: digest planning, enzyme ranking, and pre-acquisition triage under an explicit scoring configuration.
 
-## Scope
+### Scope
 
 pepVet scores are rankings, not calibrated probabilities. The composite score has no unit. Comparisons should remain within one enzyme-workflow configuration.
 
 Cross-preset comparisons are not valid just because the numeric scale looks the same. A `standard` score of `0.75` and a `targeted` score of `0.60` reflect different weight vectors and can answer different questions.
 
-## Empirical evaluation
+### Empirical evaluation
 
 A January 2026 analysis evaluated the default parameters against a human PeptideAtlas build containing 5.3 million unique observed peptide sequences. Internal score diagnostics also described component relationships. These analyses provide evidence about the sampled data and model behavior, but they do not establish performance across organisms, enzymes, instruments, or workflows.
 
@@ -223,6 +231,8 @@ A January 2026 analysis evaluated the default parameters against a human Peptide
 ## References
 
 Mallick P, Schirle M, Chen SS, et al. Computational prediction of proteotypic peptides for quantitative proteomics. *Nature Biotechnology*. 2007;25:125-131. doi: [10.1038/nbt1275](https://doi.org/10.1038/nbt1275).
+
+## Session info
 
 ```{r session-info}
 sessionInfo()

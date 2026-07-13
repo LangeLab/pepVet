@@ -58,9 +58,7 @@ plot_cleavage_map(bsa_trypsin, cleavage_sites = cs)
 plot_peptide_overlap_map(bsa_trypsin)
 ```
 
-## Enzyme and protein comparison
-
-### Enzyme comparison
+## Enzyme comparison
 
 `plot_enzyme_comparison()` compares multiple enzymes on the same protein using component-score bars and a composite lollipop.
 
@@ -180,4 +178,10 @@ pepvet_plot_config(
   params  = list(verdict_good = 0.70)
 )
 pepvet_plot_config_reset()
+```
+
+## Session info
+
+```{r session-info}
+sessionInfo()
 ```

@@ -34,6 +34,7 @@ jobs:
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        timeout-minutes: 10
         with:
           cache: always
           dependencies: '"hard"'

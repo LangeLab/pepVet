@@ -106,7 +106,11 @@ test_that("reference FASTA inventory is exact and resolvable", {
 
   expect_true(nzchar(extdata_dir))
   expect_true(dir.exists(extdata_dir))
-  normalized_extdata_dir <- normalizePath(extdata_dir, mustWork = TRUE)
+  normalized_extdata_dir <- normalizePath(
+    extdata_dir,
+    winslash = "/",
+    mustWork = TRUE
+  )
   expect_identical(
     sort(list.files(extdata_dir, pattern = "[.]fasta$")),
     expected_reference_fasta_files
@@ -116,13 +120,11 @@ test_that("reference FASTA inventory is exact and resolvable", {
     path <- reference_fasta(file_name)
     expect_true(nzchar(path), info = file_name)
     expect_true(file.exists(path), info = path)
-    normalized_path <- normalizePath(path, mustWork = TRUE)
+    normalized_path <- normalizePath(path, winslash = "/", mustWork = TRUE)
     expect_match(basename(path), file_name, fixed = TRUE)
-    expect_true(
-      startsWith(
-        normalized_path,
-        paste0(normalized_extdata_dir, .Platform$file.sep)
-      ),
+    expect_identical(
+      dirname(normalized_path),
+      normalized_extdata_dir,
       info = file_name
     )
   }

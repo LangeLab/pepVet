@@ -23,48 +23,65 @@ quote_process_arg <- function(value) {
   shQuote(value, type = shell_type)
 }
 
+process_path <- function(path, must_work = TRUE) {
+  normalizePath(path, winslash = "/", mustWork = must_work)
+}
+
+is_pkgload_package <- function() {
+  "pkgload" %in% loadedNamespaces() && isTRUE(
+    get("is_dev_package", asNamespace("pkgload"))("pepVet")
+  )
+}
+
 test_that("an installed package loads cleanly and initializes state", {
   skip_if(
     identical(Sys.getenv("R_COVR"), "true"),
     "nested package installation is checked outside coverage runs"
   )
 
-  source_root <- package_source_root()
   temp_root <- withr::local_tempdir("pepVet-package-load-")
-  install_library <- file.path(temp_root, "library")
-  dir.create(install_library)
-
-  r_command <- file.path(
-    R.home("bin"),
-    if (.Platform$OS.type == "windows") "R.exe" else "R"
-  )
   rscript_command <- file.path(
     R.home("bin"),
     if (.Platform$OS.type == "windows") "Rscript.exe" else "Rscript"
   )
 
-  install_output <- system2(
-    r_command,
-    args = c(
-      "CMD",
-      "INSTALL",
-      "--no-multiarch",
-      paste0("--library=", quote_process_arg(install_library)),
-      quote_process_arg(source_root)
-    ),
-    stdout = TRUE,
-    stderr = TRUE
-  )
-  install_status <- attr(install_output, "status")
-  if (is.null(install_status)) install_status <- 0L
+  if (is_pkgload_package()) {
+    source_root <- process_path(package_source_root())
+    install_library <- file.path(temp_root, "library")
+    dir.create(install_library)
+    install_library <- process_path(install_library)
+    r_command <- file.path(
+      R.home("bin"),
+      if (.Platform$OS.type == "windows") "R.exe" else "R"
+    )
 
-  expect_identical(
-    install_status,
-    0L,
-    info = paste(install_output, collapse = "\n")
-  )
+    install_output <- system2(
+      r_command,
+      args = c(
+        "CMD",
+        "INSTALL",
+        "--no-multiarch",
+        quote_process_arg(paste0("--library=", install_library)),
+        quote_process_arg(source_root)
+      ),
+      stdout = TRUE,
+      stderr = TRUE
+    )
+    install_status <- attr(install_output, "status")
+    if (is.null(install_status)) install_status <- 0L
 
-  if (install_status != 0L) return(invisible(NULL))
+    expect_identical(
+      install_status,
+      0L,
+      info = paste(install_output, collapse = "\n")
+    )
+
+    if (install_status != 0L) return(invisible(NULL))
+  } else {
+    install_library <- dirname(
+      process_path(find.package("pepVet", quiet = FALSE))
+    )
+  }
 
   child_script <- file.path(temp_root, "check-load.R")
   writeLines(
@@ -106,7 +123,7 @@ test_that("an installed package loads cleanly and initializes state", {
     rscript_command,
     args = c(
       "--vanilla",
-      quote_process_arg(child_script),
+      quote_process_arg(process_path(child_script)),
       quote_process_arg(install_library)
     ),
     stdout = TRUE,

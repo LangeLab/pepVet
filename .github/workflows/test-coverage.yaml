@@ -17,6 +17,7 @@ concurrency:
 jobs:
   test-coverage:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
@@ -31,11 +32,14 @@ jobs:
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        timeout-minutes: 10
         with:
           cache: always
+          dependencies: '"hard"'
           needs: coverage
 
       - name: Measure test coverage
+        timeout-minutes: 7
         run: |
           cov <- covr::package_coverage(
             type = "tests",
@@ -61,6 +65,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Upload coverage to Codecov
+        timeout-minutes: 3
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6.0.2
         with:
           use_oidc: true

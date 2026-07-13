@@ -548,6 +548,22 @@ test_that("named character vectors preserve their names as protein ids", {
   expect_identical(unique(result$protein_id), c("foo", "bar"))
 })
 
+test_that("multi-record digestion rejects duplicate protein identifiers", {
+  duplicated <- c(
+    duplicate = "PEPTIDEK",
+    duplicate = "AAAAAAAK"
+  )
+
+  expect_error(
+    digest_protein(duplicated),
+    class = "pepvet_error_invalid_input"
+  )
+  expect_error(
+    evaluate_digest(duplicated),
+    class = "pepvet_error_invalid_input"
+  )
+})
+
 test_that("AAStringSet input preserves sequence names across records", {
   input <- Biostrings::AAStringSet(
     c(alpha = "MKWVTFISLLFLFSSAYSR", beta = "AKRTPK")

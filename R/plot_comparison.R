@@ -18,6 +18,11 @@
       class = "pepvet_error_invalid_comparison"
     )
   }
+  .validate_unique_columns(
+    comparison,
+    "comparison",
+    class = "pepvet_error_invalid_comparison"
+  )
   required <- c("enzyme", "composite_score")
   missing <- setdiff(required, names(comparison))
   if (length(missing) > 0L) {
@@ -145,6 +150,7 @@ plot_enzyme_comparison <- function(
   recommend = TRUE,
   title = NULL
 ) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2", reason = "to use plot_enzyme_comparison()")
   rlang::check_installed("patchwork",
     reason = "to use plot_enzyme_comparison()"

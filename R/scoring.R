@@ -22,6 +22,12 @@
     )
   }
 
+  .validate_unique_columns(
+    digest_result,
+    arg_name,
+    class = "pepvet_error_invalid_digest"
+  )
+
   missing_columns <- setdiff(.required_digest_columns, names(digest_result))
 
   if (length(missing_columns) > 0L) {

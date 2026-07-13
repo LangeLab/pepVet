@@ -20,7 +20,8 @@ not used to detect FASTA input; any existing file that
 length-zero, and wrong-type inputs raise
 \code{pepvet_error_invalid_input}; \code{NA} or an empty string raises
 \code{pepvet_error_invalid_sequence}. Malformed FASTA files raise a classed
-\code{pepvet_error_invalid_input} error.}
+\code{pepvet_error_invalid_input} error. Multi-record inputs must have unique
+protein identifiers; duplicates raise \code{pepvet_error_invalid_input}.}
 
 \item{enzyme}{Cleavage rule name. Defaults to \code{"trypsin"}. pepVet validates
 this against its hard-coded registry of cleaver-compatible enzyme names,
@@ -57,9 +58,10 @@ workflows: scoring, enzyme comparison, and batch evaluation.
 FASTA record names are preserved as \code{protein_id} values when they
 are present, including irregular headers that do not use UniProt pipe
 formatting. Unnamed input sequences receive generated \verb{sequence_<n>} IDs.
-For named multi-record input, protein groups follow the supplied record
-order. Reordering uniquely named records changes group order only; each
-record retains the same peptide values and coordinates.
+Multi-record identifiers must remain unique after unnamed records receive
+generated IDs. Protein groups follow the supplied record order. Reordering
+records changes group order only; each record retains the same peptide
+values and coordinates.
 pepVet uses cleaver-compatible cleavage rules for the strict cut sites and
 expands missed cleavages itself so repeated peptides and overlapping ranges
 retain exact start and end coordinates. Peptides are returned whether or

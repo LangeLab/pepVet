@@ -11,6 +11,7 @@
       class = class
     )
   }
+  .validate_unique_columns(data, "data", class = class)
   missing <- setdiff(required, names(data))
   if (length(missing) > 0L) {
     .abort(
@@ -101,6 +102,7 @@
 #' }
 #' @export
 plot_proteome_overview <- function(batch, title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )
@@ -531,6 +533,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #' }
 #' @export
 plot_batch_comparison <- function(comparison, title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )

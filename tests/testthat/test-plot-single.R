@@ -428,6 +428,19 @@ test_that("plot_peptide_overlap_map supports wrapped rows and all-peptide mode",
   expect_s3_class(p, "ggplot")
   expect_equal(max(p$data$column_index), 20L)
   expect_gt(nlevels(p$data$line_label), 1L)
+
+  filtered_all_mc <- plot_peptide_overlap_map(
+    res,
+    length_range = c(7L, 25L),
+    missed_cleavages = NULL
+  )
+  expected <- pepVet:::.build_peptide_overlap_df(
+    res$peptides,
+    protein_length = max(res$peptides$end),
+    length_range = c(7L, 25L),
+    missed_cleavages = NULL
+  )
+  expect_identical(filtered_all_mc$data$overlap_count, expected$overlap_count)
 })
 
 test_that("plot_peptide_overlap_map rejects invalid filtering inputs", {
@@ -737,4 +750,36 @@ test_that("plot_weight_sensitivity facets batch enzyme results", {
     inherits(layer$geom, "GeomText") && is.data.frame(layer$data) &&
       "label" %in% names(layer$data)
   }, logical(1L))))
+})
+
+test_that("single-result plots reject non-scalar titles", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  sensitivity <- sensitivity_analysis(.fix_bsa_trypsin, n_iter = 5L)
+  runners <- list(
+    digest_profile = function(title) {
+      plot_digest_profile(.fix_bsa_trypsin, title = title)
+    },
+    coverage_map = function(title) {
+      plot_coverage_map(.fix_bsa_trypsin, title = title)
+    },
+    overlap_map = function(title) {
+      plot_peptide_overlap_map(.fix_bsa_trypsin, title = title)
+    },
+    cleavage_map = function(title) {
+      plot_cleavage_map(.fix_bsa_trypsin, title = title)
+    },
+    sensitivity = function(title) {
+      plot_weight_sensitivity(sensitivity, title = title)
+    }
+  )
+
+  for (runner_name in names(runners)) {
+    expect_error(
+      runners[[runner_name]](c("one", "two")),
+      class = "pepvet_error_invalid_input",
+      info = runner_name
+    )
+  }
 })

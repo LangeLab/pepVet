@@ -18,7 +18,7 @@ evaluate_digest(
 \item{sequence}{Protein input. Accepts the same forms as \code{\link[=digest_protein]{digest_protein()}}:
 a character sequence, named character vector, \code{Biostrings::AAString},
 \code{Biostrings::AAStringSet}, or a FASTA file path. If \code{NULL} or empty,
-raises an error.}
+raises an error. Multi-record inputs must have unique protein identifiers.}
 
 \item{enzyme}{Enzyme name passed to \code{\link[=digest_protein]{digest_protein()}}. Defaults to
 \code{"trypsin"}.}

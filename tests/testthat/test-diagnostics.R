@@ -259,6 +259,13 @@ test_that("diagnostics rejects empty, nonnumeric, missing, non-finite, and const
     score_diagnostics(duplicate),
     class = "pepvet_error_invalid_diagnostics_input"
   )
+
+  duplicate_columns <- as.data.frame(base)
+  names(duplicate_columns)[[2L]] <- names(duplicate_columns)[[1L]]
+  expect_error(
+    score_diagnostics(duplicate_columns),
+    class = "pepvet_error_invalid_diagnostics_input"
+  )
 })
 
 test_that("perfect collinearity is reported as infinite VIF without a warning", {

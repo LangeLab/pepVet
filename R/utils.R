@@ -328,6 +328,17 @@ NULL
   )
 }
 
+.validate_unique_columns <- function(data, arg_name, class) {
+  if (anyDuplicated(names(data)) > 0L) {
+    .abort(
+      "{.arg {arg_name}} must have unique column names.",
+      class = class
+    )
+  }
+
+  invisible(data)
+}
+
 .bind_rows <- function(df_list) {
   if (length(df_list) == 0L) return(tibble::tibble())
   if (length(df_list) == 1L) return(tibble::as_tibble(df_list[[1L]]))
@@ -901,6 +912,12 @@ pepvet_preset <- function(type = "standard") {
     raw_names,
     length(raw_sequences)
   )
+  if (anyDuplicated(normalized_names) > 0L) {
+    .abort(
+      "{.arg sequence} must have unique protein identifiers.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
   normalized_sequences <- vapply(
     seq_along(raw_sequences),
     function(index) {

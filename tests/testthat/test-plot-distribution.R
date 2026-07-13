@@ -787,3 +787,35 @@ test_that("plot_mz_distribution validates precomputed labels and computed ranges
   expect_s3_class(p, "ggplot")
   expect_identical(p$labels$title, "Precursor m/z distribution")
 })
+
+test_that("distribution plots reject non-scalar titles", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  mc_results <- list(mc0 = .fix_bsa_mc0, mc1 = .fix_bsa_mc1)
+  runners <- list(
+    length = function(title) {
+      plot_length_distribution(.fix_bsa_trypsin, title = title)
+    },
+    gravy = function(title) {
+      plot_gravy_landscape(.fix_bsa_trypsin, title = title)
+    },
+    pI = function(title) {
+      plot_pI_distribution(.fix_bsa_trypsin, title = title)
+    },
+    missed = function(title) {
+      plot_missed_cleavage_impact(mc_results, title = title)
+    },
+    mz = function(title) {
+      plot_mz_distribution(.fix_bsa_trypsin, title = title)
+    }
+  )
+
+  for (runner_name in names(runners)) {
+    expect_error(
+      runners[[runner_name]](c("one", "two")),
+      class = "pepvet_error_invalid_input",
+      info = runner_name
+    )
+  }
+})

@@ -90,7 +90,7 @@
 #' @param sequence Protein input. Accepts the same forms as [digest_protein()]:
 #'   a character sequence, named character vector, `Biostrings::AAString`,
 #'   `Biostrings::AAStringSet`, or a FASTA file path. If `NULL` or empty,
-#'   raises an error.
+#'   raises an error. Multi-record inputs must have unique protein identifiers.
 #' @param enzyme Enzyme name passed to [digest_protein()]. Defaults to
 #'   `"trypsin"`.
 #' @param missed_cleavages Maximum missed cleavages passed to
@@ -643,6 +643,12 @@ batch_evaluate <- function(sequences,
       class = "pepvet_error_invalid_batch_result"
     )
   }
+
+  .validate_unique_columns(
+    batch_result,
+    "batch_result",
+    class = "pepvet_error_invalid_batch_result"
+  )
 
   if (nrow(batch_result) == 0L) {
     .abort(
@@ -1268,6 +1274,12 @@ triage_proteins <- function(batch_result) {
       class = "pepvet_error_invalid_input"
     )
   }
+
+  .validate_unique_columns(
+    score_table,
+    "x",
+    class = "pepvet_error_invalid_input"
+  )
 
   if (isTRUE(single) && nrow(score_table) != 1L) {
     .abort(

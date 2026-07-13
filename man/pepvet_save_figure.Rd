@@ -25,12 +25,14 @@ plot function.}
 \code{"pepvet_plot.png"}
 in the working directory.}
 
-\item{width, height}{Numeric. Plot dimensions in inches. When
-\code{NULL} (default),
-auto-sized: single-panel = 10x7, multi-panel patchwork = 14x10.}
+\item{width, height}{Finite positive numeric plot dimensions in inches. When
+\code{NULL} (default), auto-sized: single-panel = 10x7, multi-panel patchwork =
+14x10. Invalid values raise \code{pepvet_error_invalid_plot} before a graphics
+device is opened.}
 
-\item{dpi}{Numeric. Resolution in dots per inch. Defaults to
-\code{300} (publication).}
+\item{dpi}{Finite positive numeric resolution in dots per inch, or one of
+\code{"screen"}, \code{"print"}, or \code{"retina"}. Defaults to \code{300}. Invalid values
+raise \code{pepvet_error_invalid_plot} before a graphics device is opened.}
 
 \item{bg}{Character. Background color. Defaults to \code{"white"}.}
 

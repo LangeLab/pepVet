@@ -462,6 +462,51 @@ test_that("pepvet_save_figure errors on invalid plot object", {
   )
 })
 
+test_that("pepvet_save_figure rejects unsafe output parameters before rendering", {
+  p <- plot_length_distribution(.fix_bsa_trypsin)
+  invalid_sizes <- list(
+    numeric(), NA_real_, NaN, Inf, -Inf, -1, 0, "1", c(1, 2)
+  )
+
+  for (value in invalid_sizes) {
+    expect_error(
+      pepvet_save_figure(
+        p,
+        tempfile(fileext = ".png"),
+        width = value
+      ),
+      class = "pepvet_error_invalid_plot"
+    )
+    expect_error(
+      pepvet_save_figure(
+        p,
+        tempfile(fileext = ".png"),
+        dpi = value
+      ),
+      class = "pepvet_error_invalid_plot"
+    )
+  }
+
+  for (filename in list(NULL, character(), NA_character_, "", "   ", 1)) {
+    expect_error(
+      pepvet_save_figure(p, filename),
+      class = "pepvet_error_invalid_plot"
+    )
+  }
+})
+
+test_that("plot title validation enforces the documented scalar contract", {
+  expect_identical(.validate_plot_title(NULL), NULL)
+  expect_identical(.validate_plot_title("Title"), "Title")
+
+  for (title in list(character(), NA_character_, 1, c("one", "two"))) {
+    expect_error(
+      .validate_plot_title(title),
+      class = "pepvet_error_invalid_input"
+    )
+  }
+})
+
 # pepvet_theme_manuscript and pepvet_theme_presentation.
 
 test_that("pepvet_theme_manuscript returns a theme object", {

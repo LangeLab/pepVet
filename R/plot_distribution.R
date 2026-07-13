@@ -22,6 +22,11 @@
       class = "pepvet_error_invalid_digest_result"
     )
   }
+  .validate_unique_columns(
+    data,
+    "data",
+    class = "pepvet_error_invalid_digest_result"
+  )
   invisible(data)
 }
 
@@ -118,6 +123,7 @@ plot_length_distribution <- function(
   show_density = TRUE,
   title = NULL
 ) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to use plot_length_distribution()"
   )
@@ -548,6 +554,7 @@ plot_gravy_landscape <- function(
   label_outliers_n = 15L,
   title = NULL
 ) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2", reason = "to use plot_gravy_landscape()")
   rlang::check_installed("patchwork",
     reason = "to assemble panels in plot_gravy_landscape()"
@@ -1007,6 +1014,7 @@ plot_pI_distribution <- function(
   show_fraction_lines = TRUE,
   title = NULL
 ) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2", reason = "to use plot_pI_distribution()")
 
   show_fraction_lines <- .validate_plot_flag(
@@ -1357,6 +1365,7 @@ plot_missed_cleavage_impact <- function(
   components = c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge"),
   title = NULL
 ) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )
@@ -1684,6 +1693,7 @@ plot_mz_distribution <- function(
   show_rug = TRUE,
   title = NULL
 ) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to use plot_mz_distribution()"
   )

@@ -162,3 +162,25 @@ test_that("plot_enzyme_comparison errors when fewer than 2 enzymes", {
     class = "pepvet_error_invalid_comparison"
   )
 })
+
+test_that("plot_enzyme_comparison rejects duplicate columns and invalid titles", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  comparison <- as.data.frame(.bsa_comparison(
+    enzymes = c("trypsin", "lysc")
+  ))
+  names(comparison)[[2L]] <- names(comparison)[[1L]]
+
+  expect_error(
+    plot_enzyme_comparison(comparison),
+    class = "pepvet_error_invalid_comparison"
+  )
+  expect_error(
+    plot_enzyme_comparison(
+      .bsa_comparison(enzymes = c("trypsin", "lysc")),
+      title = c("one", "two")
+    ),
+    class = "pepvet_error_invalid_input"
+  )
+})

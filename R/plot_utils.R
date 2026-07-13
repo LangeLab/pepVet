@@ -215,6 +215,20 @@ NULL
   )
 }
 
+.validate_plot_title <- function(title) {
+  if (
+    !is.null(title) &&
+      (!is.character(title) || length(title) != 1L || is.na(title))
+  ) {
+    .abort(
+      "{.arg title} must be a single character string or {.val NULL}.",
+      class = "pepvet_error_invalid_input"
+    )
+  }
+
+  invisible(title)
+}
+
 #' Length-class color map
 #' @return A named character vector of hex colors.
 #' @noRd
@@ -327,6 +341,11 @@ NULL
       class = "pepvet_error_invalid_digest_result"
     )
   }
+  .validate_unique_columns(
+    result$scores,
+    "result$scores",
+    class = "pepvet_error_invalid_digest_result"
+  )
 
   score_cols <- c(
     "S_length", "S_coverage", "S_count", "S_hydro", "S_charge",
@@ -425,6 +444,11 @@ NULL
       class = "pepvet_error_invalid_digest_result"
     )
   }
+  .validate_unique_columns(
+    peps,
+    "result$peptides",
+    class = "pepvet_error_invalid_digest_result"
+  )
 
   if (nrow(peps) == 0L) {
     .abort(
@@ -816,7 +840,8 @@ NULL
   ## When length_range is NULL, count all MC levels (user opted in).
   ## Otherwise filter to the specified MC level (default 1L).
   has_mc <- "missed_cleavages" %in% names(peps)
-  count_all_mc <- is.null(length_range) && has_mc
+  count_all_mc <- has_mc &&
+    (is.null(length_range) || is.null(missed_cleavages))
 
   overlap_peps <- if (count_all_mc) {
     peps
@@ -1530,6 +1555,70 @@ pepvet_plot_config_reset <- function() {
 }
 
 
+.validate_figure_path <- function(filename) {
+  if (
+    !is.character(filename) ||
+      length(filename) != 1L ||
+      is.na(filename) ||
+      !nzchar(trimws(filename)) ||
+      any(as.integer(charToRaw(filename)) == 0L)
+  ) {
+    .abort(
+      "{.arg filename} must be a single non-empty file path.",
+      class = "pepvet_error_invalid_plot"
+    )
+  }
+
+  filename
+}
+
+.validate_figure_size <- function(value, name) {
+  if (is.null(value)) {
+    return(NULL)
+  }
+
+  if (
+    !is.numeric(value) ||
+      length(value) != 1L ||
+      is.na(value) ||
+      !is.finite(value) ||
+      value <= 0
+  ) {
+    .abort(
+      "{.arg {name}} must be a single finite positive number or {.val NULL}.",
+      class = "pepvet_error_invalid_plot"
+    )
+  }
+
+  as.numeric(value)
+}
+
+.validate_figure_dpi <- function(dpi) {
+  named_dpi <- c("screen", "print", "retina")
+  valid_named <- is.character(dpi) &&
+    length(dpi) == 1L &&
+    !is.na(dpi) &&
+    dpi %in% named_dpi
+  valid_numeric <- is.numeric(dpi) &&
+    length(dpi) == 1L &&
+    !is.na(dpi) &&
+    is.finite(dpi) &&
+    dpi > 0
+
+  if (!valid_named && !valid_numeric) {
+    .abort(
+      paste0(
+        "{.arg dpi} must be a finite positive number or one of ",
+        "{.val screen}, {.val print}, or {.val retina}."
+      ),
+      class = "pepvet_error_invalid_plot"
+    )
+  }
+
+  dpi
+}
+
+
 #' Save a pepVet figure with publication-ready defaults
 #'
 #' Wraps [ggplot2::ggsave()] with pepVet's recommended defaults: auto-sizing
@@ -1545,11 +1634,13 @@ pepvet_plot_config_reset <- function() {
 #'   `.svg`, etc. are handled by [ggplot2::ggsave()]. Defaults to
 #'   `"pepvet_plot.png"`
 #'   in the working directory.
-#' @param width,height Numeric. Plot dimensions in inches. When
-#'   `NULL` (default),
-#'   auto-sized: single-panel = 10x7, multi-panel patchwork = 14x10.
-#' @param dpi Numeric. Resolution in dots per inch. Defaults to
-#'   `300` (publication).
+#' @param width,height Finite positive numeric plot dimensions in inches. When
+#'   `NULL` (default), auto-sized: single-panel = 10x7, multi-panel patchwork =
+#'   14x10. Invalid values raise `pepvet_error_invalid_plot` before a graphics
+#'   device is opened.
+#' @param dpi Finite positive numeric resolution in dots per inch, or one of
+#'   `"screen"`, `"print"`, or `"retina"`. Defaults to `300`. Invalid values
+#'   raise `pepvet_error_invalid_plot` before a graphics device is opened.
 #' @param bg Character. Background color. Defaults to `"white"`.
 #' @param device Device to use. When `NULL` (default) and the filename extension
 #'   is `.png`, tries [ragg::agg_png()] for anti-aliased output, falling back
@@ -1585,6 +1676,11 @@ pepvet_save_figure <- function(plot,
     )
   }
 
+  filename <- .validate_figure_path(filename)
+  width <- .validate_figure_size(width, "width")
+  height <- .validate_figure_size(height, "height")
+  dpi <- .validate_figure_dpi(dpi)
+
   ## Auto-size: patchwork gets larger default canvas
   if (is.null(width) || is.null(height)) {
     is_patchwork <- inherits(plot, "patchwork")
@@ -1606,15 +1702,26 @@ pepvet_save_figure <- function(plot,
     }
   }
 
-  ggplot2::ggsave(
-    filename = filename,
-    plot     = plot,
-    width    = width,
-    height   = height,
-    dpi      = dpi,
-    bg       = bg,
-    device   = device,
-    ...
+  tryCatch(
+    ggplot2::ggsave(
+      filename = filename,
+      plot     = plot,
+      width    = width,
+      height   = height,
+      dpi      = dpi,
+      bg       = bg,
+      device   = device,
+      ...
+    ),
+    error = function(error) {
+      .abort(
+        c(
+          "Could not save the figure.",
+          "i" = conditionMessage(error)
+        ),
+        class = "pepvet_error_invalid_plot"
+      )
+    }
   )
 
   invisible(normalizePath(filename, mustWork = FALSE))

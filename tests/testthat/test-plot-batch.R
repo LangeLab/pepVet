@@ -187,3 +187,28 @@ test_that("plot_batch_comparison supports raw grids, custom titles, and verdict 
   expect_true("Uniqueness" %in%
     batch_grob_text_labels(patchwork::patchworkGrob(unique_plot)))
 })
+
+test_that("batch plots reject duplicate columns and invalid titles", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("patchwork")
+
+  duplicate <- as.data.frame(.fix_batch_trypsin)
+  names(duplicate)[[2L]] <- names(duplicate)[[1L]]
+  expect_error(
+    plot_proteome_overview(duplicate),
+    class = "pepvet_error_invalid_batch"
+  )
+
+  comparison <- batch_compare_enzymes(
+    Biostrings::readAAStringSet(.bsa_path),
+    enzymes = c("trypsin", "lysc")
+  )
+  expect_error(
+    plot_proteome_overview(.fix_batch_trypsin, title = c("one", "two")),
+    class = "pepvet_error_invalid_input"
+  )
+  expect_error(
+    plot_batch_comparison(comparison, title = c("one", "two")),
+    class = "pepvet_error_invalid_input"
+  )
+})

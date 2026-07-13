@@ -191,7 +191,8 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #'   length-zero, and wrong-type inputs raise
 #'   `pepvet_error_invalid_input`; `NA` or an empty string raises
 #'   `pepvet_error_invalid_sequence`. Malformed FASTA files raise a classed
-#'   `pepvet_error_invalid_input` error.
+#'   `pepvet_error_invalid_input` error. Multi-record inputs must have unique
+#'   protein identifiers; duplicates raise `pepvet_error_invalid_input`.
 #' @param enzyme Cleavage rule name. Defaults to `"trypsin"`. pepVet validates
 #'   this against its hard-coded registry of cleaver-compatible enzyme names,
 #'   including `trypsin`, `lysc`, `glutamyl endopeptidase`, `asp-n
@@ -210,9 +211,10 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #' @details FASTA record names are preserved as `protein_id` values when they
 #'   are present, including irregular headers that do not use UniProt pipe
 #'   formatting. Unnamed input sequences receive generated `sequence_<n>` IDs.
-#'   For named multi-record input, protein groups follow the supplied record
-#'   order. Reordering uniquely named records changes group order only; each
-#'   record retains the same peptide values and coordinates.
+#'   Multi-record identifiers must remain unique after unnamed records receive
+#'   generated IDs. Protein groups follow the supplied record order. Reordering
+#'   records changes group order only; each record retains the same peptide
+#'   values and coordinates.
 #'   pepVet uses cleaver-compatible cleavage rules for the strict cut sites and
 #'   expands missed cleavages itself so repeated peptides and overlapping ranges
 #'   retain exact start and end coordinates. Peptides are returned whether or

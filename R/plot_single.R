@@ -56,6 +56,7 @@ plot_digest_profile <- function(result,
                                 length_range = c(7L, 25L),
                                 gravy_range = c(-1.0, 0.6),
                                 title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed(
     "ggplot2",
     reason = "to produce pepVet visualization plots"
@@ -211,6 +212,7 @@ plot_coverage_map <- function(result,
                               cleavage_sites = NULL,
                               domains = NULL,
                               title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )
@@ -680,6 +682,7 @@ plot_peptide_overlap_map <- function(result,
                                      missed_cleavages = 1L,
                                      residues_per_line = 50L,
                                      title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )
@@ -899,6 +902,7 @@ plot_cleavage_map <- function(result,
                               cleavage_sites = NULL,
                               length_range = c(7L, 25L),
                               title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )
@@ -1132,6 +1136,7 @@ plot_cleavage_map <- function(result,
 #' }
 #' @export
 plot_weight_sensitivity <- function(x, title = NULL) {
+  .validate_plot_title(title)
   rlang::check_installed("ggplot2",
     reason = "to produce pepVet visualization plots"
   )

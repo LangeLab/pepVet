@@ -926,6 +926,8 @@ test_that(".validate_batch_result checks schema types and values", {
   blank_id$protein_id[[1L]] <- ""
   duplicate_id <- valid[rep(1L, 2L), , drop = FALSE]
   duplicate_id$protein_id <- c("same", "same")
+  duplicate_columns <- as.data.frame(valid)
+  names(duplicate_columns)[[2L]] <- names(duplicate_columns)[[1L]]
   hard_fail <- valid
   hard_fail$S_count[[1L]] <- 0
   hard_fail$S_coverage[[1L]] <- 1
@@ -945,6 +947,7 @@ test_that(".validate_batch_result checks schema types and values", {
     inconsistent_verdict = inconsistent_verdict,
     blank_id = blank_id,
     duplicate_id = duplicate_id,
+    duplicate_columns = duplicate_columns,
     hard_fail = hard_fail,
     empty = empty
   )
@@ -955,6 +958,15 @@ test_that(".validate_batch_result checks schema types and values", {
       info = input_name
     )
   }
+
+  expect_error(
+    summarize_batch(duplicate_columns),
+    class = "pepvet_error_invalid_batch_result"
+  )
+  expect_error(
+    triage_proteins(duplicate_columns),
+    class = "pepvet_error_invalid_batch_result"
+  )
 })
 
 test_that(".batch_difficulty_flags evaluates each flag independently", {
@@ -1596,6 +1608,12 @@ test_that("sensitivity_analysis rejects malformed score inputs", {
   duplicate_protein$protein_id <- c("same", "same")
   expect_error(
     sensitivity_analysis(duplicate_protein, n_iter = 10L),
+    class = "pepvet_error_invalid_input"
+  )
+  duplicate_columns <- as.data.frame(.fix_batch_bsa)
+  names(duplicate_columns)[[2L]] <- names(duplicate_columns)[[1L]]
+  expect_error(
+    sensitivity_analysis(duplicate_columns, n_iter = 10L),
     class = "pepvet_error_invalid_input"
   )
   duplicate_pair <- tibble::tibble(

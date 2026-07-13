@@ -22,6 +22,12 @@
     )
   }
 
+  .validate_unique_columns(
+    batch_result,
+    "batch_result",
+    class = "pepvet_error_invalid_diagnostics_input"
+  )
+
   if (nrow(batch_result) < 2L) {
     .abort(
       "{.arg batch_result} must contain at least two proteins.",

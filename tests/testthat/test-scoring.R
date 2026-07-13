@@ -722,6 +722,8 @@ test_that("digest validation rejects malformed tables with classed errors", {
   inconsistent_length$length[[1L]] <- inconsistent_length$length[[1L]] + 1L
   negative_missed <- valid_digest
   negative_missed$missed_cleavages[[1L]] <- -1L
+  duplicate_columns <- as.data.frame(valid_digest)
+  names(duplicate_columns)[[2L]] <- names(duplicate_columns)[[1L]]
 
   invalid_cases <- list(
     wrong_object_type = 42,
@@ -738,7 +740,8 @@ test_that("digest validation rejects malformed tables with classed errors", {
     invalid_start = invalid_start,
     invalid_order = invalid_order,
     inconsistent_length = inconsistent_length,
-    negative_missed = negative_missed
+    negative_missed = negative_missed,
+    duplicate_columns = duplicate_columns
   )
 
   for (case_name in names(invalid_cases)) {

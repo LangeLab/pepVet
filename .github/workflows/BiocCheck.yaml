@@ -1,0 +1,140 @@
+name: BiocCheck
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  bioccheck:
+    name: BiocCheck (${{ github.event.release.tag_name || github.ref_name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+      _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: bioc::BiocCheck, any::rcmdcheck
+          needs: check
+
+      - name: Validate release tag
+        run: |
+          tag <- Sys.getenv("RELEASE_TAG")
+          if (!grepl("^v[0-9]+[.][0-9]+[.][0-9]+$", tag)) {
+            stop("Release tag must have the form vX.Y.Z; received: ", tag)
+          }
+          version <- read.dcf("DESCRIPTION", fields = "Version")[[1L]]
+          expected <- paste0("v", version)
+          if (!identical(tag, expected)) {
+            stop("Tag ", tag, " does not match DESCRIPTION version ", version, ".")
+          }
+          components <- strsplit(version, ".", fixed = TRUE)[[1L]]
+          new_package <- length(components) == 3L && components[[2L]] == "99"
+          cat(
+            "new_package=", tolower(as.character(new_package)), "\n",
+            file = Sys.getenv("GITHUB_OUTPUT"),
+            sep = ""
+          )
+        id: metadata
+        shell: Rscript {0}
+
+      - name: Create temporary release source
+        run: |
+          git clone --local --no-hardlinks "$GITHUB_WORKSPACE" "$RUNNER_TEMP/pepVet-source"
+          git -C "$RUNNER_TEMP/pepVet-source" checkout --detach "$RELEASE_TAG"
+
+      - name: Build source package in temporary storage
+        run: |
+          cd "$RUNNER_TEMP"
+          R CMD build --no-manual "$RUNNER_TEMP/pepVet-source"
+
+      - name: Verify source package
+        run: |
+          tarballs <- list.files(
+            Sys.getenv("RUNNER_TEMP"),
+            pattern = "^pepVet_.*[.]tar[.]gz$",
+            full.names = TRUE
+          )
+          if (length(tarballs) != 1L) {
+            stop("Expected exactly one pepVet source tarball.")
+          }
+          cat(
+            "tarball=", normalizePath(tarballs), "\n",
+            file = Sys.getenv("GITHUB_OUTPUT"),
+            sep = ""
+          )
+        id: source
+        shell: Rscript {0}
+
+      - name: Check source package before BiocCheck
+        run: |
+          check_dir <- file.path(Sys.getenv("RUNNER_TEMP"), "rcmdcheck")
+          rcmdcheck::rcmdcheck(
+            path = "${{ steps.source.outputs.tarball }}",
+            args = c("--no-manual", "--as-cran"),
+            check_dir = check_dir,
+            timeout = 1800,
+            error_on = "note"
+          )
+        shell: Rscript {0}
+
+      - name: Check Git clone conventions
+        run: |
+          BiocCheck::BiocCheckGitClone(
+            file.path(Sys.getenv("RUNNER_TEMP"), "pepVet-source"),
+            `quit-with-status` = TRUE
+          )
+        shell: Rscript {0}
+
+      - name: Check source package conventions
+        run: |
+          new_package <- identical(
+            "${{ steps.metadata.outputs.new_package }}",
+            "true"
+          )
+          BiocCheck::BiocCheck(
+            package = "${{ steps.source.outputs.tarball }}",
+            checkDir = Sys.getenv("RUNNER_TEMP"),
+            `new-package` = new_package,
+            `no-check-bioc-help` = !new_package,
+            `quit-with-status` = TRUE
+          )
+        shell: Rscript {0}
+
+      - name: Upload check results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bioccheck-results-${{ github.event.release.tag_name || github.ref_name }}
+          path: |
+            ${{ runner.temp }}/*.BiocCheck
+            ${{ runner.temp }}/rcmdcheck
+          if-no-files-found: ignore
+          retention-days: 30

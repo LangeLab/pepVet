@@ -35,7 +35,7 @@ library(pepVet)
 
 bsa <- system.file("extdata", "P02769.fasta", package = "pepVet")
 
-# One-call evaluation with styled console report
+# One-call evaluation with a compact console report
 result <- pepvet_check(bsa, enzyme = "trypsin", missed_cleavages = 1L)
 result$scores
 
@@ -93,7 +93,7 @@ Valid-count and hydrophobicity flags follow the active scoring ranges. Short-pro
 
 **Reporting and export**
 
-- `digest_report()` renders a colour-coded console summary for single-protein or multi-enzyme results.
+- `digest_report()` renders an ASCII-safe console summary for single-protein or multi-enzyme results and adapts comparison tables to the terminal width.
 - `export_peptide_list()` filters valid peptides and exports as Skyline-compatible CSV, generic annotated CSV, or FASTA.
 
 **Peptide properties**

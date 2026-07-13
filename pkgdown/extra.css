@@ -49,6 +49,23 @@ pre {
   border: 1px solid var(--bs-border-color);
 }
 
+/* Keep captured cli output legible in both site themes. */
+pre [style*="color: #0000BB"] {
+  color: var(--bs-emphasis-color) !important;
+}
+pre [style*="color: #555555"] {
+  color: var(--bs-secondary-color) !important;
+}
+pre [style*="color: #00BB00"] {
+  color: var(--bs-success-text-emphasis) !important;
+}
+pre [style*="color: #BBBB00"] {
+  color: var(--bs-warning-text-emphasis) !important;
+}
+pre [style*="color: #BB0000"] {
+  color: var(--bs-danger-text-emphasis) !important;
+}
+
 /* --- Tables: cleaner header --- */
 table thead {
   border-bottom-width: 2px;

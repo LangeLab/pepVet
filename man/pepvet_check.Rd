@@ -22,7 +22,7 @@ The \code{\link[=evaluate_digest]{evaluate_digest()}} result list, invisibly.
 }
 \description{
 \code{pepvet_check()} is a convenience wrapper that evaluates a protein digest
-and immediately prints a styled console report. It is intended for
+and immediately prints a compact console report. It is intended for
 interactive use and first-time exploration where a single call is more
 useful than manually wiring \code{\link[=evaluate_digest]{evaluate_digest()}} and \code{\link[=digest_report]{digest_report()}}.
 }

@@ -35,7 +35,7 @@ test_that("report output uses the short S_charge label with clarified meaning", 
   ev <- evaluate_digest(reference_fasta("P02769.fasta"), enzyme = "trypsin")
   output <- capture.output(digest_report(ev))
 
-  expect_true(any(grepl("^  S_charge\\s", output)))
+  expect_true(any(grepl("^S_charge\\s", output)))
 })
 
 test_that("report format helpers handle boundaries and missing display values", {
@@ -43,39 +43,21 @@ test_that("report format helpers handle boundaries and missing display values", 
     .format_score(c(0, 1, NA_real_)),
     c("0.000", "1.000", "NA")
   )
-  expect_match(
+  expect_identical(
     cli::ansi_strip(.format_component_bar(0)),
-    "0.000",
-    fixed = TRUE
+    "[----------]"
   )
-  expect_match(
+  expect_identical(
     cli::ansi_strip(.format_component_bar(1)),
-    "1.000",
-    fixed = TRUE
+    "[##########]"
   )
-  expect_match(
+  expect_identical(
     cli::ansi_strip(.format_component_bar(NA_real_)),
-    "NA",
-    fixed = TRUE
+    "[----------]"
   )
-  expect_match(
+  expect_identical(
     cli::ansi_strip(.format_component_bar(2, width = 0L)),
-    "2.000",
-    fixed = TRUE
-  )
-  expect_identical(.verdict_bullet("unrecognised"), cli::symbol$info)
-  expect_identical(.verdict_bullet(NA_character_), cli::symbol$info)
-  expect_identical(
-    cli::ansi_strip(.verdict_bullet("Good")),
-    cli::ansi_strip(cli::symbol$tick)
-  )
-  expect_identical(
-    cli::ansi_strip(.verdict_bullet("Moderate")),
-    cli::ansi_strip(cli::symbol$warning)
-  )
-  expect_identical(
-    cli::ansi_strip(.verdict_bullet("Poor")),
-    cli::ansi_strip(cli::symbol$cross)
+    "[]"
   )
   expect_identical(cli::ansi_strip(.verdict_colour("Good", "score")), "score")
   expect_identical(
@@ -102,16 +84,29 @@ test_that("report format helpers handle boundaries and missing display values", 
     .format_component_bar(0.5, width = "10"),
     class = "pepvet_error_invalid_report_input"
   )
-  expect_match(
+  expect_identical(
     cli::ansi_strip(.format_component_bar(Inf)),
-    "Inf",
-    fixed = TRUE
+    "[##########]"
   )
-  expect_match(
+  expect_identical(
     cli::ansi_strip(.format_component_bar(-Inf)),
-    "-Inf",
-    fixed = TRUE
+    "[----------]"
   )
+})
+
+test_that("report output is ASCII-safe and readable in narrow terminals", {
+  withr::local_options(list(
+    width = 40L,
+    cli.unicode = TRUE,
+    cli.num_colors = 1L
+  ))
+  ev <- evaluate_digest(reference_fasta("P02769.fasta"), enzyme = "trypsin")
+  output <- cli::ansi_strip(capture.output(digest_report(ev)))
+
+  expect_false(any(grepl("[^ -~]", output)))
+  expect_lte(max(nchar(output, type = "width")), 40L)
+  expect_true(any(grepl("Missed cleavages", output, fixed = TRUE)))
+  expect_true(any(grepl("within 7-25 aa", output, fixed = TRUE)))
 })
 
 # Multi-enzyme comparison reports.
@@ -165,12 +160,27 @@ test_that("comparison reports identify the actual best enzyme after reordering",
     digest_report(comparison, title = "reordered comparison")
   ))
 
-  expect_true(any(grepl(
-    paste0("best: ", expected_best), output, fixed = TRUE
-  )))
-  marked <- grep("^>", output, value = TRUE)
-  expect_length(marked, 1L)
-  expect_match(marked, expected_best, fixed = TRUE)
+  expect_true(any(grepl("Best score", output, fixed = TRUE)))
+  first_ranked <- grep("^\\s*1\\s", output, value = TRUE)
+  expect_length(first_ranked, 1L)
+  expect_match(first_ranked, expected_best, fixed = TRUE)
+})
+
+test_that("comparison report uses a compact table in narrow terminals", {
+  withr::local_options(list(
+    width = 60L,
+    cli.unicode = TRUE,
+    cli.num_colors = 1L
+  ))
+  comparison <- .bsa_comparison(c(
+    "trypsin", "lysc", "glutamyl endopeptidase"
+  ))
+  output <- cli::ansi_strip(capture.output(digest_report(comparison)))
+
+  expect_false(any(grepl("[^ -~]", output)))
+  expect_lte(max(nchar(output, type = "width")), 60L)
+  expect_true(any(grepl("Rank", output, fixed = TRUE)))
+  expect_false(any(grepl("S_len", output, fixed = TRUE)))
 })
 
 # Edge cases.
@@ -288,6 +298,27 @@ test_that("digest_report rejects invalid input with a classed error", {
 
   malformed <- .fix_bsa_trypsin
   malformed$peptides <- NULL
+  expect_error(
+    digest_report(malformed),
+    class = "pepvet_error_invalid_report_input"
+  )
+
+  malformed <- .fix_bsa_trypsin
+  malformed$peptides$length <- NULL
+  expect_error(
+    digest_report(malformed),
+    class = "pepvet_error_invalid_report_input"
+  )
+
+  malformed <- .fix_bsa_trypsin
+  malformed$params$length_range <- c(25L, 7L)
+  expect_error(
+    digest_report(malformed),
+    class = "pepvet_error_invalid_report_input"
+  )
+
+  malformed <- .fix_bsa_trypsin
+  malformed$params$preset_used <- NULL
   expect_error(
     digest_report(malformed),
     class = "pepvet_error_invalid_report_input"

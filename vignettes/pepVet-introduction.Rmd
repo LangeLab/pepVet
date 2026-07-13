@@ -59,7 +59,7 @@ Protein sequence
     export_peptide_list()  ->  export valid peptides to Skyline, generic CSV, or FASTA
       |
       v
-    digest_report()     ->  styled console output for any of the above
+    digest_report()     ->  compact console output for any of the above
 ```
 
 Every output is programmatic. `digest_protein()` returns a tibble with one row per peptide. `score_peptides()` returns a tibble with one row per protein. `compare_digests()` returns a tibble with one row per enzyme. `evaluate_digest()` returns a named list with the score tibble, the peptide tibble, and the resolved parameters.
@@ -410,7 +410,7 @@ result$peptides
 
 ## Step 8: Report to the console
 
-`digest_report()` prints a styled summary for an `evaluate_digest()` result or a ranked table for a `compare_digests()` result. It returns its input invisibly.
+`digest_report()` prints an ASCII-safe summary for an `evaluate_digest()` result or a ranked table for a `compare_digests()` result. Long protein identifiers wrap, and comparison tables simplify when the terminal is narrow. The function returns its input invisibly.
 
 ```{r report-single}
 digest_report(ev)

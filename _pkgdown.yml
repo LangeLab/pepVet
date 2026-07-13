@@ -151,7 +151,7 @@ reference:
 
   - title: "Reporting"
     desc: >
-      Render styled, colour-coded console summaries of digest quality.
+      Render compact, ASCII-safe console summaries of digest quality.
       `pepvet_check()` combines evaluation and reporting in a single call
       for interactive use.
     contents:

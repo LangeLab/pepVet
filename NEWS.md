@@ -8,6 +8,7 @@
 * Added focused validation cases across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Covered malformed inputs fail through package conditions before reaching base R errors, and zero-count digests consistently receive a zero composite and Poor verdict.
 * Restored Windows protein-chunk parallelism through base R socket workers. Unix uses fork workers, and failed chunks on either backend are retried sequentially with a classed warning.
 * Preserved resolved scoring metadata through single-protein, comparison, batch, sensitivity, and plotting workflows.
+* Redesigned interactive digest reports with ASCII-safe score profiles, explicit scoring settings and peptide counts, wrapped identifiers, and width-aware enzyme comparisons.
 * Added fast contract tests for shipped FASTA, tool-comparison, and PeptideAtlas artifacts. Data-generation workflows now run as separate offline audits and fail clearly when required inputs are missing.
 
 # pepVet 0.1.7

@@ -2,7 +2,7 @@
 % Please edit documentation in R/report.R
 \name{digest_report}
 \alias{digest_report}
-\title{Print a styled console report for a proteolytic digest}
+\title{Print a compact console report for a proteolytic digest}
 \usage{
 digest_report(x, title = NULL)
 }
@@ -10,25 +10,27 @@ digest_report(x, title = NULL)
 \item{x}{The object to report on. Accepts:
 \describe{
 \item{Named list from \code{\link[=evaluate_digest]{evaluate_digest()}}}{Prints a single-protein
-component-bar summary for the evaluated enzyme.}
+component-score summary for the evaluated enzyme.}
 \item{Tibble from \code{\link[=compare_digests]{compare_digests()}}}{Prints a multi-enzyme ranking
 table with the best enzyme highlighted.}
 }
 If \code{NULL} or an unrecognised type, raises an error.}
 
 \item{title}{Optional character string printed as a section header above
-the report. When \code{NULL} (default), the protein ID is used as the header.
-A non-\code{NULL} value must be a single character string.}
+the report. When \code{NULL} (default), a report-type heading is used. A
+non-\code{NULL} value must be a single character string.}
 }
 \value{
 \code{x}, invisibly.
 }
 \description{
 \code{digest_report()} formats the output of \code{\link[=evaluate_digest]{evaluate_digest()}} or
-\code{\link[=compare_digests]{compare_digests()}} as a human-readable styled console summary. The
-function returns its input invisibly so it can be used in pipelines. Use it
-when you want a compact review of component scores during interactive enzyme
-selection or package-level demonstrations.
+\code{\link[=compare_digests]{compare_digests()}} as a human-readable console summary. Reports use
+ASCII-safe labels and score profiles, wrap long protein identifiers, and
+simplify comparison tables in narrow terminals. The function returns its
+input invisibly so it can be used in pipelines. Use it when you want a
+compact review of component scores during interactive enzyme selection or
+package-level demonstrations.
 }
 \section{Limitations}{
 

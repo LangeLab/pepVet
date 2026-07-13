@@ -2,19 +2,6 @@
   "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
 )
 
-.verdict_bullet <- function(verdict) {
-  if (length(verdict) != 1L || is.na(verdict)) {
-    return(cli::symbol$info)
-  }
-
-  switch(as.character(verdict),
-    Good     = cli::col_green(cli::symbol$tick),
-    Moderate = cli::col_yellow(cli::symbol$warning),
-    Poor     = cli::col_red(cli::symbol$cross),
-    cli::symbol$info
-  )
-}
-
 .verdict_colour <- function(verdict, text) {
   if (length(verdict) != 1L || is.na(verdict)) {
     return(text)
@@ -59,10 +46,7 @@
   width <- as.integer(width)
 
   if (is.na(value)) {
-    return(paste0(
-      cli::col_silver(strrep("\u2591", width)),
-      " NA"
-    ))
+    return(paste0("[", cli::col_silver(strrep("-", width)), "]"))
   }
 
   filled <- if (is.infinite(value)) {
@@ -72,10 +56,61 @@
   }
 
   paste0(
-    cli::col_blue(strrep("\u2588", filled)),
-    cli::col_silver(strrep("\u2591", width - filled)),
-    sprintf(" %s", .format_score(value))
+    "[",
+    cli::col_blue(strrep("#", filled)),
+    cli::col_silver(strrep("-", width - filled)),
+    "]"
   )
+}
+
+.report_console_width <- function() {
+  width <- getOption("width", 80L)
+
+  if (
+    !is.numeric(width) || length(width) != 1L || is.na(width) ||
+      !is.finite(width) || width < 40
+  ) {
+    return(80L)
+  }
+
+  as.integer(width)
+}
+
+.truncate_report_text <- function(text, width) {
+  text <- as.character(text)
+
+  if (nchar(text, type = "width") <= width) {
+    return(text)
+  }
+
+  if (width <= 3L) {
+    return(substr(text, 1L, width))
+  }
+
+  paste0(substr(text, 1L, width - 3L), "...")
+}
+
+.print_report_heading <- function(text) {
+  cli::cat_line(cli::style_bold(text))
+  cli::cat_line(strrep("-", nchar(text, type = "width")))
+}
+
+.print_report_field <- function(label, value, label_width = 17L) {
+  prefix <- paste0(sprintf(paste0("%-", label_width, "s"), label), "  ")
+  continuation <- strrep(" ", nchar(prefix, type = "width"))
+  available <- max(20L, .report_console_width() - nchar(prefix, type = "width"))
+  lines <- strwrap(as.character(value), width = available)
+
+  if (length(lines) == 0L) {
+    lines <- ""
+  }
+
+  cli::cat_line(prefix, lines[[1L]])
+  if (length(lines) > 1L) {
+    for (line in lines[-1L]) {
+      cli::cat_line(continuation, line)
+    }
+  }
 }
 
 .validate_report_title <- function(title) {
@@ -198,7 +233,7 @@
   .validate_report_score_table(result$scores)
 
   required_params <- c(
-    "protein_ids", "enzyme", "missed_cleavages"
+    "protein_ids", "enzyme", "missed_cleavages", "preset_used", "length_range"
   )
   missing_params <- setdiff(required_params, names(result$params))
 
@@ -214,6 +249,22 @@
 
   protein_ids <- result$params$protein_ids
   missed_cleavages <- result$params$missed_cleavages
+  length_range <- result$params$length_range
+
+  required_peptide_columns <- c("protein_id", "length")
+  if (
+    any(!required_peptide_columns %in% names(result$peptides)) ||
+      !is.character(result$peptides$protein_id) ||
+      anyNA(result$peptides$protein_id) ||
+      !is.numeric(result$peptides$length) ||
+      anyNA(result$peptides$length) ||
+      any(!is.finite(result$peptides$length))
+  ) {
+    .abort(
+      "The evaluation peptide table does not contain valid protein IDs and lengths.",
+      class = "pepvet_error_invalid_report_input"
+    )
+  }
 
   if (
     !is.character(protein_ids) ||
@@ -229,7 +280,18 @@
       is.na(missed_cleavages) ||
       !is.finite(missed_cleavages) ||
       missed_cleavages < 0 ||
-      missed_cleavages != floor(missed_cleavages)
+      missed_cleavages != floor(missed_cleavages) ||
+      !is.character(result$params$preset_used) ||
+      length(result$params$preset_used) != 1L ||
+      is.na(result$params$preset_used) ||
+      !nzchar(trimws(result$params$preset_used)) ||
+      !is.numeric(length_range) ||
+      length(length_range) != 2L ||
+      anyNA(length_range) ||
+      any(!is.finite(length_range)) ||
+      any(length_range != floor(length_range)) ||
+      length_range[[1L]] < 1L ||
+      length_range[[1L]] > length_range[[2L]]
   ) {
     .abort(
       "The evaluation result contains invalid report parameters.",
@@ -281,40 +343,31 @@
   invisible(comparison)
 }
 
-.print_single_result <- function(scores_row, protein_id = NULL) {
-  pid <- if (!is.null(protein_id)) protein_id else scores_row$protein_id
+.print_single_result <- function(scores_row) {
   verdict <- scores_row$verdict
 
-  cli::cat_line(
-    cli::style_bold(pid),
-    "  ",
-    .verdict_bullet(verdict),
-    " ",
-    .verdict_colour(verdict, cli::style_bold(verdict)),
-    "  (composite: ",
-    cli::style_bold(.format_score(scores_row$composite_score)),
-    ")"
+  .print_report_field(
+    "Verdict",
+    .verdict_colour(verdict, cli::style_bold(verdict))
   )
+  .print_report_field(
+    "Composite",
+    cli::style_bold(.format_score(scores_row$composite_score))
+  )
+  cli::cat_line(cli::style_italic(sprintf(
+    "%-17s%5s  %s", "Component", "Score", "Profile"
+  )))
 
-  cli::cat_line(
-    "  S_length   ", .format_component_bar(scores_row$S_length)
-  )
-  cli::cat_line(
-    "  S_coverage ", .format_component_bar(scores_row$S_coverage)
-  )
-  cli::cat_line(
-    "  S_count    ", .format_component_bar(scores_row$S_count)
-  )
-  cli::cat_line(
-    "  S_hydro    ", .format_component_bar(scores_row$S_hydro)
-  )
-  cli::cat_line(
-    "  S_charge   ", .format_component_bar(scores_row$S_charge)
-  )
-
+  component_columns <- .report_component_columns
   if ("S_unique" %in% names(scores_row)) {
+    component_columns <- c(component_columns, "S_unique")
+  }
+
+  for (component in component_columns) {
     cli::cat_line(
-      "  S_unique   ", .format_component_bar(scores_row$S_unique)
+      sprintf("%-17s", component),
+      sprintf("%5s  ", .format_score(scores_row[[component]])),
+      .format_component_bar(scores_row[[component]])
     )
   }
 }
@@ -324,59 +377,101 @@
   best_index <- which.max(comparison$composite_score)
   best_enzyme <- comparison$enzyme[[best_index]]
 
-  cli::cat_rule(
-    left = cli::style_bold(pid),
-    right = paste0("best: ", cli::style_bold(best_enzyme))
+  .print_report_field("Protein", pid)
+  .print_report_field(
+    "Best score",
+    paste0(
+      best_enzyme, " (", .format_score(comparison$composite_score[[best_index]]),
+      ", ", comparison$verdict[[best_index]], ")"
+    )
   )
+  display_order <- order(
+    -comparison$composite_score,
+    comparison$enzyme,
+    method = "radix"
+  )
+  comparison <- comparison[display_order, , drop = FALSE]
+  console_width <- .report_console_width()
+  detailed <- console_width >= 72L
+  enzyme_content_width <- max(nchar(
+    c("Enzyme", comparison$enzyme),
+    type = "width"
+  ))
 
-  header <- sprintf(
-    "  %-32s  %s  %s  %s  %s  %s  %s  %s",
-    "enzyme",
-    "S_len", "S_cov", "S_cnt", "S_hyd", "S_chg",
-    "composite", "verdict"
-  )
+  if (detailed) {
+    enzyme_width <- min(
+      max(18L, console_width - 50L),
+      max(18L, enzyme_content_width)
+    )
+    header <- sprintf(
+      "%4s %-*s %5s %5s %5s %5s %5s %5s %s",
+      "Rank", enzyme_width, "Enzyme", "S_len", "S_cov", "S_cnt", "S_hyd",
+      "S_chg", "Score", "Verdict"
+    )
+  } else {
+    enzyme_width <- min(
+      max(12L, console_width - 26L),
+      max(12L, enzyme_content_width)
+    )
+    header <- sprintf(
+      "%4s %-*s %5s %s",
+      "Rank", enzyme_width, "Enzyme", "Score", "Verdict"
+    )
+  }
+
   cli::cat_line(cli::style_italic(header))
-  cli::cat_line(cli::col_silver(strrep("-", nchar(header))))
+  cli::cat_line(strrep("-", nchar(header, type = "width")))
 
   for (i in seq_len(nrow(comparison))) {
     row <- comparison[i, , drop = FALSE]
-    mark <- if (i == best_index) cli::col_green(">") else " "
-    verb <- sprintf("%-8s", row$verdict)
+    enzyme <- .truncate_report_text(row$enzyme, enzyme_width)
 
-    cli::cat_line(sprintf(
-      "%s %-32s  %s  %s  %s  %s  %s  %s  %s",
-      mark,
-      row$enzyme,
-      .format_score(row$S_length),
-      .format_score(row$S_coverage),
-      .format_score(row$S_count),
-      .format_score(row$S_hydro),
-      .format_score(row$S_charge),
-      .format_score(row$composite_score),
-      .verdict_colour(row$verdict, verb)
-    ))
+    if (detailed) {
+      line <- sprintf(
+        "%4d %-*s %5s %5s %5s %5s %5s %5s %s",
+        i, enzyme_width, enzyme,
+        .format_score(row$S_length),
+        .format_score(row$S_coverage),
+        .format_score(row$S_count),
+        .format_score(row$S_hydro),
+        .format_score(row$S_charge),
+        .format_score(row$composite_score),
+        row$verdict
+      )
+    } else {
+      line <- sprintf(
+        "%4d %-*s %5s %s",
+        i, enzyme_width, enzyme,
+        .format_score(row$composite_score),
+        row$verdict
+      )
+    }
+
+    cli::cat_line(line)
   }
 }
 
-#' Print a styled console report for a proteolytic digest
+#' Print a compact console report for a proteolytic digest
 #'
 #' `digest_report()` formats the output of [evaluate_digest()] or
-#' [compare_digests()] as a human-readable styled console summary. The
-#' function returns its input invisibly so it can be used in pipelines. Use it
-#' when you want a compact review of component scores during interactive enzyme
-#' selection or package-level demonstrations.
+#' [compare_digests()] as a human-readable console summary. Reports use
+#' ASCII-safe labels and score profiles, wrap long protein identifiers, and
+#' simplify comparison tables in narrow terminals. The function returns its
+#' input invisibly so it can be used in pipelines. Use it when you want a
+#' compact review of component scores during interactive enzyme selection or
+#' package-level demonstrations.
 #'
 #' @param x The object to report on. Accepts:
 #'   \describe{
 #'     \item{Named list from [evaluate_digest()]}{Prints a single-protein
-#'       component-bar summary for the evaluated enzyme.}
+#'       component-score summary for the evaluated enzyme.}
 #'     \item{Tibble from [compare_digests()]}{Prints a multi-enzyme ranking
 #'       table with the best enzyme highlighted.}
 #'   }
 #'   If `NULL` or an unrecognised type, raises an error.
 #' @param title Optional character string printed as a section header above
-#'   the report. When `NULL` (default), the protein ID is used as the header.
-#'   A non-`NULL` value must be a single character string.
+#'   the report. When `NULL` (default), a report-type heading is used. A
+#'   non-`NULL` value must be a single character string.
 #'
 #' @family report
 #' @section Limitations:
@@ -427,40 +522,55 @@ digest_report <- function(x, title = NULL) {
   scores <- ev$scores
   params <- ev$params
 
-  header_text <- if (!is.null(title)) {
-    title
-  } else {
-    paste0(params$protein_ids[[1]], "  /  ", params$enzyme,
-           "  (mc=", params$missed_cleavages, ")")
-  }
-
-  cli::cat_rule(left = cli::style_bold(header_text))
+  header_text <- if (!is.null(title)) title else "pepVet digest check"
+  .print_report_heading(header_text)
 
   for (i in seq_len(nrow(scores))) {
     row <- scores[i, , drop = FALSE]
 
-    .print_single_result(row, protein_id = row$protein_id)
+    protein_peptides <- ev$peptides[
+      ev$peptides$protein_id == row$protein_id, , drop = FALSE
+    ]
+    valid <- protein_peptides$length >= params$length_range[[1L]] &
+      protein_peptides$length <= params$length_range[[2L]]
+
+    .print_report_field("Protein", row$protein_id)
+    if (i == 1L) {
+      .print_report_field("Enzyme", params$enzyme)
+      .print_report_field("Preset", params$preset_used)
+      .print_report_field(
+        "Missed cleavages",
+        paste0("Up to ", params$missed_cleavages)
+      )
+    }
+    .print_report_field(
+      "Peptides",
+      paste0(
+        nrow(protein_peptides), " total; ", sum(valid), " within ",
+        params$length_range[[1L]], "-", params$length_range[[2L]], " aa"
+      )
+    )
+    .print_single_result(row)
 
     if (i < nrow(scores)) {
-      cli::cat_line()
+      cli::cat_line(strrep("-", min(40L, .report_console_width())))
     }
   }
 
-  cli::cat_rule()
 }
 
 .report_comparison <- function(comparison, title) {
   protein_id <- comparison$protein_id[[1]]
-  header_text <- if (!is.null(title)) title else protein_id
+  header_text <- if (!is.null(title)) title else "pepVet enzyme comparison"
 
-  .print_comparison_table(comparison, protein_id = header_text)
-  cli::cat_rule()
+  .print_report_heading(header_text)
+  .print_comparison_table(comparison, protein_id = protein_id)
 }
 
 #' Quick digest check for a single protein
 #'
 #' `pepvet_check()` is a convenience wrapper that evaluates a protein digest
-#' and immediately prints a styled console report. It is intended for
+#' and immediately prints a compact console report. It is intended for
 #' interactive use and first-time exploration where a single call is more
 #' useful than manually wiring [evaluate_digest()] and [digest_report()].
 #'

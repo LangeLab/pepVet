@@ -1,0 +1,131 @@
+name: R-CMD-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: R CMD build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          needs: check
+
+      - name: Build source package
+        run: R CMD build --no-manual .
+
+      - name: Verify source package
+        run: |
+          tarballs <- list.files(pattern = "^pepVet_.*[.]tar[.]gz$")
+          if (length(tarballs) != 1L) {
+            stop("Expected exactly one pepVet source tarball.")
+          }
+          cat("Built ", tarballs, " (", file.info(tarballs)$size, " bytes)\n", sep = "")
+        shell: Rscript {0}
+
+      - name: Upload source package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-package
+          path: pepVet_*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  check:
+    name: R CMD check (${{ matrix.config.label }})
+    needs: build
+    runs-on: ${{ matrix.config.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: ubuntu-latest, label: Linux, r: release}
+          - {os: macos-latest, label: macOS, r: release}
+          - {os: windows-latest, label: Windows, r: release}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - name: Download source package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: source-package
+          path: source-package
+
+      - name: Check source package
+        run: |
+          tarballs <- list.files(
+            "source-package",
+            pattern = "^pepVet_.*[.]tar[.]gz$",
+            full.names = TRUE
+          )
+          if (length(tarballs) != 1L) {
+            stop("Expected exactly one downloaded pepVet source tarball.")
+          }
+          check_dir <- file.path(
+            normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"),
+            "check"
+          )
+          rcmdcheck::rcmdcheck(
+            path = tarballs,
+            args = c("--no-manual", "--as-cran"),
+            check_dir = check_dir,
+            timeout = 1800,
+            error_on = "note"
+          )
+        shell: Rscript {0}
+
+      - name: Upload check results after failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: check-results-${{ matrix.config.label }}
+          path: ${{ runner.temp }}/check
+          if-no-files-found: ignore
+          retention-days: 7

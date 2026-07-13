@@ -20,7 +20,7 @@ equal to \code{molecular_weight - 18.01056}.}
 Hydrophobicity values follow Kyte J, Doolittle RF (1982). "A simple method
 for displaying the hydropathic character of a protein." \emph{Journal of
 Molecular Biology}, 157(1), 105-132.
-\href{https://doi.org/10.1016/0022-2836(82)90515-0}{doi:10.1016/0022-2836(82)90515-0}.
+\doi{10.1016/0022-2836(82)90515-0}.
 
 Monoisotopic masses follow the free amino acid convention used by ExPASy
 FindMod: \url{https://web.expasy.org/findmod/findmod_masses.html}.
@@ -28,11 +28,11 @@ FindMod: \url{https://web.expasy.org/findmod/findmod_masses.html}.
 Side-chain pKa values follow conventional reference values summarized by
 Thurlkill RL, Grimsley GR, Scholtz JM, Pace CN (2006). "pK values of the
 ionizable groups of proteins." \emph{Protein Science}, 15(5), 1214-1218.
-\href{https://doi.org/10.1110/ps.051840806}{doi:10.1110/ps.051840806}; and
+\doi{10.1110/ps.051840806}; and
 Pace CN, Grimsley GR, Scholtz JM (2009). "Protein ionizable groups: pK
 values and their contribution to protein stability and solubility."
 \emph{Journal of Biological Chemistry}, 284(20), 13285-13289.
-\href{https://doi.org/10.1074/jbc.R800080200}{doi:10.1074/jbc.R800080200}.
+\doi{10.1074/jbc.R800080200}.
 }
 \usage{
 aa_properties

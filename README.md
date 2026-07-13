@@ -14,6 +14,9 @@
   <img src="https://img.shields.io/badge/version-v0.1.8-2C5F8A?style=flat-square" alt="v0.1.8">
   <img src="https://img.shields.io/badge/R-%3E%3D4.6-276DC3?style=flat-square&logo=r&logoColor=white" alt="R >= 4.6">
   <img src="https://img.shields.io/badge/Bioconductor-3.23-87B13F?style=flat-square" alt="Bioconductor 3.23">
+  <a href="https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml">
+    <img src="https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R CMD check">
+  </a>
   <a href="https://app.codecov.io/gh/LangeLab/pepVet">
     <img src="https://codecov.io/gh/LangeLab/pepVet/branch/main/graph/badge.svg" alt="Codecov coverage">
   </a>

@@ -35,7 +35,9 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          needs: check
+          cache: always
+          dependencies: '"hard"'
+          needs: build
 
       - name: Validate version tag
         run: |

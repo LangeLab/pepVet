@@ -36,7 +36,9 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          needs: check
+          cache: always
+          dependencies: '"hard"'
+          needs: build
 
       - name: Build source package
         run: R CMD build --no-manual .
@@ -60,11 +62,10 @@ jobs:
 
   check:
     name: R CMD check (${{ matrix.config.label }})
-    needs: build
     runs-on: ${{ matrix.config.os }}
     timeout-minutes: 45
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         config:
           - {os: ubuntu-latest, label: Linux, r: release}
@@ -89,32 +90,19 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          cache: always
           needs: check
 
-      - name: Download source package
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: source-package
-          path: source-package
-
-      - name: Check source package
+      - name: Build and check package
         run: |
-          tarballs <- list.files(
-            "source-package",
-            pattern = "^pepVet_.*[.]tar[.]gz$",
-            full.names = TRUE
-          )
-          if (length(tarballs) != 1L) {
-            stop("Expected exactly one downloaded pepVet source tarball.")
-          }
           check_dir <- file.path(
             normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"),
             "check"
           )
           rcmdcheck::rcmdcheck(
-            path = tarballs,
+            path = ".",
             args = c("--no-manual", "--as-cran"),
+            build_args = "--no-manual",
             check_dir = check_dir,
             timeout = 1800,
             error_on = "note"

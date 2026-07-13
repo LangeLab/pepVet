@@ -24,12 +24,10 @@ quote_process_arg <- function(value) {
 }
 
 test_that("an installed package loads cleanly and initializes state", {
-  if (requireNamespace("covr", quietly = TRUE)) {
-    skip_if(
-      covr::in_covr(),
-      "nested package installation is checked outside coverage runs"
-    )
-  }
+  skip_if(
+    identical(Sys.getenv("R_COVR"), "true"),
+    "nested package installation is checked outside coverage runs"
+  )
 
   source_root <- package_source_root()
   temp_root <- withr::local_tempdir("pepVet-package-load-")

@@ -125,8 +125,10 @@ test_that("custom weights produce proportional ablation drops", {
 })
 
 test_that("ablation values match an independent weighted-drop oracle", {
+  # Keep composites away from verdict thresholds. Boundary classification is
+  # tested separately; this fixture isolates the ablation arithmetic contract.
   batch <- data.frame(
-    S_length = c(0.2, 0.8, 0.5),
+    S_length = c(0.2, 0.76, 0.5),
     S_coverage = c(0.4, 0.6, 0.2),
     stringsAsFactors = FALSE
   )

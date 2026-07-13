@@ -32,13 +32,30 @@ Suggests:
     ragg,
     testthat (>= 3.0.0),
     withr,
-    covr,
-    lintr,
     knitr,
     rmarkdown
 VignetteBuilder: knitr
 biocViews: Proteomics, MassSpectrometry, QualityControl
 Encoding: UTF-8
+Config/Needs/build:
+    ggplot2,
+    knitr,
+    patchwork,
+    rmarkdown
+Config/Needs/check:
+    rcmdcheck
+Config/Needs/coverage:
+    covr,
+    xml2
+Config/Needs/lint:
+    lintr
+Config/Needs/website:
+    ggplot2,
+    knitr,
+    patchwork,
+    pkgdown,
+    ragg,
+    rmarkdown
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.0.0

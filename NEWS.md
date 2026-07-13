@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
-# pepVet 0.1.8 (unreleased)
+# pepVet 0.1.8
 
 ## User-visible changes
 
@@ -20,6 +20,7 @@
 * Reworked the test suite around public contracts, scientific invariants, classed conditions, metadata, plot semantics, and platform-specific batch execution.
 * Added generated-sequence properties and a malformed-input audit covering all 37 exported functions.
 * Added fast contract tests for shipped FASTA, tool-comparison, and PeptideAtlas artifacts. Data-generation workflows now run as separate offline audits and fail clearly when required inputs are missing.
+* Removed an architecture-dependent threshold collision from the diagnostics ablation oracle so installed-package tests retain the same verdict-flip expectation across BLAS implementations.
 
 ## Documentation and metadata
 
@@ -29,8 +30,9 @@
 ## Release infrastructure
 
 * Added Linux coverage reporting with a 90 percent floor, retained coverage artifacts, and Codecov upload support.
-* Added pkgdown builds for pull requests and GitHub Pages deployment from `main`.
-* Added one source-package build followed by release-R checks on Linux, macOS, and Windows.
+* Added pkgdown builds for pull requests and GitHub Pages deployment from `main`, with bounded build stages and cancellation of obsolete runs.
+* Added a source-package artifact build alongside parallel release-R checks on Linux, macOS, and Windows, with unfinished checks cancelled after the first check failure.
+* Split CI installation into role-specific `pak` dependency plans and preserved resolved-library caches when later workflow stages fail.
 * Added version-tag release-candidate builds and tag/published-release BiocCheck workflows. Release artifacts are built in temporary storage and are not published automatically.
 
 # pepVet 0.1.7

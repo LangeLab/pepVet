@@ -41,7 +41,8 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: bioc::BiocCheck, any::rcmdcheck
+          cache: always
+          extra-packages: bioc::BiocCheck
           needs: check
 
       - name: Validate release tag

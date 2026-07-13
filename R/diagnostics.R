@@ -47,13 +47,6 @@
     )
   }
 
-  if (anyDuplicated(comp_cols) > 0L) {
-    .abort(
-      "Component score columns in {.arg batch_result} must be unique.",
-      class = "pepvet_error_invalid_diagnostics_input"
-    )
-  }
-
   unknown_components <- setdiff(
     comp_cols, .diagnostic_known_components()
   )

@@ -8,6 +8,8 @@ scratch/
 # Tmp files
 *.tmp
 tmp/
+/cobertura.xml
+/coverage.txt
 
 # R session / IDE state
 .Rhistory

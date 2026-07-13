@@ -1,0 +1,88 @@
+name: test-coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::covr, any::xml2
+          needs: coverage
+
+      - name: Measure test coverage
+        run: |
+          cov <- covr::package_coverage(
+            type = "tests",
+            quiet = FALSE,
+            clean = FALSE,
+            install_path = file.path(
+              normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"),
+              "package"
+            )
+          )
+          coverage <- covr::percent_coverage(cov)
+          print(cov)
+          cat(sprintf("Coverage: %.5f%%\n", coverage))
+          writeLines(capture.output(print(cov)), "coverage.txt")
+          covr::to_cobertura(cov, filename = "cobertura.xml")
+          writeLines(
+            c("## Test coverage", "", sprintf("Overall coverage: %.2f%%", coverage)),
+            Sys.getenv("GITHUB_STEP_SUMMARY")
+          )
+          if (coverage < 90) {
+            stop(sprintf("Coverage %.5f%% is below the 90%% project floor.", coverage))
+          }
+        shell: Rscript {0}
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
+        with:
+          use_oidc: true
+          files: ./cobertura.xml
+          flags: unittests
+          name: linux-r-release
+          fail_ci_if_error: true
+          plugins: noop
+          disable_search: true
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: |
+            cobertura.xml
+            coverage.txt
+          if-no-files-found: ignore
+
+      - name: Show test output after a failure
+        if: failure()
+        run: |
+          find '${{ runner.temp }}/package' -name 'testthat.Rout*' -exec cat '{}' \; || true
+        shell: bash

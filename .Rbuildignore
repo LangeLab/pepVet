@@ -4,6 +4,7 @@
 ^scratch/
 ^\.github$
 ^\.github/
+^codecov\.yml$
 ^\.Rprofile$
 ^\.Rhistory$
 ^\.Ruserdata$

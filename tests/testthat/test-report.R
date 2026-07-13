@@ -92,6 +92,15 @@ test_that("report format helpers handle boundaries and missing display values", 
     cli::ansi_strip(.format_component_bar(-Inf)),
     "[----------]"
   )
+  expect_identical(.truncate_report_text("abcdef", 3L), "abc")
+  expect_identical(.truncate_report_text("abcdef", 5L), "ab...")
+
+  withr::local_options(list(width = 20L))
+  expect_identical(.report_console_width(), 80L)
+  expect_identical(
+    capture.output(.print_report_field("Field", character())),
+    "Field              "
+  )
 })
 
 test_that("report output is ASCII-safe and readable in narrow terminals", {

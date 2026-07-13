@@ -45,19 +45,6 @@
   )
 }
 
-.validate_unique_batch_ids <- function(normalized_input) {
-  protein_ids <- names(normalized_input)
-
-  if (anyDuplicated(protein_ids) > 0L) {
-    .abort(
-      "Batch inputs must have unique protein identifiers.",
-      class = "pepvet_error_invalid_input"
-    )
-  }
-
-  invisible(normalized_input)
-}
-
 .validate_unique_enzymes <- function(enzymes) {
   if (!is.character(enzymes) || length(enzymes) == 0L || anyNA(enzymes)) {
     .abort(
@@ -515,7 +502,6 @@ batch_evaluate <- function(sequences,
 
   extra_args <- list(...)
   normalized_input <- .read_input(sequences)
-  .validate_unique_batch_ids(normalized_input)
   scoring_config <- .resolve_scoring_configuration(
     proteome, weights, extra_args
   )
@@ -1029,7 +1015,6 @@ batch_compare_enzymes <- function(
   ## Parse input once. Each per-enzyme batch_evaluate() call receives the
   ## same in-memory AAStringSet, which fork workers share via copy-on-write.
   normalized_input <- .read_input(sequences)
-  .validate_unique_batch_ids(normalized_input)
   extra_args <- list(...)
   scoring_config <- .resolve_scoring_configuration(
     proteome, weights, extra_args

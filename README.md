@@ -14,6 +14,9 @@
   <img src="https://img.shields.io/badge/version-v0.1.8-2C5F8A?style=flat-square" alt="v0.1.8">
   <img src="https://img.shields.io/badge/R-%3E%3D4.6-276DC3?style=flat-square&logo=r&logoColor=white" alt="R >= 4.6">
   <img src="https://img.shields.io/badge/Bioconductor-3.23-87B13F?style=flat-square" alt="Bioconductor 3.23">
+  <a href="https://app.codecov.io/gh/LangeLab/pepVet">
+    <img src="https://codecov.io/gh/LangeLab/pepVet/branch/main/graph/badge.svg" alt="Codecov coverage">
+  </a>
   <a href="LICENSE.md">
     <img src="https://img.shields.io/badge/license-MIT-4B9D6E?style=flat-square" alt="MIT">
   </a>

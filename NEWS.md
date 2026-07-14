@@ -14,6 +14,7 @@
 * Rejected duplicate protein identifiers and duplicate data-frame columns before they can collapse or corrupt downstream results.
 * Applied the zero-count digest rule consistently: digests without valid peptide counts receive a zero composite score and a Poor verdict.
 * Fixed missed-cleavage filtering in peptide-overlap plots when all levels are requested, and validated plot titles and figure dimensions before rendering.
+* Corrected weight sensitivity tie handling, corner diagnostics, batch aggregation, and single-result plot semantics. Results now record simulation settings, and batch memory is bounded by a smaller default chunk.
 
 ## Testing
 
@@ -27,6 +28,7 @@
 
 * Reconciled the README, vignettes, help pages, package metadata, and generated site with the current scoring and validation contracts.
 * Removed the redundant custom package citation because pepVet does not yet have an associated publication DOI. Installed citations now come from DESCRIPTION metadata.
+* Described the scoring weights as documented expert priors because their original derivation record is not retained. The numeric weights are unchanged.
 
 ## Release infrastructure
 
@@ -133,7 +135,7 @@
 ## Defaults
 
 * Changed default `missed_cleavages` from `0L` to `1L` across all evaluation functions. MC=1 reflects standard bottom-up proteomics practice; MC=0 produces unrealistically poor scores for every enzyme.
-* Changed default scoring weights to AHP-derived values: `S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088`. Weights were derived via Analytic Hierarchy Process with pairwise comparisons grounded in the proteomics literature (CR = 0.028).
+* Changed default scoring weights to documented expert-prior values: `S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088`. The derivation record needed to support the earlier method and consistency-ratio description was not retained, so those claims have been removed.
 * Lowered the Good verdict threshold from `0.70` to `0.65` to better align with the observed score distribution under the new weights. Centralised verdict thresholds in `.pepvet_params` accessed via `.get_param()`.
 
 ## Performance

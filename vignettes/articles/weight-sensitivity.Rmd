@@ -24,7 +24,7 @@ library(pepVet)
 
 pepVet's scoring weights (S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088) determine how each component contributes to the composite. `sensitivity_analysis()` perturbs these weights and records how often the verdict or enzyme ranking changes. It asks whether the result is stable within the specified perturbation model.
 
-A verdict that is unchanged in more than 95% of perturbations is stable to the tested weight changes. This does not show that the weights or verdict are experimentally correct. A less stable result indicates that the score lies close enough to a decision boundary for modest changes in weighting to alter the label.
+In this article, "stable" means that the verdict is unchanged in more than 95% of perturbations. This operational label does not show that the weights or verdict are experimentally correct. A less stable result indicates that the score lies close enough to a decision boundary for modest changes in weighting to alter the label.
 
 ## Single-protein examples
 
@@ -35,6 +35,7 @@ The BSA and Histone H3.1 examples contrast a stable result with one that changes
 ```{r bsa}
 bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 res <- evaluate_digest(bsa_path, enzyme = "trypsin", missed_cleavages = 1L)
+withr::local_seed(20260714)
 sens <- sensitivity_analysis(res, n_iter = 5000L)
 ```
 
@@ -51,16 +52,17 @@ All 5,000 draws return `Good`. The central 95% simulation interval for the compo
 ```{r histone}
 h3_path <- system.file("extdata", "P68431.fasta", package = "pepVet")
 res_h3 <- evaluate_digest(h3_path, enzyme = "trypsin", missed_cleavages = 1L)
+withr::local_seed(20260714)
 sens_h3 <- sensitivity_analysis(res_h3, n_iter = 5000L)
 ```
 
-Histone H3.1 is lysine- and arginine-rich. Strict tryptic digestion produces many short products, and the default composite sits near the 0.65 boundary. The sensitivity analysis measures how often the label changes under the specified weight perturbations:
+Histone H3.1 is lysine- and arginine-rich. Tryptic digestion produces many short products, and the default composite sits near the 0.65 boundary. The sensitivity analysis measures how often the label changes under the specified weight perturbations:
 
 ```{r histone-verdict}
 sens_h3$summary$verdict_pct
 ```
 
-The verdict changes between `Good` and `Moderate` across the sampled weights. The result is sensitive to weighting near the 0.65 boundary. Compare other enzymes if that sensitivity affects the decision, but evaluate them under the same scoring configuration.
+The verdict changes between `Good` and `Moderate` across the sampled weights. In this deterministic render, `r round(sens_h3$summary$verdict_pct[["Good"]] * 100, 1)`% of draws are `Good` and `r round(sens_h3$summary$verdict_pct[["Moderate"]] * 100, 1)`% are `Moderate`. The result is sensitive to weighting near the 0.65 boundary. Compare other enzymes if that sensitivity affects the decision, but evaluate them under the same scoring configuration.
 
 ### Visualising single-protein verdict distributions
 
@@ -76,9 +78,9 @@ p_bsa <- plot_weight_sensitivity(sens)
 p_bsa
 ```
 
-## Proteome-scale analysis: 50 proteins across 10 enzymes
+## Batch analysis: 50 proteins across 10 enzymes
 
-The batch example applies the same perturbation to 50 proteins and 10 enzymes.
+The batch example applies the same perturbation to the package's 50-protein documentation fixture and 10 enzymes. It demonstrates batch behavior without treating this small fixture as a proteome-wide validation set.
 
 ```{r batch}
 small_path <- system.file("extdata", "small_proteome_50_proteins.fasta",
@@ -87,10 +89,11 @@ enzymes <- c("trypsin", "lysc", "chymotrypsin-high", "asp-n endopeptidase",
   "glutamyl endopeptidase", "arg-c proteinase", "thermolysin",
   "pepsin", "staphylococcal peptidase i", "proteinase k")
 batch_comp <- batch_compare_enzymes(small_path, enzymes = enzymes)
+withr::local_seed(20260714)
 sens <- sensitivity_analysis(batch_comp, n_iter = 2000L)
 ```
 
-Overall instability across the entire proteome:
+Overall instability across the supplied fixture:
 
 ```{r total-inst}
 sens$summary$total_instability
@@ -124,11 +127,12 @@ The displayed rows have simulation intervals that cross a verdict boundary, matc
 Mean verdict instability is the fraction of iterations in which the verdict differs from the default-weight verdict. A value of 0.05 means 5% of iterations changed the label.
 
 ```{r by-enzyme}
-sort(tapply(sens$per_protein$verdict_instability,
+instability_by_enzyme <- sort(tapply(sens$per_protein$verdict_instability,
   sens$per_protein$enzyme, mean))
+instability_by_enzyme
 ```
 
-For trypsin, a mean near 0.08 means that 8% of the sampled iterations changed the verdict, averaged across proteins. The displayed means describe this fixture and perturbation model. They do not isolate why enzymes differ.
+For trypsin, a mean of `r round(instability_by_enzyme[["trypsin"]] * 100, 1)`% means that this fraction of sampled iterations changed the verdict, averaged across the 50 proteins. The displayed means describe this fixture and perturbation model. They do not isolate why enzymes differ.
 
 ### Visualising the batch results
 
@@ -139,33 +143,27 @@ p_batch
 
 Each panel shows per-protein verdict instability for one enzyme. Values near zero changed label rarely under the sampled weights. Larger values identify protein-enzyme pairs that depend more on the weight vector.
 
-## Interpretation
+## Interpretation limits
 
-### What the analysis does and does not tell you
-
-It tells you whether the verdict or ranking is stable to the tested weight values. At single-protein scale, it distinguishes a result that is unchanged in this simulation (BSA with trypsin, 100% Good) from one that changes frequently (H3.1 with trypsin, about 15% Good and 85% Moderate). At proteome scale, it reports the fraction in each category and which enzymes have fewer boundary-sensitive cases in the supplied data.
-
-It does not tell you whether the weights are correct in an absolute sense. That would require empirical calibration against observed peptide detection rates. It does not tell you whether the verdict thresholds (0.65, 0.40) are optimal. Those are held fixed during the analysis.
-
-The practical use is to identify results that depend on the chosen weights. High stability means the label changed rarely under this perturbation scheme. High instability means that the component weighting deserves closer inspection. Neither result establishes experimental success or failure.
+The analysis identifies verdicts and rankings that depend on the tested weights. It does not test the weights or verdict thresholds against observed peptide detection. Neither high nor low stability establishes experimental success or failure.
 
 ### Technical notes
 
-The perturbation uses a Dirichlet distribution with concentration parameters alpha_i = nu * w0_i (nu = 63). This gives a standard deviation of approximately 0.05 for a weight of 0.2. Dirichlet draws are non-negative and sum to 1, so they preserve the weight simplex without clamping and renormalizing independent draws. The method follows a simplified stochastic multicriteria acceptability approach (Lahdelma et al. 1998, Tervonen and Figueira 2008).
+The perturbation is a package-chosen Dirichlet distribution with concentration parameters alpha_i = nu * w0_i, centered on the resolved reference weights. At the default nu = 63, a reference weight of 0.2 has standard deviation 0.05 and an exact marginal 95% interval of approximately 0.112 to 0.306. Dirichlet draws are non-negative and sum to 1, so they preserve the weight simplex. A reference weight of zero remains zero in every draw. The cited simulation-based multicriteria literature motivates exploring uncertain weight spaces, but it does not empirically validate this distribution or concentration for proteomics.
 
-For batch inputs, the analysis processes proteins in chunks of 10,000 to bound the working set.
+For batch inputs, the analysis processes 100 score rows per chunk by default. It classifies simulated scores without constructing a character verdict matrix and aggregates optional squared weight-score associations within each chunk.
 
 Proteins with no cleavage sites for a given enzyme receive composite = 0 and verdict = "Poor" as a hard override. This ensures undigestible proteins remain negative controls under all weight perturbations.
 
 ## References
 
-Butler J, Jia J, Dyer J. Simulation techniques for the sensitivity analysis of multi-criteria decision models. *European Journal of Operational Research*. 1997;103:531-546.
+Butler J, Jia J, Dyer J. Simulation techniques for the sensitivity analysis of multi-criteria decision models. *European Journal of Operational Research*. 1997. 103:531-546.
 
-Lahdelma R, Hokkanen J, Salminen P. SMAA: Stochastic multiobjective acceptability analysis. *European Journal of Operational Research*. 1998;106(1):137-143.
+Lahdelma R, Hokkanen J, Salminen P. SMAA: Stochastic multiobjective acceptability analysis. *European Journal of Operational Research*. 1998. 106(1):137-143.
 
-Mazurek J, Strzalka D. On the Monte Carlo weights in multiple criteria decision analysis. *PLOS ONE*. 2022;17(10):e0268950.
+Mazurek J, Strzalka D. On the Monte Carlo weights in multiple criteria decision analysis. *PLOS ONE*. 2022. 17(10):e0268950.
 
-Tervonen T, Figueira JR. A survey on stochastic multicriteria acceptability analysis methods. *Journal of Multi-Criteria Decision Analysis*. 2008;15(1-2):1-14.
+Tervonen T, Figueira JR. A survey on stochastic multicriteria acceptability analysis methods. *Journal of Multi-Criteria Decision Analysis*. 2008. 15(1-2):1-14.
 
 ## Session info
 

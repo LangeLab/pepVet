@@ -154,7 +154,7 @@ Default weights depend on whether `S_unique` is in play.
 | Protein-only | `c(S_length = 0.200, S_coverage = 0.348, S_count = 0.226, S_hydro = 0.138, S_charge = 0.088)` |
 | Proteome-aware | `c(S_length = 0.160, S_coverage = 0.279, S_count = 0.181, S_hydro = 0.110, S_charge = 0.070, S_unique = 0.200)` |
 
-Default weights came from pairwise Analytic Hierarchy Process judgments on a 1 to 9 Saaty scale. They encode the relative importance chosen for pepVet and were not fitted to experimental outcomes. Coverage and peptide count receive the largest combined weight. The pairwise matrix has a consistency ratio of 0.03 under the AHP calculation. That value describes internal consistency of the judgments, not empirical validity of the weights.
+Default weights are documented expert priors that encode relative importance chosen for pepVet. They were not fitted to experimental outcomes, and the repository does not retain a derivation record that supports a more specific provenance claim. Coverage and peptide count receive the largest combined weight in the protein-only vector.
 
 `pepvet_preset()` returns shipped starting configurations for several workflows.
 

@@ -131,7 +131,7 @@ capabilities <- data.frame(
     "R package / Bioconductor"
   ),
   pepVet = c(
-    "Yes", "Yes", "Yes", "5-component AHP", "Yes",
+    "Yes", "Yes", "Yes", "5-component weighted", "Yes",
     "Yes", "Yes", "6 presets", "Yes", "Dirichlet MC",
     "No", "No", "No", "Yes", "Yes", "Yes"
   ),

@@ -590,6 +590,7 @@ test_that("plot_cleavage_map errors on invalid result", {
 
 test_that("plot_weight_sensitivity renders batch instability semantics", {
   skip_if_not_installed("ggplot2")
+  withr::local_seed(42)
   sensitivity <- sensitivity_analysis(
     .fix_batch_small,
     n_iter = 20L,
@@ -635,18 +636,18 @@ test_that("plot_weight_sensitivity renders single-result density semantics", {
   }, logical(1L))))
 })
 
-test_that("plot_weight_sensitivity handles a moderate-only iteration set", {
+test_that("plot_weight_sensitivity uses one density over verdict zones", {
   skip_if_not_installed("ggplot2")
 
   sensitivity <- list(
     iterations = data.frame(
-      composite_score = c(0.42, 0.48, 0.55),
+      composite_score = c(0.42, 0.48, 0.75),
       verdict = c("Moderate", "Moderate", "Good"),
       stringsAsFactors = FALSE
     ),
     summary = list(
       verdict_pct = c(Good = 1 / 3, Moderate = 2 / 3, Poor = 0),
-      composite_ci = c(0.42, 0.55),
+      composite_ci = c(0.42, 0.75),
       reference_composite = 0.48
     )
   )
@@ -654,7 +655,45 @@ test_that("plot_weight_sensitivity handles a moderate-only iteration set", {
   expect_s3_class(p, "ggplot")
   expect_equal(sum(vapply(p$layers, function(layer) {
     inherits(layer$geom, "GeomDensity")
-  }, logical(1L))), 2L)
+  }, logical(1L))), 1L)
+  zone_layers <- vapply(p$layers, function(layer) {
+    inherits(layer$geom, "GeomRect") && is.data.frame(layer$data) &&
+      "verdict" %in% names(layer$data)
+  }, logical(1L))
+  expect_identical(sum(zone_layers), 1L)
+  expect_identical(
+    as.character(p$layers[[which(zone_layers)]]$data$verdict),
+    c("Poor", "Moderate", "Good")
+  )
+  expect_match(p$labels$subtitle, "simulation interval", fixed = TRUE)
+})
+
+test_that("plot_weight_sensitivity represents Poor-only draws without a Good density", {
+  skip_if_not_installed("ggplot2")
+
+  sensitivity <- list(
+    iterations = data.frame(
+      composite_score = c(0.10, 0.20, 0.30),
+      verdict = rep("Poor", 3L),
+      stringsAsFactors = FALSE
+    ),
+    summary = list(
+      verdict_pct = c(Good = 0, Moderate = 0, Poor = 1),
+      composite_ci = c(0.10, 0.30),
+      reference_composite = 0.20
+    )
+  )
+
+  plot <- plot_weight_sensitivity(sensitivity)
+  density_layers <- vapply(plot$layers, function(layer) {
+    inherits(layer$geom, "GeomDensity")
+  }, logical(1L))
+
+  expect_identical(sum(density_layers), 1L)
+  expect_identical(
+    plot$layers[[which(density_layers)]]$aes_params$fill,
+    .pepvet_pal$brand
+  )
 })
 
 test_that("plot_weight_sensitivity rejects malformed sensitivity results", {
@@ -709,6 +748,7 @@ test_that("plot_weight_sensitivity rejects malformed sensitivity results", {
     class = "pepvet_error_invalid_input"
   )
 
+  withr::local_seed(42)
   valid_single <- sensitivity_analysis(.fix_bsa_trypsin, n_iter = 5L)
   invalid_single_values <- valid_single
   invalid_single_values$iterations$composite_score[[1L]] <- Inf
@@ -721,6 +761,24 @@ test_that("plot_weight_sensitivity rejects malformed sensitivity results", {
   invalid_single_summary$summary$composite_ci <- c(0.9, 0.1)
   expect_error(
     plot_weight_sensitivity(invalid_single_summary),
+    class = "pepvet_error_invalid_input"
+  )
+
+  inconsistent_single <- valid_single
+  inconsistent_single$iterations$verdict[[1L]] <- "Poor"
+  expect_error(
+    plot_weight_sensitivity(inconsistent_single),
+    class = "pepvet_error_invalid_input"
+  )
+
+  inconsistent_batch <- sensitivity_analysis(
+    .fix_batch_small,
+    n_iter = 5L,
+    chunk_size = 2L
+  )
+  inconsistent_batch$summary$total_instability <- 0.99
+  expect_error(
+    plot_weight_sensitivity(inconsistent_batch),
     class = "pepvet_error_invalid_input"
   )
 })
@@ -736,6 +794,7 @@ test_that("plot_weight_sensitivity facets batch enzyme results", {
     enzymes = c("trypsin", "lysc"),
     missed_cleavages = 0L
   ))
+  withr::local_seed(42)
   sensitivity <- sensitivity_analysis(
     comparison,
     n_iter = 20L,
@@ -756,6 +815,7 @@ test_that("single-result plots reject non-scalar titles", {
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("patchwork")
 
+  withr::local_seed(42)
   sensitivity <- sensitivity_analysis(.fix_bsa_trypsin, n_iter = 5L)
   runners <- list(
     digest_profile = function(title) {

@@ -131,7 +131,7 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
 
 ### What to do if VIF is high
 
-A high VIF shows that the component is linearly predictable from the other components in the supplied data. Inspect the component definitions, pairwise correlations, sample composition, and intended use before changing the score. AHP pairwise weighting does not remove multicollinearity.
+A high VIF shows that the component is linearly predictable from the other components in the supplied data. Inspect the component definitions, pairwise correlations, sample composition, and intended use before changing the score. Expert-prior weighting does not remove multicollinearity.
 
 ### When to run diagnostics
 

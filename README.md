@@ -120,7 +120,7 @@ Six components, one weighted composite, one advisory verdict.
 | `S_charge`   | Valid peptides with non-terminal K/R/H                            | Records a basic-residue heuristic                         |
 | `S_unique`   | Fraction of valid peptides unique in a supplied proteome          | Rewards absence from the supplied background digest       |
 
-Default weights (AHP-derived, consistency ratio 0.028): `S_length` 0.200, `S_coverage` 0.348, `S_count` 0.226, `S_hydro` 0.138, `S_charge` 0.088.
+Default documented expert-prior weights: `S_length` 0.200, `S_coverage` 0.348, `S_count` 0.226, `S_hydro` 0.138, `S_charge` 0.088. These values were not fitted to experimental outcomes.
 
 Verdict thresholds: Good >= 0.65, Moderate >= 0.40, Poor < 0.40. These are heuristic ranking labels, not calibrated probabilities.
 

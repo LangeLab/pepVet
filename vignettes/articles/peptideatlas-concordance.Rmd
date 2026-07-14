@@ -151,7 +151,7 @@ The result supports a limited statement about the sampled human tryptic data. It
 | Length range [7, 25] | Concordant in this sample | 47.5 percentage-point difference alone. The highest-enrichment grid range was wider. |
 | GRAVY range [-1.0, 0.6] | Concordant in this sample | 18.9 percentage-point difference alone. A lower floor increased the difference in the tested grid. |
 | Verdict thresholds 0.65 / 0.40 | Retained, not validated | Class imbalance prevents reliable calibration |
-| AHP weight vector | Not tested | A separate sensitivity analysis measures stability only under its specified perturbation model |
+| Expert-prior weight vector | Not tested | A separate sensitivity analysis measures stability only under its specified perturbation model |
 
 ### Limitations
 

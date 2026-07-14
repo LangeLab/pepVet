@@ -314,7 +314,14 @@ NULL
 .rdirichlet <- function(n, alpha) {
   k <- length(alpha)
   m <- matrix(rgamma(n * k, shape = rep(alpha, each = n)), nrow = n, ncol = k)
-  m / rowSums(m)
+  totals <- rowSums(m)
+  if (any(!is.finite(totals)) || any(totals <= 0)) {
+    .abort(
+      "Dirichlet concentration parameters produced non-finite weight draws.",
+      class = "pepvet_error_invalid_sensitivity_parameter"
+    )
+  }
+  m / totals
 }
 
 .abort <- function(message, ...,

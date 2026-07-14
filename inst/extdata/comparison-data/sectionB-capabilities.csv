@@ -2,7 +2,7 @@
 "Peptide list + masses","Yes","Yes","Yes","Yes","Yes","Input only"
 "pI calculation","Yes","No","Yes","No","No","No"
 "Hydrophobicity (GRAVY)","Yes","Bull-Breese","No","No","SSRCalc","Features only"
-"Composite quality score","5-component AHP","No","No","Binary flag only","No","No"
+"Composite quality score","5-component weighted","No","No","Binary flag only","No","No"
 "Verdict (Good/Moderate/Poor)","Yes","No","No","No","No","No"
 "Multi-enzyme comparison","Yes","Per-request","Per-request","Yes","Yes","No"
 "Enzyme recommendation","Yes","No","No","Bulk rank only","No","No"

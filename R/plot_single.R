@@ -1102,24 +1102,22 @@ plot_cleavage_map <- function(result,
 }
 
 
-#' Weight Sensitivity Plot
+#' Plot weight sensitivity
 #'
 #' `plot_weight_sensitivity()` visualises the result of
-#' [sensitivity_analysis()].  For single-protein input it draws a density plot
-#' of composite scores with verdict shading, threshold lines, and a rug mark
-#' at the default composite.  For batch input it draws a faceted histogram of
-#' per-protein verdict instability with per-enzyme mean and median annotations.
+#' [sensitivity_analysis()]. For single-protein input it draws one composite
+#' density over explicit verdict zones, with threshold lines, a simulation
+#' interval, and a rug mark at the reference composite. For batch input it
+#' draws a faceted histogram of per-row verdict instability with per-enzyme
+#' mean and median annotations.
 #'
-#' @param x A list returned by [sensitivity_analysis()].  If `NULL` or
-#'   unrecognised, raises an error.
-#' @param title Optional character string for the plot title.  When `NULL`
+#' @param x A single-protein or batch result returned by
+#'   [sensitivity_analysis()]. Multi-enzyme summary results do not contain the
+#'   per-draw values required by this plot. If `NULL` or unrecognised, raises an
+#'   error.
+#' @param title Optional character string for the plot title. When `NULL`
 #'   (default) a title is auto-generated.
 #'
-#' @details Single-protein input produces a density overlay of iteration
-#'   composite scores with verdict shading and a rug at the default-weight
-#'   composite.  Batch input (a result with a `per_protein` component) produces
-#'   a faceted histogram of per-protein verdict instability, split by enzyme
-#'   when available.
 #' @return A `ggplot` object: density plot of composite scores with verdict
 #'   shading (single-protein mode) or faceted histogram of verdict instability
 #'   (batch mode).
@@ -1127,12 +1125,15 @@ plot_cleavage_map <- function(result,
 #'   simulation.
 #' @family plot-single
 #' @examples
-#' if (requireNamespace("ggplot2", quietly = TRUE)) {
+#' if (requireNamespace("ggplot2", quietly = TRUE) &&
+#'     requireNamespace("withr", quietly = TRUE)) {
 #'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
 #'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-#'   sens <- sensitivity_analysis(res, n_iter = 1000L)
-#'   p <- plot_weight_sensitivity(sens)
-#'   print(p)
+#'   sens <- withr::with_seed(
+#'     42,
+#'     sensitivity_analysis(res, n_iter = 1000L)
+#'   )
+#'   plot_weight_sensitivity(sens)
 #' }
 #' @export
 plot_weight_sensitivity <- function(x, title = NULL) {
@@ -1186,6 +1187,16 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       .sensitivity_plot_abort("{.arg x} has invalid batch sensitivity values.")
     }
 
+    if (!isTRUE(all.equal(
+      summary$total_instability,
+      mean(per_protein$verdict_instability),
+      tolerance = 1e-8
+    ))) {
+      .sensitivity_plot_abort(
+        "{.arg x} has inconsistent batch sensitivity summaries."
+      )
+    }
+
     if ("enzyme" %in% names(per_protein)) {
       enzyme_values <- per_protein$enzyme
       if (!(is.character(enzyme_values) || is.factor(enzyme_values)) ||
@@ -1231,6 +1242,7 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       !identical(names(verdict_pct), c("Good", "Moderate", "Poor")) ||
       length(verdict_pct) != 3L || anyNA(verdict_pct) ||
       any(!is.finite(verdict_pct)) || any(verdict_pct < 0 | verdict_pct > 1) ||
+      abs(sum(verdict_pct) - 1) > 1e-8 ||
       !is.numeric(composite_ci) || length(composite_ci) != 2L ||
       anyNA(composite_ci) || any(!is.finite(composite_ci)) ||
       any(composite_ci < 0 | composite_ci > 1) ||
@@ -1240,6 +1252,23 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       default_composite > 1) {
     .sensitivity_plot_abort(
       "{.arg x} has invalid single-protein sensitivity summary values."
+    )
+  }
+
+  expected_verdict <- .classify_verdict(iterations$composite_score)
+  expected_counts <- table(factor(
+    expected_verdict,
+    levels = c("Good", "Moderate", "Poor")
+  ))
+  expected_pct <- as.numeric(expected_counts) / nrow(iterations)
+  if (!identical(as.character(iterations$verdict), expected_verdict) ||
+      !isTRUE(all.equal(
+        unname(verdict_pct),
+        expected_pct,
+        tolerance = 1e-8
+      ))) {
+    .sensitivity_plot_abort(
+      "{.arg x} has inconsistent single-protein sensitivity summaries."
     )
   }
 
@@ -1256,8 +1285,6 @@ plot_weight_sensitivity <- function(x, title = NULL) {
   auto_title <- title %||% "Weight Sensitivity Analysis"
 
   iter_df <- iter
-  n_mod  <- sum(iter_df$verdict == "Moderate")
-  n_poor <- sum(iter_df$verdict == "Poor")
 
   verdict_pct_str <- paste(
     sprintf("%s (%.0f%%)", names(summ$verdict_pct), summ$verdict_pct * 100),
@@ -1270,29 +1297,36 @@ plot_weight_sensitivity <- function(x, title = NULL) {
     "Poor"     = .pepvet_pal$poor
   )
 
-  p <- ggplot2::ggplot(iter_df, ggplot2::aes(x = .data$composite_score))
-
+  verdict_zones <- data.frame(
+    verdict = factor(
+      c("Poor", "Moderate", "Good"),
+      levels = c("Good", "Moderate", "Poor")
+    ),
+    xmin = c(0, .get_param("verdict_moderate"), .get_param("verdict_good")),
+    xmax = c(.get_param("verdict_moderate"), .get_param("verdict_good"), 1)
+  )
   sens_bw <- .get_param("sensitivity_bw")
-  if (n_mod > 0L && n_poor > 0L) {
-    p <- p + ggplot2::geom_density(
-      ggplot2::aes(fill = .data$verdict, color = .data$verdict),
-      alpha = 0.30, bw = sens_bw, linewidth = 0.3
+  p <- ggplot2::ggplot(iter_df, ggplot2::aes(x = .data$composite_score)) +
+    ggplot2::geom_rect(
+      data = verdict_zones,
+      ggplot2::aes(
+        xmin = .data$xmin,
+        xmax = .data$xmax,
+        ymin = -Inf,
+        ymax = Inf,
+        fill = .data$verdict
+      ),
+      inherit.aes = FALSE,
+      alpha = 0.08,
+      colour = NA
+    ) +
+    ggplot2::geom_density(
+      fill = .pepvet_pal$brand,
+      colour = .pepvet_pal$brand_dark,
+      alpha = 0.30,
+      bw = sens_bw,
+      linewidth = 0.4
     )
-  } else if (n_mod > 0L) {
-    p <- p +
-      ggplot2::geom_density(fill = .pepvet_pal$good, colour = .pepvet_pal$good,
-        alpha = 0.30, bw = sens_bw, linewidth = 0.3) +
-      ggplot2::geom_density(
-        data = iter_df[iter_df$verdict == "Moderate", , drop = FALSE],
-        fill = .pepvet_pal$moderate, colour = .pepvet_pal$moderate,
-        alpha = 0.30, bw = sens_bw, linewidth = 0.3
-      )
-  } else {
-    p <- p + ggplot2::geom_density(
-      fill = .pepvet_pal$good, color = .pepvet_pal$brand_dark,
-      alpha = 0.20, bw = sens_bw, linewidth = 0.4
-    )
-  }
 
   ci_lo <- summ$composite_ci[[1L]]
   ci_hi <- summ$composite_ci[[2L]]
@@ -1315,7 +1349,7 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       ),
       linetype = "dashed", colour = .pepvet_pal$text_axis_title,
       linewidth = 0.5) +
-    ## CI ribbon
+    ## Simulation interval ribbon
     ggplot2::annotate("rect",
       xmin = ci_lo, xmax = ci_hi, ymin = 0, ymax = Inf,
       fill = .pepvet_pal$brand, alpha = 0.06) +
@@ -1330,11 +1364,10 @@ plot_weight_sensitivity <- function(x, title = NULL) {
       hjust = 0, vjust = -0.5, size = 2.8,
       colour = .pepvet_pal$brand_dark, fontface = "bold") +
     ggplot2::scale_fill_manual(values = fill_scale, guide = "none") +
-    ggplot2::scale_colour_manual(values = fill_scale, guide = "none") +
     ggplot2::labs(
       title = auto_title,
       subtitle = sprintf(
-        "%s  |  95%% CI [%.3f, %.3f]  |  %d iterations",
+        "%s  |  95%% simulation interval [%.3f, %.3f]  |  %d iterations",
         verdict_pct_str, ci_lo, ci_hi, n_iter
       ),
       x = "Composite score",
@@ -1359,7 +1392,7 @@ plot_weight_sensitivity <- function(x, title = NULL) {
   pp <- x$per_protein
   total_inst <- x$summary$total_instability
   n_prot <- length(unique(pp$protein_id))
-  auto_title <- title %||% "Proteome Verdict Stability"
+  auto_title <- title %||% "Batch Verdict Stability"
 
   has_enzyme <- "enzyme" %in% names(pp)
 

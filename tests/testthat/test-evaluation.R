@@ -1160,7 +1160,7 @@ test_that("sensitivity_analysis returns correct structure for evaluate_digest in
   withr::local_seed(42)
   sens <- sensitivity_analysis(res, n_iter = 500L)
   expect_type(sens, "list")
-  expect_named(sens, c("iterations", "convergence", "summary"))
+  expect_named(sens, c("iterations", "convergence", "summary", "settings"))
   expect_s3_class(sens$iterations, "tbl_df")
   expect_true("composite_score" %in% names(sens$iterations))
   expect_true("verdict" %in% names(sens$iterations))
@@ -1173,6 +1173,63 @@ test_that("sensitivity_analysis returns correct structure for evaluate_digest in
     sens$convergence$cumulative_stability >= 0 &
       sens$convergence$cumulative_stability <= 1
   ))
+  expect_identical(sens$settings$nu, 63)
+  expect_identical(sens$settings$n_iter, 500L)
+  expect_identical(sens$settings$reference_weights, res$params$weights)
+  expect_identical(sens$settings$distribution, "Dirichlet")
+  expect_identical(
+    sens$settings$verdict_thresholds,
+    c(moderate = 0.40, good = 0.65)
+  )
+})
+
+test_that("single sensitivity matches independent fixed-draw arithmetic", {
+  weights <- stats::setNames(rep(0.2, 5L), c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
+  ))
+  scores <- tibble::tibble(
+    protein_id = "protein_1",
+    S_length = 1,
+    S_coverage = 0,
+    S_count = 1,
+    S_hydro = 0,
+    S_charge = 0,
+    composite_score = 0.4,
+    verdict = "Moderate"
+  )
+  draws <- rbind(
+    c(0.70, 0.10, 0.10, 0.05, 0.05),
+    c(0.10, 0.10, 0.10, 0.35, 0.35),
+    rep(0.20, 5L),
+    c(0.30, 0.10, 0.30, 0.15, 0.15)
+  )
+
+  sensitivity <- .sensitivity_single(
+    scores,
+    params = list(weights = weights),
+    nu = 63,
+    n_iter = 4L,
+    importance = FALSE,
+    corner_cases = FALSE,
+    weight_draws = draws
+  )
+
+  expect_equal(
+    sensitivity$iterations$composite_score,
+    c(0.8, 0.2, 0.4, 0.6)
+  )
+  expect_identical(
+    sensitivity$iterations$verdict,
+    c("Good", "Poor", "Moderate", "Moderate")
+  )
+  expect_equal(
+    sensitivity$convergence$cumulative_stability,
+    c(0, 0, 1 / 3, 1 / 2)
+  )
+  expect_equal(
+    sensitivity$summary$verdict_pct,
+    c(Good = 0.25, Moderate = 0.50, Poor = 0.25)
+  )
 })
 
 test_that("sensitivity_analysis importance returns R2 values", {
@@ -1183,6 +1240,28 @@ test_that("sensitivity_analysis importance returns R2 values", {
     c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge"))
   expect_true(all(sens$summary$weight_importance >= 0))
   expect_true(all(sens$summary$weight_importance <= 1))
+})
+
+test_that("single sensitivity importance handles a fixed zero weight", {
+  weights <- c(
+    S_length = 0.200,
+    S_coverage = 0.348,
+    S_count = 0.226,
+    S_hydro = 0.226,
+    S_charge = 0
+  )
+  result <- evaluate_digest(.bsa_path, weights = weights)
+  withr::local_seed(42)
+  sensitivity <- sensitivity_analysis(
+    result,
+    n_iter = 100L,
+    importance = TRUE
+  )
+
+  expect_true(all(sensitivity$iterations$S_charge == 0))
+  expect_identical(sensitivity$settings$fixed_zero_weights, "S_charge")
+  expect_identical(sensitivity$summary$weight_importance[["S_charge"]], 0)
+  expect_true(all(is.finite(sensitivity$summary$weight_importance)))
 })
 
 test_that("sensitivity_analysis corner_cases returns table", {
@@ -1207,15 +1286,28 @@ test_that("sensitivity_analysis corner_cases returns table", {
     S_hydro = 0.138,
     S_charge = 0.088
   )
+  expected_bounds <- t(vapply(reference_weights, function(weight) {
+    stats::qbeta(
+      c(0.025, 0.975),
+      shape1 = 63 * weight,
+      shape2 = 63 * (1 - weight)
+    )
+  }, numeric(2)))
+  expect_equal(sens$summary$corner_cases$lo, unname(expected_bounds[, 1L]))
+  expect_equal(sens$summary$corner_cases$hi, unname(expected_bounds[, 2L]))
   expected_lo <- vapply(seq_len(nrow(sens$summary$corner_cases)), function(i) {
     weights <- reference_weights
-    weights[[i]] <- sens$summary$corner_cases$lo[[i]]
-    sum(components * weights / sum(weights))
+    bound <- sens$summary$corner_cases$lo[[i]]
+    weights[-i] <- weights[-i] * (1 - bound) / sum(weights[-i])
+    weights[[i]] <- bound
+    sum(components * weights)
   }, numeric(1))
   expected_hi <- vapply(seq_len(nrow(sens$summary$corner_cases)), function(i) {
     weights <- reference_weights
-    weights[[i]] <- sens$summary$corner_cases$hi[[i]]
-    sum(components * weights / sum(weights))
+    bound <- sens$summary$corner_cases$hi[[i]]
+    weights[-i] <- weights[-i] * (1 - bound) / sum(weights[-i])
+    weights[[i]] <- bound
+    sum(components * weights)
   }, numeric(1))
   expect_equal(
     sens$summary$corner_cases$composite_at_lo,
@@ -1249,17 +1341,21 @@ test_that("sensitivity_analysis on multi-enzyme input returns rank stability", {
   sens <- sensitivity_analysis(comp, n_iter = 500L)
   expect_named(
     sens$summary,
-    c("top1_stability", "kendall_mean", "reference_composites")
+    c(
+      "top1_stability", "kendall_mean", "kendall_defined_fraction",
+      "reference_composites"
+    )
   )
   expect_true("trypsin" %in% names(sens$summary$top1_stability))
   expect_true(sens$summary$kendall_mean > 0)
+  expect_true(sens$summary$kendall_defined_fraction > 0)
 })
 
 test_that("sensitivity_analysis on batch input returns per-protein instability", {
   batch <- .fix_batch_small
   withr::local_seed(42)
   sens <- sensitivity_analysis(batch, n_iter = 500L, chunk_size = 50L)
-  expect_named(sens, c("per_protein", "summary"))
+  expect_named(sens, c("per_protein", "summary", "settings"))
   expect_s3_class(sens$per_protein, "tbl_df")
   expect_true("verdict_instability" %in% names(sens$per_protein))
   expect_true("protein_id" %in% names(sens$per_protein))
@@ -1280,6 +1376,7 @@ test_that("sensitivity_analysis rejects invalid tuning parameters", {
     nu_wrong_type = list(nu = "63"),
     nu_zero = list(nu = 0),
     nu_negative = list(nu = -1),
+    nu_below_numeric_floor = list(nu = 0.01),
     nu_multiple = list(nu = c(1, 2)),
     nu_missing = list(nu = NA_real_),
     nu_nan = list(nu = NaN),
@@ -1333,6 +1430,16 @@ test_that("Dirichlet sampler produces correct mean and variance", {
   expect_equal(as.numeric(col_vars), expected_var, tolerance = 0.005)
 
   withr::local_seed(42)
+  boundary_samples <- .rdirichlet(100L, c(20, 30, 0))
+  expect_true(all(boundary_samples[, 3L] == 0))
+  expect_equal(rowSums(boundary_samples), rep(1, 100L), tolerance = 1e-10)
+
+  expect_error(
+    .rdirichlet(2L, c(0, 0, 0)),
+    class = "pepvet_error_invalid_sensitivity_parameter"
+  )
+
+  withr::local_seed(42)
   first <- .rdirichlet(10L, nu * w0)
   withr::local_seed(42)
   second <- .rdirichlet(10L, nu * w0)
@@ -1342,6 +1449,7 @@ test_that("Dirichlet sampler produces correct mean and variance", {
 test_that("plot_weight_sensitivity returns a ggplot for single-protein input", {
   skip_if_not_installed("ggplot2")
   res <- .fix_bsa_trypsin
+  withr::local_seed(42)
   sens <- sensitivity_analysis(res, n_iter = 500L)
   p <- plot_weight_sensitivity(sens)
   expect_s3_class(p, "ggplot")
@@ -1498,7 +1606,10 @@ test_that("batch sensitivity covers chunk boundaries, importance, and determinis
   )
 
   expect_identical(first, second)
-  expect_identical(first, one_chunk)
+  expect_identical(first$per_protein, one_chunk$per_protein)
+  expect_identical(first$summary, one_chunk$summary)
+  expect_identical(first$settings$chunk_size, 17L)
+  expect_identical(one_chunk$settings$chunk_size, nrow(batch))
   expect_equal(nrow(first$per_protein), nrow(batch))
   expect_equal(
     first$per_protein$reference_composite,
@@ -1514,9 +1625,95 @@ test_that("batch sensitivity covers chunk boundaries, importance, and determinis
     c("S_length", "S_coverage", "S_count", "S_hydro", "S_charge")
   )
   expect_true(all(is.finite(first$summary$weight_importance)))
+  withr::local_seed(42)
+  reference_weights <- attr(batch, "scoring_config")$weights
+  draws <- pepVet:::.rdirichlet(30L, 63 * reference_weights)
+  components <- as.matrix(batch[, names(reference_weights), drop = FALSE])
+  composites <- components %*% t(draws)
+  composites[batch$S_count == 0, ] <- 0
+  expected_associations <- vapply(seq_along(reference_weights), function(j) {
+    mean(vapply(seq_len(nrow(batch)), function(i) {
+      if (stats::sd(composites[i, ]) == 0) {
+        return(0)
+      }
+      stats::cor(draws[, j], composites[i, ])^2
+    }, numeric(1)))
+  }, numeric(1))
+  names(expected_associations) <- names(reference_weights)
+  expect_equal(
+    first$summary$weight_importance,
+    expected_associations,
+    tolerance = 1e-12
+  )
   expect_identical(
     first$summary$reference_weights,
     attr(batch, "scoring_config")$weights
+  )
+})
+
+test_that("batch sensitivity matches independent fixed-draw arithmetic", {
+  weights <- stats::setNames(rep(0.2, 5L), c(
+    "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
+  ))
+  batch <- tibble::tibble(
+    protein_id = c("constant_good", "boundary_case", "hard_fail"),
+    S_length = c(1, 1, 1),
+    S_coverage = c(1, 0, 1),
+    S_count = c(1, 1, 0),
+    S_hydro = c(1, 0, 1),
+    S_charge = c(1, 0, 1),
+    composite_score = c(1, 0.4, 0),
+    verdict = c("Good", "Moderate", "Poor")
+  )
+  attr(batch, "scoring_config") <- list(weights = weights)
+  draws <- rbind(
+    c(0.70, 0.10, 0.10, 0.05, 0.05),
+    c(0.10, 0.10, 0.10, 0.35, 0.35),
+    rep(0.20, 5L),
+    c(0.30, 0.10, 0.30, 0.15, 0.15)
+  )
+  testthat::local_mocked_bindings(
+    .rdirichlet = function(n, alpha) {
+      expect_identical(n, 4L)
+      expect_equal(alpha, 63 * weights)
+      draws
+    },
+    .package = "pepVet"
+  )
+
+  sensitivity <- sensitivity_analysis(
+    batch,
+    n_iter = 4L,
+    chunk_size = 2L
+  )
+
+  expect_equal(
+    sensitivity$per_protein$verdict_instability,
+    c(0, 0.5, 0)
+  )
+  expect_equal(
+    sensitivity$per_protein$composite_mean,
+    c(1, 0.5, 0)
+  )
+  expect_equal(
+    sensitivity$per_protein$composite_lo,
+    c(1, 0.215, 0)
+  )
+  expect_equal(
+    sensitivity$per_protein$composite_hi,
+    c(1, 0.785, 0)
+  )
+  expect_equal(sensitivity$summary$total_instability, 1 / 6)
+})
+
+test_that("batch sensitivity rejects unsupported corner diagnostics", {
+  expect_error(
+    sensitivity_analysis(
+      .fix_batch_small,
+      n_iter = 20L,
+      corner_cases = TRUE
+    ),
+    class = "pepvet_error_invalid_sensitivity_parameter"
   )
 })
 
@@ -1784,7 +1981,39 @@ test_that("multi-enzyme sensitivity handles tied reference ranks", {
   withr::local_seed(42)
   sensitivity <- sensitivity_analysis(comparison, n_iter = 20L)
 
-  expect_identical(sensitivity$summary$kendall_mean, 1)
+  expect_true(is.na(sensitivity$summary$kendall_mean))
+  expect_identical(sensitivity$summary$kendall_defined_fraction, 0)
+  expect_equal(
+    unname(sensitivity$summary$top1_stability),
+    c(0.5, 0.5)
+  )
+})
+
+test_that("multi-enzyme sensitivity does not call a tied reference rank stable", {
+  comparison <- tibble::tibble(
+    enzyme = c("enzyme_a", "enzyme_b"),
+    protein_id = c("protein_1", "protein_1"),
+    S_length = c(0.8, 0.2),
+    S_coverage = c(0.2, 0.8),
+    S_count = c(0.5, 0.5),
+    S_hydro = c(0.5, 0.5),
+    S_charge = c(0.5, 0.5),
+    composite_score = c(0.5, 0.5),
+    verdict = c("Moderate", "Moderate")
+  )
+  attr(comparison, "scoring_config") <- list(
+    weights = stats::setNames(rep(0.2, 5L), c(
+      "S_length", "S_coverage", "S_count", "S_hydro", "S_charge"
+    ))
+  )
+
+  withr::local_seed(42)
+  sensitivity <- sensitivity_analysis(comparison, n_iter = 500L)
+
+  expect_true(is.na(sensitivity$summary$kendall_mean))
+  expect_identical(sensitivity$summary$kendall_defined_fraction, 0)
+  expect_true(all(sensitivity$summary$top1_stability > 0.4))
+  expect_equal(sum(sensitivity$summary$top1_stability), 1)
 })
 
 test_that("multi-enzyme sensitivity shares one draw matrix across enzymes", {

@@ -44,7 +44,7 @@ pepvet_preset("standard")
 
 | Preset | Intended use | Key change |
 |---|---|---|
-| `standard` | Routine DDA | Default AHP weights |
+| `standard` | Routine DDA | Default expert-prior weights |
 | `dia` | DIA and SWATH | `[7,30]` aa, GRAVY `[-1,0.8]`, high coverage weight |
 | `targeted` | SRM, PRM, MRM | `[8,20]` aa, GRAVY `[-0.8,0.4]`, `S_unique` 30% |
 | `membrane` | Hydrophobic proteins | Length `[7,30]`, GRAVY `[-1.0,2.0]`, `S_hydro` 5% |

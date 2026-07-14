@@ -1186,6 +1186,8 @@ triage_proteins <- function(batch_result) {
 
 ## Weight sensitivity analysis
 
+.min_sensitivity_nu <- 0.1
+
 .validate_sensitivity_parameters <- function(nu,
                                              n_iter,
                                              chunk_size,
@@ -1195,10 +1197,13 @@ triage_proteins <- function(batch_result) {
     !is.numeric(nu) ||
       length(nu) != 1L ||
       !is.finite(nu) ||
-      nu <= 0
+      nu < .min_sensitivity_nu
   ) {
     .abort(
-      "{.arg nu} must be a single finite positive number.",
+      paste0(
+        "{.arg nu} must be a single finite number greater than or equal to ",
+        .min_sensitivity_nu, "."
+      ),
       class = "pepvet_error_invalid_sensitivity_parameter"
     )
   }
@@ -1413,6 +1418,46 @@ triage_proteins <- function(batch_result) {
   stats::cor(x, y)^2
 }
 
+.sensitivity_settings <- function(nu, n_iter, weights, chunk_size = NULL) {
+  list(
+    distribution = "Dirichlet",
+    nu = nu,
+    n_iter = n_iter,
+    chunk_size = chunk_size,
+    reference_weights = weights,
+    fixed_zero_weights = names(weights)[weights == 0],
+    verdict_thresholds = c(
+      moderate = .get_param("verdict_moderate"),
+      good = .get_param("verdict_good")
+    )
+  )
+}
+
+.dirichlet_marginal_bounds <- function(weights, nu) {
+  t(vapply(weights, function(weight) {
+    if (weight == 0 || weight == 1) {
+      return(c(lo = weight, hi = weight))
+    }
+    bounds <- stats::qbeta(
+      c(0.025, 0.975),
+      shape1 = nu * weight,
+      shape2 = nu * (1 - weight)
+    )
+    stats::setNames(bounds, c("lo", "hi"))
+  }, numeric(2)))
+}
+
+.weights_at_component_value <- function(weights, index, value) {
+  adjusted <- weights
+  other_total <- sum(weights[-index])
+  if (other_total == 0) {
+    return(adjusted)
+  }
+  adjusted[-index] <- weights[-index] * (1 - value) / other_total
+  adjusted[index] <- value
+  adjusted
+}
+
 #' Weight sensitivity analysis
 #'
 #' `sensitivity_analysis()` perturbs the resolved scoring weights using a
@@ -1420,51 +1465,81 @@ triage_proteins <- function(batch_result) {
 #' changes. It compares each perturbation with the stored reference score and
 #' applies the scoring hard-fail rule consistently.
 #'
-#' @param x An [evaluate_digest()], [compare_digests()], or [batch_evaluate()]
-#'   result.
-#' @param nu Dirichlet concentration scaling factor.  Controls how much the
-#'   perturbed weights are allowed to vary from the defaults.  Default `63`
+#' @param x An [evaluate_digest()], [compare_digests()], [batch_evaluate()], or
+#'   [batch_compare_enzymes()] result.
+#' @param nu Dirichlet concentration scaling factor. Controls how much the
+#'   perturbed weights are allowed to vary from the resolved reference weights.
+#'   Must be at least `0.1`. Default `63`
 #'   gives a standard deviation of approximately 0.05 for a weight of 0.2.
-#'   Larger values produce tighter distributions; smaller values allow more
+#'   Larger values produce tighter distributions. Smaller values allow more
 #'   variation.
-#' @param n_iter Number of Monte Carlo iterations.  Default `10000L`.
-#' @param chunk_size Number of proteins to process per chunk in batch mode.
-#'   Default `10000L`.  Set lower on memory-constrained machines.
+#' @param n_iter Number of Monte Carlo iterations.  Default `2000L`.
+#' @param chunk_size Number of score rows to process per chunk in batch mode.
+#'   Default `100L` bounds the largest score-by-iteration matrix.
 #' @param importance Logical.  If `TRUE`, compute the squared Pearson
-#'   correlation (R squared) between each z-scored weight and the composite
-#'   score across iterations, indicating which weight drives the most variance.
+#'   correlation between each sampled weight and the composite score across
+#'   iterations. These marginal associations are descriptive, can reflect
+#'   dependence among Dirichlet weights, and do not form a variance
+#'   decomposition.
 #' @param corner_cases Logical.  If `TRUE`, report the composite score when
-#'   each weight is at its 95 percent Dirichlet interval bound (others held at
-#'   default and renormalised).
+#'   each weight is at its exact 95 percent marginal Dirichlet interval bound.
+#'   Other weights retain their reference proportions. Corner diagnostics are
+#'   available for single-protein and multi-enzyme inputs, not batch inputs.
 #'
-#' @return A list.  For single-protein input: `iterations` (tibble of per-draw
-#'   weights and composites), `convergence` (cumulative stability trace),
-#'   `summary` (simulated verdict frequencies, composite interval, reference
-#'   score and
-#'   weights, optional R squared values, and corner-case table). For
-#'   multi-enzyme input, it also reports `top1_stability`, reference
-#'   composites, and Kendall rank correlation. When requested, multi-enzyme
-#'   output also includes per-enzyme weight-importance vectors and corner-case
-#'   tables. For batch input, it returns
-#'   `per_protein` (stored reference composite and instability per protein) and
-#'   `summary` aggregates with the reference weights.
+#' @details The function draws from the current R random-number generator and
+#'   advances its state. It does not set or restore a seed. Callers control
+#'   reproducibility outside the function.
+#'
+#' @return A mode-dependent list:
+#'   - Single-protein output contains `iterations`, `convergence`, `summary`,
+#'     and `settings`. `iterations` contains sampled weights, `iteration`,
+#'     `composite_score`, and `verdict`. `convergence` contains `iteration`,
+#'     `cumulative_stability`, and `mc_se`. `summary` contains `verdict_pct`,
+#'     `composite_ci`, `composite_mean`, `reference_composite`,
+#'     `reference_weights`, `reference_verdict`, and requested diagnostics.
+#'   - Multi-enzyme output contains `summary` and `settings`. `summary` contains
+#'     `top1_stability`, `kendall_mean`, `kendall_defined_fraction`,
+#'     `reference_composites`, and requested per-enzyme diagnostics.
+#'   - Batch output contains `per_protein`, `summary`, and `settings`.
+#'     `per_protein` contains `protein_id`, `reference_composite`,
+#'     `verdict_instability`, `composite_mean`, `composite_lo`, `composite_hi`,
+#'     and remaining input columns. `summary` contains `total_instability`,
+#'     `mean_ci_width`, `ci_width_quantiles`, `reference_weights`, and requested
+#'     `weight_importance`.
+#'
+#'   Every `settings` list records `distribution`, `nu`, `n_iter`, applicable
+#'   `chunk_size`, `reference_weights`, `fixed_zero_weights`, and
+#'   `verdict_thresholds`.
+#'
+#' @section Interpreting results:
+#' Monte Carlo estimates are approximate, and their precision depends on
+#' `n_iter`. Tied top scores share credit equally. Kendall correlation is
+#' undefined when the reference or sampled scores have only one rank.
 #'
 #' @section Limitations:
-#' Monte Carlo estimates are approximate. Stability depends on `n_iter`.
-#' The analysis only perturbs weights within the Dirichlet framework; it does
-#' not test alternative scoring functions or parameter ranges.
+#' The analysis perturbs only weights within the Dirichlet framework. It does
+#' not test alternative scoring functions, verdict thresholds, or parameter
+#' ranges. The distribution is a package-chosen computational stress test, not
+#' an empirical uncertainty model. A reference weight of zero remains zero in
+#' every draw. Stability does not establish that a weight or verdict is
+#' biologically correct.
 #'
 #' @family evaluation
 #'
 #' @examples
-#' bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-#' res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-#' sens <- sensitivity_analysis(res, n_iter = 1000L)
-#' sens$summary$verdict_pct
+#' if (requireNamespace("withr", quietly = TRUE)) {
+#'   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+#'   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+#'   sens <- withr::with_seed(
+#'     42,
+#'     sensitivity_analysis(res, n_iter = 1000L)
+#'   )
+#'   sens$summary$verdict_pct
+#' }
 #'
 #' @export
-sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
-                                 chunk_size = 10000L,
+sensitivity_analysis <- function(x, nu = 63, n_iter = 2000L,
+                                 chunk_size = 100L,
                                  importance = FALSE,
                                  corner_cases = FALSE) {
   validated <- .validate_sensitivity_parameters(
@@ -1484,6 +1559,15 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
         attr(x, "scoring_config")
       )
     } else {
+      if (corner_cases) {
+        .abort(
+          paste0(
+            "{.arg corner_cases} is available only for single-protein ",
+            "and multi-enzyme inputs."
+          ),
+          class = "pepvet_error_invalid_sensitivity_parameter"
+        )
+      }
       .sensitivity_batch(
         x, nu, n_iter, chunk_size, importance,
         attr(x, "scoring_config")
@@ -1502,8 +1586,11 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     )
   } else {
     .abort(
-      paste0("{.arg x} must be an {.fn evaluate_digest}, ",
-        "{.fn compare_digests}, or {.fn batch_evaluate} result."),
+      paste0(
+        "{.arg x} must be an {.fn evaluate_digest}, ",
+        "{.fn compare_digests}, {.fn batch_evaluate}, or ",
+        "{.fn batch_compare_enzymes} result."
+      ),
       class = "pepvet_error_invalid_input"
     )
   }
@@ -1546,20 +1633,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   if (hard_fail) {
     composites[] <- 0
   }
-  verdicts <- ifelse(
-    composites >= .get_param("verdict_good"), "Good",
-    ifelse(composites >= .get_param("verdict_moderate"), "Moderate", "Poor")
-  )
+  verdicts <- .classify_verdict(composites)
 
   reference_composite <- scores$composite_score[[1L]]
-  default_verdict <- ifelse(
-    reference_composite >= .get_param("verdict_good"), "Good",
-    ifelse(
-      reference_composite >= .get_param("verdict_moderate"),
-      "Moderate",
-      "Poor"
-    )
-  )
+  default_verdict <- .classify_verdict(reference_composite)
 
   iter_df <- as.data.frame(W)
   iter_df$iteration <- seq_len(n_iter)
@@ -1591,22 +1668,22 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       reference_composite = reference_composite,
       reference_weights = w0,
       reference_verdict = default_verdict
-    )
+    ),
+    settings = .sensitivity_settings(nu, n_iter, w0)
   )
 
   if (importance) {
-    zW <- scale(W)
-    r2 <- vapply(seq_len(ncol(zW)), function(j) {
-      .safe_squared_correlation(zW[, j], composites)
+    r2 <- vapply(seq_len(ncol(W)), function(j) {
+      .safe_squared_correlation(W[, j], composites)
     }, numeric(1))
     names(r2) <- comp_names
     out$summary$weight_importance <- r2
   }
 
   if (corner_cases) {
-    half_span <- sqrt(w0 * (1 - w0) / (nu + 1)) * stats::qnorm(0.975)
-    lo <- pmax(0, w0 - half_span)
-    hi <- pmin(1, w0 + half_span)
+    bounds <- .dirichlet_marginal_bounds(w0, nu)
+    lo <- bounds[, "lo"]
+    hi <- bounds[, "hi"]
     cc <- data.frame(
       weight = comp_names,
       default = w0,
@@ -1617,14 +1694,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       stringsAsFactors = FALSE
     )
     for (i in seq_along(comp_names)) {
-      w_lo <- w0
-      w_lo[i] <- lo[i]
-      w_lo <- w_lo / sum(w_lo)
+      w_lo <- .weights_at_component_value(w0, i, lo[i])
       cc$composite_at_lo[i] <- if (hard_fail) 0 else sum(w_lo * s_vec)
 
-      w_hi <- w0
-      w_hi[i] <- hi[i]
-      w_hi <- w_hi / sum(w_hi)
+      w_hi <- .weights_at_component_value(w0, i, hi[i])
       cc$composite_at_hi[i] <- if (hard_fail) 0 else sum(w_hi * s_vec)
     }
     out$summary$corner_cases <- tibble::as_tibble(cc)
@@ -1661,10 +1734,10 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   for (k in seq_len(n_enz)) {
     rank_matrix[, k] <- res_list[[k]]$iterations$composite_score
   }
-  top1 <- vapply(seq_len(nrow(rank_matrix)), function(i) {
-    enzymes[which.max(rank_matrix[i, ])]
-  }, character(1))
-  top1_stab <- prop.table(table(factor(top1, levels = enzymes)))
+  row_max <- apply(rank_matrix, 1L, max)
+  is_top <- abs(rank_matrix - row_max) < 1e-5
+  top_credit <- is_top / rowSums(is_top)
+  top1_stab <- stats::setNames(colMeans(top_credit), enzymes)
 
   default_composites <- vapply(
     res_list, function(r) r$summary$reference_composite,
@@ -1675,19 +1748,25 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     iter_rank <- rank(-rank_matrix[i, ], ties.method = "average")
     if (length(unique(default_rank)) < 2L ||
         length(unique(iter_rank)) < 2L) {
-      1
-    } else {
-      stats::cor(default_rank, iter_rank, method = "kendall")
+      return(NA_real_)
     }
+    stats::cor(default_rank, iter_rank, method = "kendall")
   }, numeric(1))
-  kendall_mean <- mean(kendalls, na.rm = TRUE)
+  kendall_defined <- is.finite(kendalls)
+  kendall_mean <- if (any(kendall_defined)) {
+    mean(kendalls[kendall_defined])
+  } else {
+    NA_real_
+  }
 
   out <- list(
     summary = list(
       top1_stability = top1_stab,
       kendall_mean   = kendall_mean,
+      kendall_defined_fraction = mean(kendall_defined),
       reference_composites = stats::setNames(default_composites, enzymes)
-    )
+    ),
+    settings = .sensitivity_settings(nu, n_iter, w0)
   )
 
   if (importance) {
@@ -1720,19 +1799,26 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
   comp_names <- names(w0)
 
   S <- as.matrix(batch_tbl[, comp_names, drop = FALSE])
-  n_prot <- nrow(S)
+  n_rows <- nrow(S)
   hard_fail <- batch_tbl$S_count == 0
 
   alpha <- nu * w0
   W <- .rdirichlet(as.integer(n_iter), alpha)
 
-  n_chunks <- ceiling(n_prot / chunk_size)
-  chunk_starts <- seq(1L, n_prot, by = chunk_size)
+  n_chunks <- ceiling(n_rows / chunk_size)
+  chunk_starts <- seq(1L, n_rows, by = chunk_size)
+  verdict_good <- .get_param("verdict_good")
+  verdict_moderate <- .get_param("verdict_moderate")
 
   per_protein_list <- vector("list", n_chunks)
+  if (importance) {
+    centered_weights <- sweep(W, 2L, colMeans(W), FUN = "-")
+    weight_ss <- colSums(centered_weights^2)
+    association_sum <- numeric(length(comp_names))
+  }
 
   for (ci in seq_len(n_chunks)) {
-    idx <- chunk_starts[ci]:min(chunk_starts[ci] + chunk_size - 1L, n_prot)
+    idx <- chunk_starts[ci]:min(chunk_starts[ci] + chunk_size - 1L, n_rows)
     S_chunk <- S[idx, , drop = FALSE]
     C_chunk <- S_chunk %*% t(W)
     C_chunk[hard_fail[idx], ] <- 0
@@ -1740,25 +1826,39 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
     def <- batch_tbl$composite_score[idx]
     def_verdict <- batch_tbl$verdict[idx]
 
-    ## Compare each iteration verdict with the default verdict using full 3-level
-    ## classification (not just Good vs not-Good like the previous
-    ## single-threshold check).
-    iter_good <- C_chunk >= .get_param("verdict_good")
-    iter_mod  <- C_chunk >= .get_param("verdict_moderate")
-    iter_verdict <- ifelse(iter_good, "Good",
-      ifelse(iter_mod, "Moderate", "Poor"))
-    same <- iter_verdict == def_verdict
-    instability <- 1 - rowMeans(same, na.rm = TRUE)
+    same_fraction <- numeric(length(idx))
+    good_rows <- def_verdict == "Good"
+    moderate_rows <- def_verdict == "Moderate"
+    poor_rows <- def_verdict == "Poor"
+    if (any(good_rows)) {
+      same_fraction[good_rows] <- rowMeans(
+        C_chunk[good_rows, , drop = FALSE] >= verdict_good
+      )
+    }
+    if (any(moderate_rows)) {
+      moderate_composites <- C_chunk[moderate_rows, , drop = FALSE]
+      same_fraction[moderate_rows] <- rowMeans(
+        moderate_composites >= verdict_moderate &
+          moderate_composites < verdict_good
+      )
+      rm(moderate_composites)
+    }
+    if (any(poor_rows)) {
+      same_fraction[poor_rows] <- rowMeans(
+        C_chunk[poor_rows, , drop = FALSE] < verdict_moderate
+      )
+    }
+    instability <- 1 - same_fraction
 
     ## Empirical quantiles (one pass per row for both tails)
     ci_mat <- t(vapply(seq_len(nrow(S_chunk)), function(i) {
       stats::quantile(
-        C_chunk[i, ], probs = c(0.025, 0.975), na.rm = TRUE
+        C_chunk[i, ], probs = c(0.025, 0.975)
       )
     }, numeric(2)))
-    ci_lo <- ci_mat[, 1L]
-    ci_hi <- ci_mat[, 2L]
-    comp_mean <- rowMeans(C_chunk, na.rm = TRUE)
+    ci_lo <- unname(ci_mat[, 1L])
+    ci_hi <- unname(ci_mat[, 2L])
+    comp_mean <- rowMeans(C_chunk)
 
     per_protein_list[[ci]] <- tibble::tibble(
       protein_id          = batch_tbl$protein_id[idx],
@@ -1769,16 +1869,19 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
       composite_hi        = ci_hi
     )
 
-    ## Keep composites for importance calculation (shared across chunks)
     if (importance) {
-      if (ci == 1L) {
-        C_all <- C_chunk
-      } else {
-        C_all <- rbind(C_all, C_chunk)
-      }
+      composite_ss <- pmax(
+        0,
+        rowSums(C_chunk * C_chunk) - n_iter * comp_mean^2
+      )
+      association_numerator <- crossprod(centered_weights, t(C_chunk))
+      association_denominator <- outer(weight_ss, composite_ss)
+      association_r2 <- association_numerator^2 / association_denominator
+      association_r2[!is.finite(association_r2)] <- 0
+      association_sum <- association_sum + rowSums(association_r2)
     }
 
-    rm(C_chunk, same)
+    rm(C_chunk)
   }
 
   per_protein <- .bind_rows(per_protein_list)
@@ -1802,18 +1905,12 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 10000L,
         na.rm = TRUE
       ),
       reference_weights = w0
-    )
+    ),
+    settings = .sensitivity_settings(nu, n_iter, w0, chunk_size)
   )
 
   if (importance) {
-    ## C_all is n_prot x n_iter, W is n_iter x n_comp
-    r2_per_prot <- vapply(seq_len(n_prot), function(i) {
-      vapply(seq_along(comp_names), function(j) {
-        .safe_squared_correlation(W[, j], C_all[i, ])
-      }, numeric(1))
-    }, numeric(length(comp_names)))
-
-    r2_mean <- rowMeans(r2_per_prot, na.rm = TRUE)
+    r2_mean <- association_sum / n_rows
     names(r2_mean) <- comp_names
     out$summary$weight_importance <- r2_mean
   }

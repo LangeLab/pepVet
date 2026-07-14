@@ -2,15 +2,17 @@
 % Please edit documentation in R/plot_single.R
 \name{plot_weight_sensitivity}
 \alias{plot_weight_sensitivity}
-\title{Weight Sensitivity Plot}
+\title{Plot weight sensitivity}
 \usage{
 plot_weight_sensitivity(x, title = NULL)
 }
 \arguments{
-\item{x}{A list returned by \code{\link[=sensitivity_analysis]{sensitivity_analysis()}}.  If \code{NULL} or
-unrecognised, raises an error.}
+\item{x}{A single-protein or batch result returned by
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}}. Multi-enzyme summary results do not contain the
+per-draw values required by this plot. If \code{NULL} or unrecognised, raises an
+error.}
 
-\item{title}{Optional character string for the plot title.  When \code{NULL}
+\item{title}{Optional character string for the plot title. When \code{NULL}
 (default) a title is auto-generated.}
 }
 \value{
@@ -20,25 +22,22 @@ shading (single-protein mode) or faceted histogram of verdict instability
 }
 \description{
 \code{plot_weight_sensitivity()} visualises the result of
-\code{\link[=sensitivity_analysis]{sensitivity_analysis()}}.  For single-protein input it draws a density plot
-of composite scores with verdict shading, threshold lines, and a rug mark
-at the default composite.  For batch input it draws a faceted histogram of
-per-protein verdict instability with per-enzyme mean and median annotations.
-}
-\details{
-Single-protein input produces a density overlay of iteration
-composite scores with verdict shading and a rug at the default-weight
-composite.  Batch input (a result with a \code{per_protein} component) produces
-a faceted histogram of per-protein verdict instability, split by enzyme
-when available.
+\code{\link[=sensitivity_analysis]{sensitivity_analysis()}}. For single-protein input it draws one composite
+density over explicit verdict zones, with threshold lines, a simulation
+interval, and a rug mark at the reference composite. For batch input it
+draws a faceted histogram of per-row verdict instability with per-enzyme
+mean and median annotations.
 }
 \examples{
-if (requireNamespace("ggplot2", quietly = TRUE)) {
+if (requireNamespace("ggplot2", quietly = TRUE) &&
+    requireNamespace("withr", quietly = TRUE)) {
   bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
   res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-  sens <- sensitivity_analysis(res, n_iter = 1000L)
-  p <- plot_weight_sensitivity(sens)
-  print(p)
+  sens <- withr::with_seed(
+    42,
+    sensitivity_analysis(res, n_iter = 1000L)
+  )
+  plot_weight_sensitivity(sens)
 }
 }
 \seealso{

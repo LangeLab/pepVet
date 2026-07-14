@@ -7,47 +7,62 @@
 sensitivity_analysis(
   x,
   nu = 63,
-  n_iter = 10000L,
-  chunk_size = 10000L,
+  n_iter = 2000L,
+  chunk_size = 100L,
   importance = FALSE,
   corner_cases = FALSE
 )
 }
 \arguments{
-\item{x}{An \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}, or \code{\link[=batch_evaluate]{batch_evaluate()}}
-result.}
+\item{x}{An \code{\link[=evaluate_digest]{evaluate_digest()}}, \code{\link[=compare_digests]{compare_digests()}}, \code{\link[=batch_evaluate]{batch_evaluate()}}, or
+\code{\link[=batch_compare_enzymes]{batch_compare_enzymes()}} result.}
 
-\item{nu}{Dirichlet concentration scaling factor.  Controls how much the
-perturbed weights are allowed to vary from the defaults.  Default \code{63}
+\item{nu}{Dirichlet concentration scaling factor. Controls how much the
+perturbed weights are allowed to vary from the resolved reference weights.
+Must be at least \code{0.1}. Default \code{63}
 gives a standard deviation of approximately 0.05 for a weight of 0.2.
-Larger values produce tighter distributions; smaller values allow more
+Larger values produce tighter distributions. Smaller values allow more
 variation.}
 
-\item{n_iter}{Number of Monte Carlo iterations.  Default \code{10000L}.}
+\item{n_iter}{Number of Monte Carlo iterations.  Default \code{2000L}.}
 
-\item{chunk_size}{Number of proteins to process per chunk in batch mode.
-Default \code{10000L}.  Set lower on memory-constrained machines.}
+\item{chunk_size}{Number of score rows to process per chunk in batch mode.
+Default \code{100L} bounds the largest score-by-iteration matrix.}
 
 \item{importance}{Logical.  If \code{TRUE}, compute the squared Pearson
-correlation (R squared) between each z-scored weight and the composite
-score across iterations, indicating which weight drives the most variance.}
+correlation between each sampled weight and the composite score across
+iterations. These marginal associations are descriptive, can reflect
+dependence among Dirichlet weights, and do not form a variance
+decomposition.}
 
 \item{corner_cases}{Logical.  If \code{TRUE}, report the composite score when
-each weight is at its 95 percent Dirichlet interval bound (others held at
-default and renormalised).}
+each weight is at its exact 95 percent marginal Dirichlet interval bound.
+Other weights retain their reference proportions. Corner diagnostics are
+available for single-protein and multi-enzyme inputs, not batch inputs.}
 }
 \value{
-A list.  For single-protein input: \code{iterations} (tibble of per-draw
-weights and composites), \code{convergence} (cumulative stability trace),
-\code{summary} (simulated verdict frequencies, composite interval, reference
-score and
-weights, optional R squared values, and corner-case table). For
-multi-enzyme input, it also reports \code{top1_stability}, reference
-composites, and Kendall rank correlation. When requested, multi-enzyme
-output also includes per-enzyme weight-importance vectors and corner-case
-tables. For batch input, it returns
-\code{per_protein} (stored reference composite and instability per protein) and
-\code{summary} aggregates with the reference weights.
+A mode-dependent list:
+\itemize{
+\item Single-protein output contains \code{iterations}, \code{convergence}, \code{summary},
+and \code{settings}. \code{iterations} contains sampled weights, \code{iteration},
+\code{composite_score}, and \code{verdict}. \code{convergence} contains \code{iteration},
+\code{cumulative_stability}, and \code{mc_se}. \code{summary} contains \code{verdict_pct},
+\code{composite_ci}, \code{composite_mean}, \code{reference_composite},
+\code{reference_weights}, \code{reference_verdict}, and requested diagnostics.
+\item Multi-enzyme output contains \code{summary} and \code{settings}. \code{summary} contains
+\code{top1_stability}, \code{kendall_mean}, \code{kendall_defined_fraction},
+\code{reference_composites}, and requested per-enzyme diagnostics.
+\item Batch output contains \code{per_protein}, \code{summary}, and \code{settings}.
+\code{per_protein} contains \code{protein_id}, \code{reference_composite},
+\code{verdict_instability}, \code{composite_mean}, \code{composite_lo}, \code{composite_hi},
+and remaining input columns. \code{summary} contains \code{total_instability},
+\code{mean_ci_width}, \code{ci_width_quantiles}, \code{reference_weights}, and requested
+\code{weight_importance}.
+}
+
+Every \code{settings} list records \code{distribution}, \code{nu}, \code{n_iter}, applicable
+\code{chunk_size}, \code{reference_weights}, \code{fixed_zero_weights}, and
+\code{verdict_thresholds}.
 }
 \description{
 \code{sensitivity_analysis()} perturbs the resolved scoring weights using a
@@ -55,18 +70,38 @@ Dirichlet distribution and reports how often the verdict or enzyme ranking
 changes. It compares each perturbation with the stored reference score and
 applies the scoring hard-fail rule consistently.
 }
+\details{
+The function draws from the current R random-number generator and
+advances its state. It does not set or restore a seed. Callers control
+reproducibility outside the function.
+}
+\section{Interpreting results}{
+
+Monte Carlo estimates are approximate, and their precision depends on
+\code{n_iter}. Tied top scores share credit equally. Kendall correlation is
+undefined when the reference or sampled scores have only one rank.
+}
+
 \section{Limitations}{
 
-Monte Carlo estimates are approximate. Stability depends on \code{n_iter}.
-The analysis only perturbs weights within the Dirichlet framework; it does
-not test alternative scoring functions or parameter ranges.
+The analysis perturbs only weights within the Dirichlet framework. It does
+not test alternative scoring functions, verdict thresholds, or parameter
+ranges. The distribution is a package-chosen computational stress test, not
+an empirical uncertainty model. A reference weight of zero remains zero in
+every draw. Stability does not establish that a weight or verdict is
+biologically correct.
 }
 
 \examples{
-bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
-res <- evaluate_digest(bsa_path, enzyme = "trypsin")
-sens <- sensitivity_analysis(res, n_iter = 1000L)
-sens$summary$verdict_pct
+if (requireNamespace("withr", quietly = TRUE)) {
+  bsa_path <- system.file("extdata", "P02769.fasta", package = "pepVet")
+  res <- evaluate_digest(bsa_path, enzyme = "trypsin")
+  sens <- withr::with_seed(
+    42,
+    sensitivity_analysis(res, n_iter = 1000L)
+  )
+  sens$summary$verdict_pct
+}
 
 }
 \seealso{

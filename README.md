@@ -75,7 +75,7 @@ See the [Visualising Digest Quality](https://langelab.github.io/pepVet/articles/
 
 **Digest simulation**
 
-- `digest_protein()` cleaves any protein sequence with any of 40 cleaver-compatible enzyme rules and returns a peptide tibble with coordinates and missed-cleavage counts.
+- `digest_protein()` simulates cleavage of any protein sequence with any of 40 cleaver-compatible enzyme rules and returns theoretical products with coordinates and missed-cleavage counts.
 - `annotate_cleavage_sites()` applies the package's high, medium, or low cleavage-efficiency categories to trypsin-family sites using local P1-P1' sequence context.
 
 **Scoring**
@@ -118,7 +118,7 @@ Six components, one weighted composite, one advisory verdict.
 | `S_count`    | Valid count relative to enzyme-aware expected density             | Compares the digest with an enzyme-specific count prior   |
 | `S_hydro`    | Fraction of valid peptides in the active GRAVY window [-1.0, 0.6] | Applies the selected hydrophobicity prior                 |
 | `S_charge`   | Valid peptides with non-terminal K/R/H                            | Records a basic-residue heuristic                         |
-| `S_unique`   | Fraction of valid peptides unique in a supplied proteome          | Rewards absence from the supplied background digest       |
+| `S_unique`   | Fraction of valid peptides unique in a supplied proteome digest   | Rewards absence from the supplied background digest       |
 
 Default documented expert-prior weights: `S_length` 0.200, `S_coverage` 0.348, `S_count` 0.226, `S_hydro` 0.138, `S_charge` 0.088. These values were not fitted to experimental outcomes.
 
@@ -128,10 +128,10 @@ A zero `S_count` triggers the package's hard-fail rule. pepVet sets the composit
 
 ## Workflow presets
 
-Each preset adjusts the valid-length window, GRAVY range, and component weights together.
+Each preset records a valid-length window, GRAVY range, component weights, and pI flag. Presets with a nonzero `S_unique` weight also require a supplied background digest.
 
 ```r
-preset <- pepvet_preset("targeted")
+preset <- pepvet_preset("fractionated")
 do.call(evaluate_digest, c(list(sequence = bsa, enzyme = "trypsin"), preset))
 ```
 

@@ -232,7 +232,7 @@ annotate_cleavage_sites <- function(sequence, enzyme = "trypsin") {
 #'
 #' @return A tibble with one row per peptide and the columns `protein_id`,
 #'   `peptide`, `start`, `end`, `length`, and `missed_cleavages`. Each row
-#'   represents one observed cleavage product for one protein under the
+#'   represents one theoretical cleavage product for one protein under the
 #'   selected enzyme rule and missed-cleavage allowance. When
 #'   `include_cleavage_efficiency = TRUE`, the output also includes a
 #'   `cleavage_efficiency` column. The `cleavage_efficiency` values are all

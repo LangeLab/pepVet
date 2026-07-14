@@ -23,7 +23,7 @@ test_that("plot_enzyme_comparison returns a patchwork object", {
   expect_identical(p$patches$annotation$title, "P02769  (ALBU_BOVIN)  ·  Enzyme comparison")
   expect_true(any(c("Coverage", "Length") %in%
     as.character(p$patches$plots[[1L]]$data$score_name)))
-  expect_true("★ Recommended" %in%
+  expect_true("\u2605 Top model score" %in%
     grob_text_labels(patchwork::patchworkGrob(p)))
 })
 
@@ -35,7 +35,7 @@ test_that("plot_enzyme_comparison: recommend = FALSE suppresses badge", {
   p <- plot_enzyme_comparison(comp, recommend = FALSE)
   expect_s3_class(p, "patchwork")
   expect_equal(as.numeric(p$patches$layout$widths), c(2.8, 1))
-  expect_false("★ Recommended" %in%
+  expect_false("\u2605 Top model score" %in%
     grob_text_labels(patchwork::patchworkGrob(p)))
 })
 

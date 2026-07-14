@@ -23,9 +23,10 @@ Defaults to all five standard component scores.  \code{S_unique} can be
 requested when present in a proteome-aware comparison.  If \code{NULL}, raises
 an error.}
 
-\item{recommend}{Logical.  When \code{TRUE} (default) a "Recommended" badge
-marks the enzyme with the highest composite score in Panel B.  If \code{NULL},
-raises an error.}
+\item{recommend}{Logical. When \code{TRUE} (default), a "Top model score" badge
+marks the enzyme with the highest composite score in Panel B. The badge is
+a model ranking, not an experimental recommendation. If \code{NULL}, raises an
+error.}
 
 \item{title}{Optional character string for the overall plot title.
 Auto-generated from the protein accession when \code{NULL} (default).}
@@ -44,11 +45,11 @@ Panel A shows a horizontal grouped bar chart where each enzyme occupies one
 row and each component score is a separate colored bar, dodged side-by-side.
 Reference lines at the Moderate and Good verdict thresholds divide the axis
 into poor / moderate / good
-regions. Enzymes are sorted by composite score with the best at the top.
+regions. Enzymes are sorted by composite score with the highest at the top.
 
 Panel B shows the composite score as a lollipop, color-coded by verdict tier
 (green >= 0.65, amber 0.40-0.64, red < 0.40). When \code{recommend = TRUE} a
-gold "Recommended" badge is appended next to the top-ranked enzyme.
+gold "Top model score" badge is appended next to the top-ranked enzyme.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&

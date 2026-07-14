@@ -44,7 +44,7 @@ the score columns returned by \code{\link[=evaluate_digest]{evaluate_digest()}},
 \description{
 \code{compare_digests()} runs \code{\link[=evaluate_digest]{evaluate_digest()}} for each enzyme in \code{enzymes}
 and returns a tibble of scores sorted by \code{composite_score} descending. Main
-ranking function for pre-experimental enzyme selection.
+model-ranking function for pre-acquisition enzyme review.
 }
 \section{Limitations}{
 

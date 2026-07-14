@@ -148,7 +148,7 @@ test_that("plot_gravy_landscape accepts a bare data.frame with length + gravy", 
   p <- plot_gravy_landscape(peps)
   expect_s3_class(p, "patchwork")
   expect_true(any(p$patches$plots[[2L]]$patches$plots[[1L]]$data$class ==
-    "Invalid both"))
+    "Outside both"))
 })
 
 test_that("plot_gravy_landscape auto-computes GRAVY from peptide column", {

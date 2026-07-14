@@ -506,11 +506,11 @@ plot_length_distribution <- function(
 #' GRAVY Landscape: 2D Scatter of Peptide Length vs. Hydrophobicity
 #'
 #' `plot_gravy_landscape()` plots each peptide as a point in the
-#' length \eqn{\times} GRAVY physicochemical space.  The LC-friendly valid
-#' region is shaded, points are colour-coded by validity class, and marginal
-#' density panels show the 1D distributions on each axis.  Outlier peptides
-#' (outside the valid region) are labelled with their sequences when there are
-#' fewer than `label_outliers_n` of them.
+#' length \eqn{\times} GRAVY physicochemical space. The selected
+#' length-and-GRAVY region is shaded, points are colour-coded by window class,
+#' and marginal density panels show the 1D distributions on each axis.
+#' Peptides outside the selected region are labelled with their sequences when
+#' their count is below `label_outliers_n`.
 #'
 #' @param result A named list returned by [evaluate_digest()], **or** a
 #'   data.frame / tibble with at least `length` and `gravy` columns.  When a
@@ -533,7 +533,7 @@ plot_length_distribution <- function(
 #'   (no marginal densities).  GRAVY scores are computed automatically when a
 #'   bare data.frame has a `peptide` column but no `gravy` column.
 #' @return A `patchwork` object with a central scatter of length vs GRAVY
-#'   coloured by validity class, and marginal density panels on the top and
+#'   coloured by window class, and marginal density panels on the top and
 #'   right axes.
 #' @seealso [evaluate_digest()] for the upstream digestion step,
 #'   [plot_digest_profile()] for a single-protein digest summary.
@@ -646,31 +646,33 @@ plot_gravy_landscape <- function(
   peps$valid_gravy <- peps$gravy >= gravy_lo & peps$gravy <= gravy_hi
   peps$class <- factor(
     ifelse(
-      peps$valid_length & peps$valid_gravy, "Valid",
+      peps$valid_length & peps$valid_gravy, "Inside both windows",
       ifelse(
-        !peps$valid_length & peps$valid_gravy, "Invalid length",
+        !peps$valid_length & peps$valid_gravy, "Outside length",
         ifelse(
-          peps$valid_length & !peps$valid_gravy, "Invalid GRAVY",
-          "Invalid both"
+          peps$valid_length & !peps$valid_gravy, "Outside GRAVY",
+          "Outside both"
         )
       )
     ),
-    levels = c("Valid", "Invalid length", "Invalid GRAVY", "Invalid both")
+    levels = c(
+      "Inside both windows", "Outside length", "Outside GRAVY", "Outside both"
+    )
   )
 
   class_colors <- c(
-    "Valid"          = .pepvet_pal$valid,
-    "Invalid length" = .pepvet_pal$too_short,
-    "Invalid GRAVY"  = .pepvet_pal$moderate,
-    "Invalid both"   = .pepvet_pal$poor
+    "Inside both windows" = .pepvet_pal$valid,
+    "Outside length" = .pepvet_pal$too_short,
+    "Outside GRAVY" = .pepvet_pal$moderate,
+    "Outside both" = .pepvet_pal$poor
   )
 
   n_total <- nrow(peps)
-  n_valid <- sum(peps$class == "Valid")
-  pct_valid <- round(100 * n_valid / n_total, 1)
+  n_selected <- sum(peps$class == "Inside both windows")
+  pct_selected <- round(100 * n_selected / n_total, 1)
 
   ## Outlier labels
-  outliers <- peps[peps$class != "Valid", , drop = FALSE]
+  outliers <- peps[peps$class != "Inside both windows", , drop = FALSE]
   do_label <- "peptide" %in% names(peps) &&
     nrow(outliers) > 0L && nrow(outliers) <= as.integer(label_outliers_n)
 
@@ -711,14 +713,14 @@ plot_gravy_landscape <- function(
       color = .data$class, fill = .data$class
     )
   ) +
-    ## Valid region background
+    ## Selected region background
     ggplot2::annotate(
       "rect",
       xmin = length_lo - 0.5, xmax = length_hi + 0.5,
       ymin = gravy_lo, ymax = gravy_hi,
       fill = .pepvet_pal$shade, alpha = 0.55, color = NA
     ) +
-    ## Valid region dashed border
+    ## Selected region dashed border
     ggplot2::annotate(
       "rect",
       xmin = length_lo - 0.5, xmax = length_hi + 0.5,
@@ -726,7 +728,7 @@ plot_gravy_landscape <- function(
       fill = NA, color = .pepvet_pal$good,
       linewidth = 0.45, linetype = "dashed"
     ) +
-    ## Reference lines at valid boundaries
+    ## Reference lines at selected boundaries
     ggplot2::geom_hline(
       yintercept = c(gravy_lo, gravy_hi),
       color = .pepvet_pal$separator, linewidth = 0.3, linetype = "dotted"
@@ -778,10 +780,11 @@ plot_gravy_landscape <- function(
       y = "GRAVY score",
       subtitle = sprintf(
         paste0(
-          "%d / %d peptides fully valid (%.0f%%). ",
-          "Valid region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]"
+          "%d / %d peptides inside both windows (%.0f%%). ",
+          "Selected region [%d\u2013%d aa, %.1f\u2013%.1f GRAVY]"
         ),
-        n_valid, n_total, pct_valid, length_lo, length_hi, gravy_lo, gravy_hi
+        n_selected, n_total, pct_selected,
+        length_lo, length_hi, gravy_lo, gravy_hi
       )
     ) +
     .pepvet_theme() +
@@ -895,20 +898,22 @@ plot_gravy_landscape <- function(
     peps$length <= peps$length_hi
   peps$valid_gravy <- peps$gravy >= peps$gravy_lo & peps$gravy <= peps$gravy_hi
   peps$class <- factor(
-    ifelse(peps$valid_length & peps$valid_gravy, "Valid",
-      ifelse(!peps$valid_length & peps$valid_gravy, "Invalid length",
-        ifelse(peps$valid_length & !peps$valid_gravy, "Invalid GRAVY",
-          "Invalid both"
+    ifelse(peps$valid_length & peps$valid_gravy, "Inside both windows",
+      ifelse(!peps$valid_length & peps$valid_gravy, "Outside length",
+        ifelse(peps$valid_length & !peps$valid_gravy, "Outside GRAVY",
+          "Outside both"
         )
       )
     ),
-    levels = c("Valid", "Invalid length", "Invalid GRAVY", "Invalid both")
+    levels = c(
+      "Inside both windows", "Outside length", "Outside GRAVY", "Outside both"
+    )
   )
   class_colors <- c(
-    "Valid" = .pepvet_pal$valid,
-    "Invalid length" = .pepvet_pal$too_short,
-    "Invalid GRAVY" = .pepvet_pal$moderate,
-    "Invalid both" = .pepvet_pal$poor
+    "Inside both windows" = .pepvet_pal$valid,
+    "Outside length" = .pepvet_pal$too_short,
+    "Outside GRAVY" = .pepvet_pal$moderate,
+    "Outside both" = .pepvet_pal$poor
   )
 
   auto_title <- title %||% "GRAVY landscape: comparison"
@@ -1347,8 +1352,8 @@ plot_pI_distribution <- function(
 #' @param title Optional character title.  Auto-generated when `NULL`.
 #'
 #' @return A `ggplot` object showing connected line plots of component and
-#'   composite scores across missed-cleavage levels, with the best-MC
-#'   annotation.
+#'   composite scores across missed-cleavage levels, with an annotation at the
+#'   MC count that maximizes the composite.
 #' @seealso [evaluate_digest()] for the upstream digestion step.
 #' @family plot-distribution
 #' @examples
@@ -1512,7 +1517,7 @@ plot_missed_cleavage_impact <- function(
   long_df <- .bind_rows(long_rows)
   rownames(long_df) <- NULL
 
-  ## Best MC for composite
+  ## MC with the highest composite score
   comp_vals <- df$composite_score
   best_idx <- which.max(comp_vals)
   best_mc_label <- as.character(df$mc_label[[best_idx]])
@@ -1586,12 +1591,16 @@ plot_missed_cleavage_impact <- function(
       data = long_df[long_df$is_composite, ],
       size = 3.5, shape = 18
     ) +
-    ## Best-MC annotation
+    ## Best MC annotation
     ggplot2::annotate(
       "label",
       x = best_idx,
       y = best_score + 0.06,
-      label = sprintf("Best: %s\nComposite = %.3f", best_mc_label, best_score),
+      label = sprintf(
+        "Best MC: %s\nComposite = %.3f",
+        best_mc_label,
+        best_score
+      ),
       size = 2.8,
       hjust = 0.5,
       fill = .pepvet_pal$shade,

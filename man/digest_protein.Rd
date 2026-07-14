@@ -42,7 +42,7 @@ a single non-missing logical value; invalid values raise
 \value{
 A tibble with one row per peptide and the columns \code{protein_id},
 \code{peptide}, \code{start}, \code{end}, \code{length}, and \code{missed_cleavages}. Each row
-represents one observed cleavage product for one protein under the
+represents one theoretical cleavage product for one protein under the
 selected enzyme rule and missed-cleavage allowance. When
 \code{include_cleavage_efficiency = TRUE}, the output also includes a
 \code{cleavage_efficiency} column. The \code{cleavage_efficiency} values are all

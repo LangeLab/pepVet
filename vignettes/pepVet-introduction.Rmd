@@ -266,9 +266,9 @@ comp
 
 `compare_digests()` defines one row per enzyme for one protein and therefore rejects multi-protein input.
 
-## Step 5: Get a recommendation
+## Step 5: Get the top model rank
 
-`recommend_enzyme()` runs `compare_digests()` internally and returns the name of the highest-scoring enzyme as a character string. If multiple enzymes tie on the composite score, the function returns all tied names in alphabetical order.
+`recommend_enzyme()` runs `compare_digests()` internally and returns the name of the highest-scoring enzyme as a character string. If multiple enzymes tie on the composite score, the function returns all tied names in alphabetical order. Despite the function's established name, this is a model ranking under the supplied settings, not an experimental recommendation.
 
 ```{r recommend}
 recommend_enzyme(
@@ -429,7 +429,7 @@ comp <- compare_digests(bsa_path,
 )
 digest_report(comp)
 
-# Get the top recommendation directly from the sequence
+# Get the top model rank directly from the sequence
 winner <- recommend_enzyme(bsa_path,
   enzymes = c("trypsin", "lysc", "glutamyl endopeptidase")
 )

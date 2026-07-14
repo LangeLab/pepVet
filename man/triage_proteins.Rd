@@ -30,7 +30,7 @@ another enzyme cannot help.}
 }
 \description{
 \code{triage_proteins()} appends an \code{action} column to the flat tibble returned
-by \code{\link[=batch_evaluate]{batch_evaluate()}} with deterministic recommendations based on each
+by \code{\link[=batch_evaluate]{batch_evaluate()}} with deterministic action labels based on each
 protein's verdict and difficulty flags.
 }
 \section{Limitations}{

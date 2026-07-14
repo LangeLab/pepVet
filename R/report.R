@@ -466,7 +466,7 @@
 #'     \item{Named list from [evaluate_digest()]}{Prints a single-protein
 #'       component-score summary for the evaluated enzyme.}
 #'     \item{Tibble from [compare_digests()]}{Prints a multi-enzyme ranking
-#'       table with the best enzyme highlighted.}
+#'       table with the highest-scoring enzyme highlighted.}
 #'   }
 #'   If `NULL` or an unrecognised type, raises an error.
 #' @param title Optional character string printed as a section header above

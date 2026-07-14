@@ -1,7 +1,7 @@
 ---
 title: "Evaluating pepVet Parameters Against PeptideAtlas"
 description: >
-  Tests whether pepVet-valid peptides have higher PeptideAtlas observation rates than invalid peptides and examines bounded parameter and threshold grids.
+  Describes PeptideAtlas observation rates inside and outside selected length-and-GRAVY windows and examines bounded parameter and threshold grids.
 output:
   rmarkdown::html_vignette:
     toc: true
@@ -41,11 +41,13 @@ We sampled 500 proteins from the UniProt human reference proteome, limited to se
 
 The analysis has three parts:
 
-1. **Observation-rate difference**: for each protein, compute the observation rate among pepVet-valid and pepVet-invalid peptides. Report the mean difference across proteins with a bootstrap interval.
+1. **Observation-rate difference**: for each protein, compute the observation rate inside and outside the selected length-and-GRAVY window. Report the mean difference across proteins with a bootstrap interval.
 
 2. **Grid search**: vary length and GRAVY boundaries across 900 specified combinations and identify the highest enrichment within that grid.
 
 3. **Threshold assessment**: fit logistic regression for protein-level observation status and compute Youden's J across a threshold grid. Inspect the class balance before interpreting the selected threshold.
+
+In this article, "inside-window" means that a theoretical peptide meets both the selected length and GRAVY criteria. It is not the package's length-valid definition, which depends only on the active length range. The retained artifact columns use the earlier `valid` and `invalid` names for these two combined-window groups.
 
 ## Results
 
@@ -63,8 +65,8 @@ enrichment   <- valid_rate - invalid_rate
 
 | Metric | Value |
 |--------|-------|
-| Observation rate (pepVet-valid peptides) | `r sprintf("%.1f%%", 100 * valid_rate)` |
-| Observation rate (pepVet-invalid peptides) | `r sprintf("%.1f%%", 100 * invalid_rate)` |
+| Observation rate (inside selected window) | `r sprintf("%.1f%%", 100 * valid_rate)` |
+| Observation rate (outside selected window) | `r sprintf("%.1f%%", 100 * invalid_rate)` |
 | Mean observation-rate difference | `r sprintf("%.1f percentage points", 100 * enrichment)` |
 | Observation-rate ratio | `r sprintf("%.1fx", valid_rate / invalid_rate)` |
 
@@ -76,17 +78,13 @@ Within these sampled human tryptic digests, peptides inside the default windows 
 
 The full script calculates the observation-rate difference for each filter alone.
 
-```{r decomposition}
-len_mask   <- pp$detection_rate_valid # not per-peptide; handled below
-```
-
 This analysis is done at the peptide level in the full script. In this sample, the length filter `[7, 25]` alone has a 47.5 percentage-point difference, while the GRAVY filter `[-1.0, 0.6]` alone has an 18.9 percentage-point difference. The combined difference is 38.0 percentage points because the selected sets overlap.
 
 In this decomposition, the length filter had the larger individual association with observation status. The analysis does not establish a general ordering of determinants of LC-MS/MS detection.
 
 #### GRAVY min finding
 
-23.8% of observed peptides have GRAVY below -1.0. These are more hydrophilic peptides that the default window excludes. Lowering the GRAVY minimum to -1.5 raises enrichment from 38.0 to 42.1 percentage points while changing the valid-peptide observation rate from 57.3% to 57.0%. This was the largest individual change among the tested GRAVY-floor values.
+23.8% of observed peptides have GRAVY below -1.0. These are more hydrophilic peptides that the default window excludes. Lowering the GRAVY minimum to -1.5 raises enrichment from 38.0 to 42.1 percentage points while changing the inside-window observation rate from 57.3% to 57.0%. This was the largest individual change among the tested GRAVY-floor values.
 
 The existing DIA preset includes wider GRAVY limits of [-1.0, 0.8]. The package default remains unchanged because this analysis covers one human tryptic sample.
 

@@ -12,7 +12,9 @@
 
 * Standardized malformed-input handling across digestion, scoring, evaluation, export, reporting, diagnostics, and plotting. Invalid inputs now fail through package conditions before reaching base R errors.
 * Rejected duplicate protein identifiers and duplicate data-frame columns before they can collapse or corrupt downstream results.
-* Applied the zero-count digest rule consistently: digests without valid peptide counts receive a zero composite score and a Poor verdict.
+* Applied the zero-count digest rule consistently: digests without peptides inside the active length range receive a zero composite score and a Poor verdict.
+* Corrected the workflow-preset comparison to apply complete preset settings against an explicit three-protein digest background.
+* Distinguished theoretical products, length-valid peptides, combined comparison windows, model score bands, and model-based rankings throughout package-facing documentation.
 * Fixed missed-cleavage filtering in peptide-overlap plots when all levels are requested, and validated plot titles and figure dimensions before rendering.
 * Corrected weight sensitivity tie handling, corner diagnostics, batch aggregation, and single-result plot semantics. Results now record simulation settings, and batch memory is bounded by a smaller default chunk.
 
@@ -173,7 +175,7 @@
 * Added `plot_digest_profile()` as a four-panel single-protein diagnostic showing length distribution, GRAVY scatter, coverage map, and component scores.
 * Added `plot_coverage_map()` for horizontal sequence coverage visualisation with valid/invalid peptide segments and missed-cleavage expansion lanes.
 * Added `plot_cleavage_map()` for vertical cleavage-site ticks with fragment blocks and optional efficiency coloring from `annotate_cleavage_sites()`.
-* Added `plot_enzyme_comparison()` for comparing component scores across multiple enzymes with sorted bars and recommendation badge.
+* Added `plot_enzyme_comparison()` for comparing component scores across multiple enzymes with sorted bars and a top-score badge.
 * Added `plot_protein_comparison()` for comparing component scores across multiple proteins under a single enzyme with verdict badges.
 * Added `plot_enzyme_protein_heatmap()` for a 2D tile matrix of proteins versus enzymes with composite-score gradient and verdict overlay.
 * Added `plot_length_distribution()` for peptide-length histograms with valid-range shading and multi-input faceted mode.

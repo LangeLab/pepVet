@@ -2,7 +2,7 @@
 % Please edit documentation in R/scoring.R
 \name{score_peptides}
 \alias{score_peptides}
-\title{Score digested peptides for proteomics suitability}
+\title{Score digested peptides for pre-acquisition review}
 \usage{
 score_peptides(
   digest_result,
@@ -64,7 +64,7 @@ protein, storing valid-peptide pI values keyed by peptide sequence.
 }
 \description{
 \code{score_peptides()} summarizes a pepVet digest tibble into per-protein scoring
-components and a weighted composite suitability score. The scoring model is
+components and a weighted composite score. The scoring model is
 designed for digest planning and enzyme comparison, not for post-search
 peptide detectability prediction.
 }

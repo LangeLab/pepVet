@@ -392,10 +392,10 @@
   component_scores
 }
 
-#' Score digested peptides for proteomics suitability
+#' Score digested peptides for pre-acquisition review
 #'
 #' `score_peptides()` summarizes a pepVet digest tibble into per-protein scoring
-#' components and a weighted composite suitability score. The scoring model is
+#' components and a weighted composite score. The scoring model is
 #' designed for digest planning and enzyme comparison, not for post-search
 #' peptide detectability prediction.
 #'

@@ -1,11 +1,10 @@
 ## data-raw/full-tool-comparison.R
-## Comprehensive tool comparison for vignette + paper.
-## All tools evaluated on multiple proteins, multiple enzymes.
+## Descriptive tool comparison for package documentation.
+## Retained outputs and documented interfaces are compared where available.
 ## Output: inst/extdata/comparison-data/ with CSVs, vignettes/ with figures.
 ##
 ## pepVet stands for "pre-acquisition proteolytic digest evaluation".
-## The question this answers: what does each tool add on top of
-## cleavage prediction (which is consistent across tools).
+## The comparison is not an experimental validation or performance benchmark.
 
 library(ggplot2)
 library(patchwork)
@@ -56,9 +55,9 @@ cat("============================================================\n\n")
 
 ## ======================================================================
 ## SECTION A: BASELINE OVERLAP
-## All tools produce the same peptides from the same cleavage rules.
+## Retained peptide outputs for one matched digest configuration.
 ## ======================================================================
-cat("Section A: Baseline overlap (peptide lists are identical)\n\n")
+cat("Section A: Baseline overlap of retained peptide lists\n\n")
 
 pepvet_results <- list()
 for (pn in names(proteins)) {
@@ -99,9 +98,7 @@ overlap <- data.frame(
 overlap$Pct_overlap <- round(overlap$Common_with_pepVet / overlap$N_unique * 100, 1)
 cat("BSA + trypsin MC=1 peptide overlap:\n")
 print(overlap, row.names = FALSE)
-cat("\nConclusion: Cleavage prediction is consistent across tools.\n")
-cat("Differences come from mass filters, length filters, and\n")
-cat("signal peptide handling, not from cleavage rule differences.\n\n")
+cat("\nThese counts describe only the retained BSA configuration.\n\n")
 
 write.csv(overlap, file.path(out_dir, "sectionA-overlap.csv"), row.names = FALSE)
 
@@ -114,50 +111,51 @@ cat("Section B: Tool capability catalog\n\n")
 capabilities <- data.frame(
   Capability = c(
     "Peptide list + masses",
-    "pI calculation",
-    "Hydrophobicity (GRAVY)",
-    "Composite quality score",
-    "Verdict (Good/Moderate/Poor)",
+    "pI output",
+    "Hydrophobicity metric",
+    "Composite digest score",
+    "Score-band label",
     "Multi-enzyme comparison",
-    "Enzyme recommendation",
+    "Enzyme ranking",
     "Workflow presets",
-    "Batch (proteome-scale)",
+    "Batch input",
     "Sensitivity analysis",
-    "Peptide detectability (ML)",
+    "Peptide-level ML score",
     "3D structure mapping",
     "Retention time prediction",
     "Skyline/FASTA export",
-    "Programmatic (non-GUI)",
-    "R package / Bioconductor"
+    "Non-GUI interface",
+    "R package"
   ),
   pepVet = c(
-    "Yes", "Yes", "Yes", "5-component weighted", "Yes",
-    "Yes", "Yes", "6 presets", "Yes", "Dirichlet MC",
+    "Yes", "Peptide", "GRAVY", "Weighted model score", "Heuristic bands",
+    "Yes", "Highest model score", "6 presets", "Yes", "Weight perturbation",
     "No", "No", "No", "Yes", "Yes", "Yes"
   ),
   MS_Digest = c(
-    "Yes", "No", "Bull-Breese", "No", "No",
-    "Per-request", "No", "No", "No", "No",
-    "No", "No", "No", "No", "Web only", "No"
+    "Yes", "No", "Bull-Breese / HPLC index", "No", "No",
+    "One rule per run", "No", "No", "Multiple proteins", "Not assessed",
+    "No", "No", "No", "No", "Command line / XML", "No"
   ),
   ExPASy = c(
-    "Yes", "Yes", "No", "No", "No",
-    "Per-request", "No", "No", "No", "No",
-    "No", "No", "No", "No", "Web only", "No"
+    "Yes", "Protein", "No", "No", "No",
+    "One rule per run", "No", "No", "Single protein", "Not assessed",
+    "No", "No", "No", "No", "No", "No"
   ),
   Protein_Cleaver = c(
-    "Yes", "No", "No", "Binary flag only", "No",
-    "Yes", "Bulk rank only", "No", "Yes", "No",
-    "Rules-based", "Yes", "Yes", "No", "Shiny only", "No"
+    "Yes", "No", "No", "No", "No",
+    "Yes", "Application ranking", "No", "Yes", "Not assessed",
+    "No (rules-based flag)", "Yes", "No documented output", "No",
+    "No documented API", "No"
   ),
   ProteaseGuru = c(
     "Yes", "No", "SSRCalc", "No", "No",
-    "Yes", "No", "No", "Yes", "No",
-    "No", "No", "No", "No", "Win GUI only", "No"
+    "Yes", "Comparison output", "No", "Protein database", "Not assessed",
+    "No", "No", "No", "No", "No", "No"
   ),
   PeptideRanger = c(
-    "Input only", "No", "Features only", "No", "No",
-    "No", "No", "No", "No", "No",
+    "No digest output", "No", "Not an output", "No", "No",
+    "No", "No", "No", "Peptide vectors", "Not assessed",
     "RF score (0-1)", "No", "No", "No", "Yes", "Yes"
   )
 )
@@ -210,7 +208,7 @@ write.csv(scores_tbl, file.path(out_dir, "sectionC-scores-all.csv"),
   row.names = FALSE
 )
 
-cat("\nBest enzyme per protein:\n")
+cat("\nHighest model score per protein:\n")
 for (pn in names(proteins)) {
   sub <- scores_tbl[scores_tbl$protein == pn, ]
   best <- sub[which.max(sub$composite), ]
@@ -225,15 +223,31 @@ for (pn in names(proteins)) {
 ## How presets change scores on different protein types.
 ## ======================================================================
 cat("\nSection C2: Workflow preset effects\n\n")
+preset_sequences <- lapply(
+  proteins[c("BSA", "H3", "BACE1")],
+  function(protein) Biostrings::readAAStringSet(protein$path)
+)
+preset_background <- digest_protein(
+  do.call(c, unname(preset_sequences)),
+  enzyme = "trypsin",
+  missed_cleavages = 1L
+)
 preset_rows <- list()
 for (pn in c("BSA", "H3", "BACE1")) {
   path <- proteins[[pn]]$path
   for (pr_name in presets) {
     pr <- pepvet_preset(pr_name)
-    ev <- evaluate_digest(path,
-      enzyme = "trypsin", missed_cleavages = 1L,
-      gravy_range = pr$gravy_range,
-      length_range = pr$length_range
+    ev <- do.call(
+      evaluate_digest,
+      c(
+        list(
+          sequence = path,
+          enzyme = "trypsin",
+          missed_cleavages = 1L,
+          proteome = preset_background
+        ),
+        pr
+      )
     )
     lr <- pr$length_range
     preset_rows[[length(preset_rows) + 1]] <- data.frame(
@@ -242,8 +256,13 @@ for (pn in c("BSA", "H3", "BACE1")) {
       composite = ev$scores$composite_score,
       verdict = ev$scores$verdict,
       n_total = nrow(ev$peptides),
-      n_valid = sum(ev$peptides$length >= lr[1] & ev$peptides$length <= lr[2]),
+      n_length_valid = sum(
+        ev$peptides$length >= lr[1] & ev$peptides$length <= lr[2]
+      ),
       S_hydro = ev$scores$S_hydro,
+      S_unique = ev$scores$S_unique,
+      preset_used = ev$scores$preset_used,
+      include_pI = ev$params$include_pI,
       len_lo = lr[1],
       len_hi = lr[2],
       stringsAsFactors = FALSE
@@ -258,7 +277,7 @@ write.csv(preset_tbl, file.path(out_dir, "sectionC2-presets.csv"),
 
 ## ======================================================================
 ## SECTION D: pepVet + PeptideRanger PIPELINE
-## Two-stage: quality filter then detectability prediction.
+## Descriptive comparison of a selected window and an ML score.
 ## ======================================================================
 cat("\nSection D: pepVet + PeptideRanger pipeline\n\n")
 
@@ -275,7 +294,7 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
       peps <- ev$peptides
       names(peps)[2] <- "peptide"
       peps$gravy <- .calculate_gravy(peps$peptide)
-      peps$valid <- peps$length >= 7 & peps$length <= 25 &
+      peps$window_pass <- peps$length >= 7 & peps$length <= 25 &
         peps$gravy >= -1.0 & peps$gravy <= 0.6
 
       pr_res <- peptide_predictions(peps$peptide,
@@ -291,12 +310,17 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
         enzyme = enz,
         verdict = ev$scores$verdict,
         n_total = nrow(peps),
-        n_valid = sum(peps$valid),
+        n_window_pass = sum(peps$window_pass),
         PR_mean_all = mean(peps$pr_score, na.rm = TRUE),
-        PR_mean_valid = mean(peps$pr_score[peps$valid], na.rm = TRUE),
-        PR_mean_invalid = mean(peps$pr_score[!peps$valid], na.rm = TRUE),
-        enrichment = mean(peps$pr_score[peps$valid], na.rm = TRUE) -
-          mean(peps$pr_score[!peps$valid], na.rm = TRUE),
+        PR_mean_window_pass = mean(
+          peps$pr_score[peps$window_pass], na.rm = TRUE
+        ),
+        PR_mean_window_fail = mean(
+          peps$pr_score[!peps$window_pass], na.rm = TRUE
+        ),
+        mean_score_difference = mean(
+          peps$pr_score[peps$window_pass], na.rm = TRUE
+        ) - mean(peps$pr_score[!peps$window_pass], na.rm = TRUE),
         cor_PR_length = cor(peps$pr_score, peps$length,
           use = "complete.obs"
         ),
@@ -310,10 +334,10 @@ if (requireNamespace("PeptideRanger", quietly = TRUE)) {
     row.names = FALSE
   )
 
-  cat("\nPipeline recommendation:\n")
-  cat("  pepVet selects enzyme + filters to valid peptides.\n")
-  cat("  PeptideRanger scores detection probability on valid peptides.\n")
-  cat("  Enrichment (valid PR - invalid PR) quantifies the overlap.\n")
+  cat("\nDescriptive comparison:\n")
+  cat("  pepVet supplies digest-level model scores.\n")
+  cat("  PeptideRanger supplies peptide-level random-forest scores.\n")
+  cat("  The reported difference compares selected-window group means.\n")
 } else {
   stop(
     "PeptideRanger is not installed; Section D cannot be regenerated.",
@@ -330,8 +354,8 @@ cat("Source: https://github.com/gkoulouras/ProteinCleaver (revision not recorded
 cat("Engine: cleaver::cleave() + cleaver::cleavageRanges()\n")
 cat("Identifiable = length in window AND mass in window (binary flag)\n")
 cat("No GRAVY, no graded score, no verdict, no presets\n")
-cat("Strengths: 3D structure, RT prediction, unique/shared peptide tracking\n")
-cat("Limitations: Shiny-only, heavy deps, no API, no hydrophobicity scoring\n\n")
+cat("Documented outputs include sequence and 3D structure mapping.\n")
+cat("The assessed revision did not include a GRAVY-based digest score.\n\n")
 
 pc_mass_table <- c(
   "A" = 71.0788, "C" = 103.1388, "D" = 115.0886, "E" = 129.1155,
@@ -365,17 +389,19 @@ for (pn in c("BSA", "H3", "BACE1")) {
   peps$gravy <- .calculate_gravy(peps$peptide)
   peps$pc_identifiable <- vapply(peps$peptide, simulate_pc_identifiable,
                                   logical(1))
-  peps$pepvet_valid <- peps$length >= 7 & peps$length <= 25 &
+  peps$pepvet_window_pass <- peps$length >= 7 & peps$length <= 25 &
     peps$gravy >= -1.0 & peps$gravy <= 0.6
 
   pc_comparison[[pn]] <- data.frame(
     protein = pn,
     n_peptides = nrow(peps),
     pc_identifiable = sum(peps$pc_identifiable),
-    pepvet_valid = sum(peps$pepvet_valid),
-    both = sum(peps$pc_identifiable & peps$pepvet_valid),
-    pc_only = sum(peps$pc_identifiable & !peps$pepvet_valid),
-    pepvet_only = sum(peps$pepvet_valid & !peps$pc_identifiable),
+    pepvet_window_pass = sum(peps$pepvet_window_pass),
+    both_pass = sum(peps$pc_identifiable & peps$pepvet_window_pass),
+    pc_only = sum(peps$pc_identifiable & !peps$pepvet_window_pass),
+    pepvet_window_only = sum(
+      peps$pepvet_window_pass & !peps$pc_identifiable
+    ),
     stringsAsFactors = FALSE
   )
 }
@@ -387,32 +413,9 @@ write.csv(pc_tbl, file.path(out_dir, "sectionE-protein-cleaver.csv"),
 )
 
 ## ======================================================================
-## SUMMARY / EXECUTIVE COMPARISON TABLE
+## GENERATION SUMMARY
 ## ======================================================================
-cat("\nEXECUTIVE SUMMARY: Where pepVet fits\n\n")
-cat(
-  "| Dimension                          | pepVet alone | +PeptideRanger | ",
-  "+Protein Cleaver | MS-Digest/ExPASy |\n",
-  "|------------------------------------|-------------|----------------| ",
-  "------------------|------------------|\n",
-  "| Quick enzyme ranking               | Best        | Overkill       | ",
-  "Overkill         | Manual re-request |\n",
-  "| Method development + presets       | Best        | Overkill       | ",
-  "Overkill         | Not possible      |\n",
-  "| Manuscript-grade digest quality    | Best        | Adds depth     | ",
-  "Adds depth       | Not possible      |\n",
-  "| Peptide-level detectability        | Not possible| Best           | ",
-  "Rules-based      | Not possible      |\n",
-  "| 3D structural context              | Not possible| Not possible   | ",
-  "Best             | Not possible      |\n",
-  "| Precise mass calculation           | Good        | Not relevant   | ",
-  "Not relevant     | Best              |\n",
-  "| Proteome-scale batch analysis      | Best        | Impractical    | ",
-  "Yes (GUI)        | Not possible      |\n",
-  "| Scriptable pipeline integration    | Best        | Best (R)       | ",
-  "Shiny only       | Web only          |\n",
-  sep = ""
-)
+cat("\nGenerated descriptive tables for the documentation vignette.\n")
 
 ##
 ## FIGURES
@@ -516,20 +519,31 @@ ggsave(file.path(fig_dir, "fig2_enzyme_comparison.png"), p2,
 )
 cat("  fig2_enzyme_comparison.png\n")
 
-## Figure 3: PR enrichment faceted by protein
+## Figure 3: PR mean-score difference faceted by protein
 if (exists("pr_tbl")) {
-  pr_enrich <- pr_tbl[!is.na(pr_tbl$enrichment), ]
-  pr_enrich$sign <- ifelse(pr_enrich$enrichment >= 0, "positive", "negative")
+  pr_enrich <- pr_tbl[!is.na(pr_tbl$mean_score_difference), ]
+  pr_enrich$sign <- ifelse(
+    pr_enrich$mean_score_difference >= 0, "positive", "negative"
+  )
   pr_enrich$enzyme_label <- enzyme_labels[pr_enrich$enzyme]
 
-  mean_enr <- tapply(pr_enrich$enrichment, pr_enrich$enzyme_label, mean, na.rm = TRUE)
+  mean_enr <- tapply(
+    pr_enrich$mean_score_difference,
+    pr_enrich$enzyme_label,
+    mean,
+    na.rm = TRUE
+  )
   enz_order <- names(sort(mean_enr))
   pr_enrich$enzyme_label <- factor(pr_enrich$enzyme_label, levels = enz_order)
 
-  p3 <- ggplot(pr_enrich, aes(x = enrichment, y = enzyme_label, fill = sign)) +
+  p3 <- ggplot(
+    pr_enrich,
+    aes(x = mean_score_difference, y = enzyme_label, fill = sign)
+  ) +
     geom_col(color = "black", alpha = 0.85, width = 0.7) +
-    geom_text(aes(label = sprintf("%+.2f", enrichment)),
-      hjust = ifelse(pr_enrich$enrichment >= 0, -0.2, 1.2), size = 2.5
+    geom_text(aes(label = sprintf("%+.2f", mean_score_difference)),
+      hjust = ifelse(pr_enrich$mean_score_difference >= 0, -0.2, 1.2),
+      size = 2.5
     ) +
     geom_vline(xintercept = 0, linewidth = 0.5, color = "grey50") +
     scale_fill_manual(values = c(
@@ -538,12 +552,12 @@ if (exists("pr_tbl")) {
     )) +
     facet_grid(protein ~ ., scales = "free_y", space = "free_y") +
     labs(
-      title = "PeptideRanger enrichment by pepVet validity filter",
+      title = "PeptideRanger score difference by selected window",
       subtitle = paste0(
-        "Enrichment = difference in mean PR score between ",
-        "pepVet-valid and -invalid peptides"
+        "Difference in mean PR score between peptides inside and outside ",
+        "the selected length-and-GRAVY window"
       ),
-      x = "Enrichment (delta PR score)", y = NULL, fill = NULL
+      x = "Mean score difference", y = NULL, fill = NULL
     ) +
     theme_minimal(base_size = 10) +
     theme(
@@ -619,9 +633,9 @@ presets_detail <- data.frame(
 
 p5 <- ggplot(preset_tbl, aes(x = preset)) +
   geom_col(aes(y = n_total), fill = "#D8DDE6", alpha = 0.7, color = NA, width = 0.85) +
-  geom_col(aes(y = n_valid, fill = verdict), color = "black", alpha = 0.85, width = 0.85) +
-  geom_text(aes(y = n_valid, label = n_valid), vjust = -0.3, size = 3.2) +
-  geom_text(aes(y = n_valid, label = sprintf("%.0f%%", 100 * n_valid / n_total)),
+  geom_col(aes(y = n_length_valid, fill = verdict), color = "black", alpha = 0.85, width = 0.85) +
+  geom_text(aes(y = n_length_valid, label = n_length_valid), vjust = -0.3, size = 3.2) +
+  geom_text(aes(y = n_length_valid, label = sprintf("%.0f%%", 100 * n_length_valid / n_total)),
     vjust = 1.8, size = 2.5, color = "grey40"
   ) +
   geom_text(
@@ -632,11 +646,11 @@ p5 <- ggplot(preset_tbl, aes(x = preset)) +
   facet_wrap(~protein, nrow = 1) +
   scale_fill_manual(values = verdict_fill) +
   labs(
-    title = "Preset effects on valid peptide count",
+    title = "Preset effects on length-valid peptide count",
     subtitle = paste0(
       "Grey bar = total digested peptides. ",
-      "Coloured bar = valid peptides within preset length and GRAVY windows. ",
-      "Percent = valid / total."
+      "Coloured bar = peptides within the preset length range. ",
+      "Percent = length-valid / total."
     ),
     x = NULL, y = "Number of peptides", fill = "Verdict"
   ) +
@@ -655,13 +669,13 @@ cat("  fig5_preset_effect.png\n")
 
 ## Figure 6: Protein Cleaver vs pepVet with annotations
 pc_long <- tidyr::pivot_longer(
-  pc_tbl[, c("protein", "both", "pc_only")],
-  cols = c("both", "pc_only"),
+  pc_tbl[, c("protein", "both_pass", "pc_only")],
+  cols = c("both_pass", "pc_only"),
   names_to = "classifier",
   values_to = "count"
 )
-pc_long$classifier <- ifelse(pc_long$classifier == "both",
-  "Both (pepVet + PC)", "PC identifiable only"
+pc_long$classifier <- ifelse(pc_long$classifier == "both_pass",
+  "Both filters", "PC identifiable only"
 )
 
 p6 <- ggplot(pc_long, aes(x = protein, y = count, fill = classifier)) +
@@ -671,7 +685,7 @@ p6 <- ggplot(pc_long, aes(x = protein, y = count, fill = classifier)) +
     vjust = -0.3, size = 3.5
   ) +
   scale_fill_manual(values = c(
-    "Both (pepVet + PC)" = "#3A8C5F",
+    "Both filters" = "#3A8C5F",
     "PC identifiable only" = "#C46A6A"
   )) +
   labs(

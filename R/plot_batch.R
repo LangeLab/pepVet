@@ -490,7 +490,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #'
 #' - **(A) Verdict summary:** 100% stacked horizontal bars showing the
 #'   Good/Moderate/Poor verdict breakdown per enzyme.  Enzymes are ordered
-#'   by descending Good%, and the top-performing enzyme is marked with a star.
+#'   by descending Good%, and the highest model summary is marked with a star.
 #' - **(B) Score distributions:** horizontal violin plots for each enzyme,
 #'   showing the full distribution of composite scores.  An IQR boxplot is
 #'   overlaid on each violin.  Violin fill color reflects the enzyme's median
@@ -501,8 +501,7 @@ plot_proteome_overview <- function(batch, title = NULL) {
 #'   digest quality dimension differentiates the enzymes.
 #' - **(D) Per-protein win rate:** bar chart showing the proportion of proteins
 #'   for which each enzyme achieves the highest composite score. The starred
-#'   enzyme
-#'   matches the recommendation in panel A.
+#'   enzyme matches the top model summary in panel A.
 #'
 #' @param comparison A `pepvet_batch_comparison` tibble returned by
 #'   [batch_compare_enzymes()], with columns `protein_id`, `enzyme`,
@@ -688,7 +687,7 @@ plot_batch_comparison <- function(comparison, title = NULL) {
     ggplot2::labs(
       title = "Verdict Summary",
       subtitle = sprintf(
-        "%d proteins  \u00b7  %d enzymes  \u00b7  \u2605 = recommended",
+        "%d proteins  \u00b7  %d enzymes  \u00b7  \u2605 = top model summary",
         n_proteins, n_enz
       ),
       x = "Proportion of proteome",

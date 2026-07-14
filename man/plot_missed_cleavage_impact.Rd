@@ -26,8 +26,8 @@ If \code{NULL}, raises an error.}
 }
 \value{
 A \code{ggplot} object showing connected line plots of component and
-composite scores across missed-cleavage levels, with the best-MC
-annotation.
+composite scores across missed-cleavage levels, with an annotation at the
+MC count that maximizes the composite.
 }
 \description{
 \code{plot_missed_cleavage_impact()} visualizes how allowing more missed

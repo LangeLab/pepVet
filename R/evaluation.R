@@ -223,7 +223,7 @@ evaluate_digest <- function(sequence,
 #'
 #' `compare_digests()` runs [evaluate_digest()] for each enzyme in `enzymes`
 #' and returns a tibble of scores sorted by `composite_score` descending. Main
-#' ranking function for pre-experimental enzyme selection.
+#' model-ranking function for pre-acquisition enzyme review.
 #'
 #' @param sequence A single-protein input. Accepts the same forms as
 #'   [digest_protein()] but must resolve to exactly one protein. If `NULL` or
@@ -310,8 +310,9 @@ compare_digests <- function(sequence,
 #'
 #' `recommend_enzyme()` calls [compare_digests()] and returns the name of the
 #' enzyme with the highest composite score. When two or more enzymes are tied,
-#' all tied enzyme names are returned in alphabetical order. Compact
-#' result for scripted triage that stays aligned with [compare_digests()].
+#' all tied enzyme names are returned in alphabetical order. It is a compact
+#' model-ranking result for scripted triage that stays aligned with
+#' [compare_digests()].
 #'
 #' @param sequence A single-protein input passed to [compare_digests()]. If
 #'   `NULL` or empty, raises an error.
@@ -330,7 +331,8 @@ compare_digests <- function(sequence,
 #'
 #' @section Limitations:
 #' Single-protein only. When multiple enzymes tie within tolerance, all are
-#' returned in alphabetical order with no further tie-breaking.
+#' returned in alphabetical order with no further tie-breaking. The result is
+#' not an experimental recommendation.
 #'
 #' @family evaluation
 #'
@@ -423,7 +425,7 @@ recommend_enzyme <- function(sequence,
 #' component scores, including `composite_score`, `verdict`, `n_peptides`,
 #' `n_valid_peptides`, and `median_peptide_length`, plus four
 #' sequence-level difficulty flags. Pass the result to [summarize_batch()] for
-#' aggregate statistics or to [triage_proteins()] for action recommendations.
+#' aggregate statistics or to [triage_proteins()] for action labels.
 #'
 #' @param sequences Multi-protein input. Accepts the same forms as
 #'   [digest_protein()]. Must resolve to at least one protein. If `NULL` or
@@ -1118,7 +1120,7 @@ print.pepvet_batch_comparison <- function(x, ...) {
 #' Triage proteins from a batch evaluation
 #'
 #' `triage_proteins()` appends an `action` column to the flat tibble returned
-#' by [batch_evaluate()] with deterministic recommendations based on each
+#' by [batch_evaluate()] with deterministic action labels based on each
 #' protein's verdict and difficulty flags.
 #'
 #' @param batch_result A tibble returned by [batch_evaluate()]. If `NULL` or

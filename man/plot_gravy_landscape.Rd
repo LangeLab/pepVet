@@ -35,16 +35,16 @@ when \code{NULL} (default).}
 }
 \value{
 A \code{patchwork} object with a central scatter of length vs GRAVY
-coloured by validity class, and marginal density panels on the top and
+coloured by window class, and marginal density panels on the top and
 right axes.
 }
 \description{
 \code{plot_gravy_landscape()} plots each peptide as a point in the
-length \eqn{\times} GRAVY physicochemical space.  The LC-friendly valid
-region is shaded, points are colour-coded by validity class, and marginal
-density panels show the 1D distributions on each axis.  Outlier peptides
-(outside the valid region) are labelled with their sequences when there are
-fewer than \code{label_outliers_n} of them.
+length \eqn{\times} GRAVY physicochemical space. The selected
+length-and-GRAVY region is shaded, points are colour-coded by window class,
+and marginal density panels show the 1D distributions on each axis.
+Peptides outside the selected region are labelled with their sequences when
+their count is below \code{label_outliers_n}.
 }
 \details{
 When \code{result} is a named list of \code{\link[=evaluate_digest]{evaluate_digest()}} results

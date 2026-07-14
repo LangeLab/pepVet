@@ -63,7 +63,7 @@ per protein. Columns include \code{protein_id}, \code{protein_length}, and all
 component scores, including \code{composite_score}, \code{verdict}, \code{n_peptides},
 \code{n_valid_peptides}, and \code{median_peptide_length}, plus four
 sequence-level difficulty flags. Pass the result to \code{\link[=summarize_batch]{summarize_batch()}} for
-aggregate statistics or to \code{\link[=triage_proteins]{triage_proteins()}} for action recommendations.
+aggregate statistics or to \code{\link[=triage_proteins]{triage_proteins()}} for action labels.
 }
 \details{
 The returned tibble carries a \code{scoring_config} attribute containing the

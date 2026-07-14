@@ -1,4 +1,4 @@
-"protein","enzyme","peptide","length","gravy","valid","pr_score","composite_score","verdict"
+"protein","enzyme","peptide","length","gravy","window_pass","pr_score","composite_score","verdict"
 "BSA","trypsin","MK",2,-1,FALSE,0.192657510200069,0.884932995099634,"Good"
 "BSA","trypsin","MKWVTFISLLLLFSSAYSR",19,0.984210526315789,FALSE,0.00926841173018066,0.884932995099634,"Good"
 "BSA","trypsin","WVTFISLLLLFSSAYSR",17,1.21764705882353,FALSE,0.140801384679374,0.884932995099634,"Good"

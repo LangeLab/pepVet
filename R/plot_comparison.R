@@ -104,11 +104,11 @@
 #' row and each component score is a separate colored bar, dodged side-by-side.
 #' Reference lines at the Moderate and Good verdict thresholds divide the axis
 #' into poor / moderate / good
-#' regions. Enzymes are sorted by composite score with the best at the top.
+#' regions. Enzymes are sorted by composite score with the highest at the top.
 #'
 #' Panel B shows the composite score as a lollipop, color-coded by verdict tier
 #' (green >= 0.65, amber 0.40-0.64, red < 0.40). When `recommend = TRUE` a
-#' gold "Recommended" badge is appended next to the top-ranked enzyme.
+#' gold "Top model score" badge is appended next to the top-ranked enzyme.
 #'
 #' @param comparison A tibble returned by [compare_digests()].  Must contain
 #'   at least the columns `enzyme` and `composite_score`, plus whichever
@@ -119,9 +119,10 @@
 #'   Defaults to all five standard component scores.  `S_unique` can be
 #'   requested when present in a proteome-aware comparison.  If `NULL`, raises
 #'   an error.
-#' @param recommend Logical.  When `TRUE` (default) a "Recommended" badge
-#'   marks the enzyme with the highest composite score in Panel B.  If `NULL`,
-#'   raises an error.
+#' @param recommend Logical. When `TRUE` (default), a "Top model score" badge
+#'   marks the enzyme with the highest composite score in Panel B. The badge is
+#'   a model ranking, not an experimental recommendation. If `NULL`, raises an
+#'   error.
 #' @param title Optional character string for the overall plot title.
 #'   Auto-generated from the protein accession when `NULL` (default).
 #'
@@ -365,7 +366,7 @@ plot_enzyme_comparison <- function(
           "label",
           x = badge_df$composite_score[[1L]] + 0.01,
           y = best_enzyme,
-          label = "\u2605 Recommended",
+          label = "\u2605 Top model score",
           hjust = -0.05,
           vjust = -0.55,
           size = 2.6,

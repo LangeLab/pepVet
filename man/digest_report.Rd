@@ -12,7 +12,7 @@ digest_report(x, title = NULL)
 \item{Named list from \code{\link[=evaluate_digest]{evaluate_digest()}}}{Prints a single-protein
 component-score summary for the evaluated enzyme.}
 \item{Tibble from \code{\link[=compare_digests]{compare_digests()}}}{Prints a multi-enzyme ranking
-table with the best enzyme highlighted.}
+table with the highest-scoring enzyme highlighted.}
 }
 If \code{NULL} or an unrecognised type, raises an error.}
 

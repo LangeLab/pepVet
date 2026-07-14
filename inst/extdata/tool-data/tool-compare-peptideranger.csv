@@ -1,4 +1,4 @@
-"protein","enzyme","n_total","n_valid","composite","verdict","mean_PR_all","mean_PR_valid","median_PR_valid","cor_PR_length","cor_PR_gravy","enrichment"
+"protein","enzyme","n_total","n_window_pass","composite","verdict","mean_PR_all","mean_PR_window_pass","median_PR_window_pass","cor_PR_length","cor_PR_gravy","mean_score_difference"
 "BSA","trypsin",157,83,0.884932995099634,"Good",0.221457917787163,0.275291377154534,0.200365086594615,-0.0953,0.192,0.114214231360503
 "BSA","lysc",121,58,0.823373324696004,"Good",0.212901695686005,0.264180751335926,0.191363533974571,-0.3823,0.0906,0.0984883449784207
 "BSA","chymotrypsin-high",107,28,0.642143525583723,"Moderate",0.186304295572935,0.249629650630742,0.126251649693014,-0.5213,0.4312,0.0857697846985485

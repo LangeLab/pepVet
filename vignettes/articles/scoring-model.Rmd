@@ -163,11 +163,12 @@ pepvet_preset("dia")
 pepvet_preset("membrane")
 ```
 
-These presets modify three things together.
+These presets record four settings together.
 
 - `length_range`
 - `gravy_range`
 - `weights`
+- `include_pI`
 
 Changing a preset can alter both the weights and the peptide windows. Inspect the resolved values before comparing scores.
 

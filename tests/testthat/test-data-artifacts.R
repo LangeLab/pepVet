@@ -187,7 +187,7 @@ test_that("tool-data artifacts preserve raw and derived contracts", {
   artifact_expect_schema(
     pr_all,
     c(
-      "protein", "enzyme", "peptide", "length", "gravy", "valid",
+      "protein", "enzyme", "peptide", "length", "gravy", "window_pass",
       "pr_score", "composite_score", "verdict"
     )
   )
@@ -196,7 +196,7 @@ test_that("tool-data artifacts preserve raw and derived contracts", {
   expect_true(all(is.finite(pr_all$gravy)))
   artifact_expect_range(pr_all$pr_score, 0, 1, tolerance = 1e-12)
   artifact_expect_range(pr_all$composite_score, 0, 1)
-  expect_true(all(pr_all$valid %in% c(TRUE, FALSE)))
+  expect_true(all(pr_all$window_pass %in% c(TRUE, FALSE)))
   expect_true(all(pr_all$verdict %in% c("Good", "Moderate", "Poor")))
 
   pr_summary <- artifact_read_csv(
@@ -205,9 +205,10 @@ test_that("tool-data artifacts preserve raw and derived contracts", {
   artifact_expect_schema(
     pr_summary,
     c(
-      "protein", "enzyme", "n_total", "n_valid", "composite", "verdict",
-      "mean_PR_all", "mean_PR_valid", "median_PR_valid", "cor_PR_length",
-      "cor_PR_gravy", "enrichment"
+      "protein", "enzyme", "n_total", "n_window_pass", "composite",
+      "verdict", "mean_PR_all", "mean_PR_window_pass",
+      "median_PR_window_pass", "cor_PR_length", "cor_PR_gravy",
+      "mean_score_difference"
     )
   )
   expect_identical(nrow(pr_summary), 9L)
@@ -219,16 +220,20 @@ test_that("tool-data artifacts preserve raw and derived contracts", {
     as.integer(table(pr_all_key)[pr_summary_key]),
     pr_summary$n_total
   )
-  valid_counts <- tapply(pr_all$valid, pr_all_key, sum)
-  expect_equal(as.integer(valid_counts[pr_summary_key]), pr_summary$n_valid)
+  pass_counts <- tapply(pr_all$window_pass, pr_all_key, sum)
+  expect_equal(
+    as.integer(pass_counts[pr_summary_key]),
+    pr_summary$n_window_pass
+  )
   expect_true(all(pr_summary$n_total > 0L))
-  expect_true(all(pr_summary$n_valid >= 0L & pr_summary$n_valid <= pr_summary$n_total))
+  expect_true(all(pr_summary$n_window_pass >= 0L &
+    pr_summary$n_window_pass <= pr_summary$n_total))
   artifact_expect_range(pr_summary$composite, 0, 1)
   expect_true(all(is.finite(pr_summary$mean_PR_all)))
   for (row_index in seq_len(nrow(pr_summary))) {
     group <- pr_all[pr_all_key == pr_summary_key[[row_index]], , drop = FALSE]
-    valid_scores <- group$pr_score[group$valid]
-    invalid_scores <- group$pr_score[!group$valid]
+    pass_scores <- group$pr_score[group$window_pass]
+    fail_scores <- group$pr_score[!group$window_pass]
     expect_equal(
       pr_summary$mean_PR_all[[row_index]],
       mean(group$pr_score),
@@ -236,20 +241,20 @@ test_that("tool-data artifacts preserve raw and derived contracts", {
       info = pr_summary_key[[row_index]]
     )
     expect_equal(
-      pr_summary$mean_PR_valid[[row_index]],
-      artifact_mean_or_na(valid_scores),
+      pr_summary$mean_PR_window_pass[[row_index]],
+      artifact_mean_or_na(pass_scores),
       tolerance = 1e-12,
       info = pr_summary_key[[row_index]]
     )
     expect_equal(
-      pr_summary$median_PR_valid[[row_index]],
-      artifact_median_or_na(valid_scores),
+      pr_summary$median_PR_window_pass[[row_index]],
+      artifact_median_or_na(pass_scores),
       tolerance = 1e-12,
       info = pr_summary_key[[row_index]]
     )
     expect_equal(
-      pr_summary$enrichment[[row_index]],
-      artifact_mean_or_na(valid_scores) - artifact_mean_or_na(invalid_scores),
+      pr_summary$mean_score_difference[[row_index]],
+      artifact_mean_or_na(pass_scores) - artifact_mean_or_na(fail_scores),
       tolerance = 1e-12,
       info = pr_summary_key[[row_index]]
     )
@@ -267,8 +272,8 @@ test_that("tool-data artifacts preserve raw and derived contracts", {
     )
   }
   for (column in c(
-    "mean_PR_all", "mean_PR_valid", "median_PR_valid", "cor_PR_length",
-    "cor_PR_gravy", "enrichment"
+    "mean_PR_all", "mean_PR_window_pass", "median_PR_window_pass",
+    "cor_PR_length", "cor_PR_gravy", "mean_score_difference"
   )) {
     artifact_expect_finite_or_na(pr_summary[[column]])
   }
@@ -293,17 +298,18 @@ test_that("comparison-data artifacts preserve grids, categories, and overlap mat
       "verdict"
     ),
     "sectionC2-presets.csv" = c(
-      "protein", "preset", "composite", "verdict", "n_total", "n_valid",
-      "S_hydro", "len_lo", "len_hi"
+      "protein", "preset", "composite", "verdict", "n_total",
+      "n_length_valid", "S_hydro", "S_unique", "preset_used",
+      "include_pI", "len_lo", "len_hi"
     ),
     "sectionD-peptideranger.csv" = c(
-      "protein", "enzyme", "verdict", "n_total", "n_valid",
-      "PR_mean_all", "PR_mean_valid", "PR_mean_invalid", "enrichment",
-      "cor_PR_length"
+      "protein", "enzyme", "verdict", "n_total", "n_window_pass",
+      "PR_mean_all", "PR_mean_window_pass", "PR_mean_window_fail",
+      "mean_score_difference", "cor_PR_length"
     ),
     "sectionE-protein-cleaver.csv" = c(
-      "protein", "n_peptides", "pc_identifiable", "pepvet_valid", "both",
-      "pc_only", "pepvet_only"
+      "protein", "n_peptides", "pc_identifiable", "pepvet_window_pass",
+      "both_pass", "pc_only", "pepvet_window_only"
     )
   )
   expected_rows <- c(
@@ -365,13 +371,13 @@ test_that("comparison-data artifacts preserve grids, categories, and overlap mat
   expect_equal(tables[["sectionA-overlap.csv"]], expected_overlap)
 
   expected_capabilities <- c(
-    "Peptide list + masses", "pI calculation", "Hydrophobicity (GRAVY)",
-    "Composite quality score", "Verdict (Good/Moderate/Poor)",
-    "Multi-enzyme comparison", "Enzyme recommendation", "Workflow presets",
-    "Batch (proteome-scale)", "Sensitivity analysis",
-    "Peptide detectability (ML)", "3D structure mapping",
+    "Peptide list + masses", "pI output", "Hydrophobicity metric",
+    "Composite digest score", "Score-band label",
+    "Multi-enzyme comparison", "Enzyme ranking", "Workflow presets",
+    "Batch input", "Sensitivity analysis", "Peptide-level ML score",
+    "3D structure mapping",
     "Retention time prediction", "Skyline/FASTA export",
-    "Programmatic (non-GUI)", "R package / Bioconductor"
+    "Non-GUI interface", "R package"
   )
   capabilities <- tables[["sectionB-capabilities.csv"]]
   expect_identical(capabilities$Capability, expected_capabilities)
@@ -478,61 +484,14 @@ test_that("comparison-data artifacts preserve grids, categories, and overlap mat
     expect_identical(nrow(rows), 3L, info = preset_name)
     expect_true(all(rows$len_lo == preset$length_range[[1L]]))
     expect_true(all(rows$len_hi == preset$length_range[[2L]]))
-    expect_true(all(rows$n_total > 0L & rows$n_valid >= 0L))
-    expect_true(all(rows$n_valid <= rows$n_total))
+    expect_true(all(rows$n_total > 0L & rows$n_length_valid >= 0L))
+    expect_true(all(rows$n_length_valid <= rows$n_total))
     artifact_expect_range(rows$composite, 0, 1)
     artifact_expect_range(rows$S_hydro, 0, 1)
+    artifact_expect_range(rows$S_unique, 0, 1)
+    expect_true(all(rows$preset_used == preset_name))
+    expect_true(all(rows$include_pI == preset$include_pI))
   }
-
-  preset_proteins <- c(
-    BSA = "P02769.fasta",
-    H3 = "P68431.fasta",
-    BACE1 = "P56817.fasta"
-  )
-  expected_presets <- do.call(rbind, lapply(names(preset_proteins), function(protein) {
-    do.call(rbind, lapply(names(preset_registry), function(preset_name) {
-      preset <- preset_registry[[preset_name]]
-      result <- evaluate_digest(
-        system.file(
-          "extdata", preset_proteins[[protein]], package = "pepVet"
-        ),
-        enzyme = "trypsin",
-        missed_cleavages = 1L,
-        gravy_range = preset$gravy_range,
-        length_range = preset$length_range
-      )
-      score <- result$scores
-      data.frame(
-        protein = protein,
-        preset = preset_name,
-        composite = score$composite_score,
-        verdict = score$verdict,
-        n_total = nrow(result$peptides),
-        n_valid = sum(result$peptides$length >= preset$length_range[[1L]] &
-          result$peptides$length <= preset$length_range[[2L]]),
-        S_hydro = score$S_hydro,
-        len_lo = preset$length_range[[1L]],
-        len_hi = preset$length_range[[2L]],
-        stringsAsFactors = FALSE
-      )
-    }))
-  }))
-  expected_preset_key <- artifact_key(expected_presets, c("protein", "preset"))
-  observed_preset_key <- artifact_key(presets, c("protein", "preset"))
-  preset_index <- match(expected_preset_key, observed_preset_key)
-  expect_false(anyNA(preset_index))
-  expect_identical(anyDuplicated(observed_preset_key), 0L)
-  for (column in c(
-    "composite", "n_total", "n_valid", "S_hydro", "len_lo", "len_hi"
-  )) {
-    expect_equal(
-      presets[[column]][preset_index],
-      expected_presets[[column]],
-      tolerance = 1e-12,
-      info = column
-    )
-  }
-  expect_identical(presets$verdict[preset_index], expected_presets$verdict)
 
   optional_rows <- tables[["sectionD-peptideranger.csv"]]
   expect_identical(
@@ -553,16 +512,22 @@ test_that("comparison-data artifacts preserve grids, categories, and overlap mat
     sort(artifact_key(expected_score_grid, c("protein", "enzyme")))
   )
   expect_true(all(optional_rows$n_total > 0L))
-  expect_true(all(optional_rows$n_valid >= 0L &
-    optional_rows$n_valid <= optional_rows$n_total))
+  expect_true(all(optional_rows$n_window_pass >= 0L &
+    optional_rows$n_window_pass <= optional_rows$n_total))
   artifact_expect_range(optional_rows$PR_mean_all, 0, 1, tolerance = 1e-12)
-  artifact_expect_range(optional_rows$PR_mean_valid, 0, 1, tolerance = 1e-12)
-  artifact_expect_range(optional_rows$PR_mean_invalid, 0, 1, tolerance = 1e-12)
-  artifact_expect_range(optional_rows$enrichment, -1, 1, tolerance = 1e-12)
+  artifact_expect_range(
+    optional_rows$PR_mean_window_pass, 0, 1, tolerance = 1e-12
+  )
+  artifact_expect_range(
+    optional_rows$PR_mean_window_fail, 0, 1, tolerance = 1e-12
+  )
+  artifact_expect_range(
+    optional_rows$mean_score_difference, -1, 1, tolerance = 1e-12
+  )
   expect_true(all(is.finite(optional_rows$PR_mean_all)))
   for (column in c(
-    "PR_mean_all", "PR_mean_valid", "PR_mean_invalid", "enrichment",
-    "cor_PR_length"
+    "PR_mean_all", "PR_mean_window_pass", "PR_mean_window_fail",
+    "mean_score_difference", "cor_PR_length"
   )) {
     artifact_expect_finite_or_na(optional_rows[[column]])
   }
@@ -571,28 +536,95 @@ test_that("comparison-data artifacts preserve grids, categories, and overlap mat
   protein_cleaver <- tables[["sectionE-protein-cleaver.csv"]]
   expect_identical(protein_cleaver$protein, c("BSA", "H3", "BACE1"))
   count_columns <- c(
-    "n_peptides", "pc_identifiable", "pepvet_valid", "both", "pc_only",
-    "pepvet_only"
+    "n_peptides", "pc_identifiable", "pepvet_window_pass", "both_pass",
+    "pc_only", "pepvet_window_only"
   )
   for (column in count_columns) {
     expect_true(all(protein_cleaver[[column]] >= 0L))
   }
   expect_true(all(protein_cleaver$pc_identifiable <= protein_cleaver$n_peptides))
-  expect_true(all(protein_cleaver$pepvet_valid <= protein_cleaver$n_peptides))
-  expect_true(all(protein_cleaver$both <= protein_cleaver$pc_identifiable))
-  expect_true(all(protein_cleaver$both <= protein_cleaver$pepvet_valid))
   expect_true(all(
-    protein_cleaver$pc_identifiable ==
-      protein_cleaver$both + protein_cleaver$pc_only
+    protein_cleaver$pepvet_window_pass <= protein_cleaver$n_peptides
+  ))
+  expect_true(all(protein_cleaver$both_pass <= protein_cleaver$pc_identifiable))
+  expect_true(all(
+    protein_cleaver$both_pass <= protein_cleaver$pepvet_window_pass
   ))
   expect_true(all(
-    protein_cleaver$pepvet_valid ==
-      protein_cleaver$both + protein_cleaver$pepvet_only
+    protein_cleaver$pc_identifiable ==
+      protein_cleaver$both_pass + protein_cleaver$pc_only
+  ))
+  expect_true(all(
+    protein_cleaver$pepvet_window_pass ==
+      protein_cleaver$both_pass + protein_cleaver$pepvet_window_only
   ))
   expect_true(all(
     protein_cleaver$n_peptides >=
-      protein_cleaver$both + protein_cleaver$pc_only + protein_cleaver$pepvet_only
+      protein_cleaver$both_pass + protein_cleaver$pc_only +
+        protein_cleaver$pepvet_window_only
   ))
+})
+
+test_that("preset comparison rows use complete preset configurations", {
+  comparison_dir <- system.file(
+    "extdata", "comparison-data", package = "pepVet"
+  )
+  observed <- artifact_read_csv(
+    file.path(comparison_dir, "sectionC2-presets.csv")
+  )
+  fasta_names <- c(
+    BSA = "P02769.fasta",
+    H3 = "P68431.fasta",
+    BACE1 = "P56817.fasta"
+  )
+  fasta_paths <- vapply(
+    fasta_names,
+    function(name) system.file("extdata", name, package = "pepVet"),
+    character(1)
+  )
+  background_sequences <- lapply(
+    fasta_paths,
+    Biostrings::readAAStringSet
+  )
+  background <- digest_protein(
+    do.call(c, unname(background_sequences)),
+    enzyme = "trypsin",
+    missed_cleavages = 1L
+  )
+
+  for (row_index in seq_len(nrow(observed))) {
+    row <- observed[row_index, , drop = FALSE]
+    preset <- pepvet_preset(row$preset)
+    direct <- do.call(
+      evaluate_digest,
+      c(
+        list(
+          sequence = fasta_paths[[row$protein]],
+          enzyme = "trypsin",
+          missed_cleavages = 1L,
+          proteome = background
+        ),
+        preset
+      )
+    )
+    score <- direct$scores
+    info <- paste(row$protein, row$preset, sep = " / ")
+    expect_equal(row$composite, score$composite_score, tolerance = 1e-12,
+      info = info
+    )
+    expect_identical(row$verdict, score$verdict, info = info)
+    expect_equal(row$S_hydro, score$S_hydro, tolerance = 1e-12, info = info)
+    expect_equal(row$S_unique, score$S_unique, tolerance = 1e-12, info = info)
+    expect_identical(row$preset_used, score$preset_used, info = info)
+    expect_identical(row$include_pI, direct$params$include_pI, info = info)
+    expect_equal(row$n_total, nrow(direct$peptides), info = info)
+    expect_equal(
+      row$n_length_valid,
+      sum(direct$peptides$length >= preset$length_range[[1L]] &
+        direct$peptides$length <= preset$length_range[[2L]]),
+      info = info
+    )
+  }
 })
 
 test_that("PeptideAtlas artifacts preserve parity and scientific invariants", {

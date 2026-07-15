@@ -1872,15 +1872,21 @@ sensitivity_analysis <- function(x, nu = 63, n_iter = 2000L,
     )
 
     if (importance) {
-      composite_ss <- pmax(
-        0,
-        rowSums(C_chunk * C_chunk) - n_iter * comp_mean^2
-      )
-      association_numerator <- crossprod(centered_weights, t(C_chunk))
-      association_denominator <- outer(weight_ss, composite_ss)
-      association_r2 <- association_numerator^2 / association_denominator
-      association_r2[!is.finite(association_r2)] <- 0
-      association_sum <- association_sum + rowSums(association_r2)
+      ## Calculate each row separately so floating-point reduction order does
+      ## not depend on the batch chunk boundaries. This keeps importance
+      ## summaries reproducible for a fixed RNG seed across BLAS implementations.
+      for (i in seq_len(nrow(S_chunk))) {
+        composites <- as.numeric(S_chunk[i, , drop = FALSE] %*% t(W))
+        if (hard_fail[idx[i]]) {
+          composites[] <- 0
+        }
+        composite_centered <- composites - mean(composites)
+        composite_ss <- sum(composite_centered^2)
+        association <- as.numeric(crossprod(centered_weights, composite_centered))
+        association_r2 <- association^2 / (weight_ss * composite_ss)
+        association_r2[!is.finite(association_r2)] <- 0
+        association_sum <- association_sum + association_r2
+      }
     }
 
     rm(C_chunk)

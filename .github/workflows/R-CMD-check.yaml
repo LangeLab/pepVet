@@ -24,6 +24,8 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      R_BIOC_VERSION: '3.24'
+      _R_CHECK_CRAN_INCOMING_: 'false'
       _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
 
     steps:
@@ -44,8 +46,18 @@ jobs:
         with:
           cache: false
           dependencies: '"hard"'
-          extra-packages: local::.
+          extra-packages: local::., any::BiocManager
           needs: build, check, coverage, website
+
+      - name: Verify Bioconductor version
+        run: |
+          expected <- Sys.getenv("R_BIOC_VERSION")
+          actual <- as.character(BiocManager::version())
+          if (!identical(actual, expected)) {
+            stop("Expected Bioconductor ", expected, "; found ", actual, ".")
+          }
+          cat("Bioconductor", actual, "\n")
+        shell: Rscript {0}
 
       - name: Build source package
         run: R CMD build --no-manual .
@@ -177,6 +189,8 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      R_BIOC_VERSION: '3.24'
+      _R_CHECK_CRAN_INCOMING_: 'false'
       _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
 
     steps:
@@ -195,7 +209,18 @@ jobs:
         timeout-minutes: 15
         with:
           cache: always
+          extra-packages: any::BiocManager
           needs: check
+
+      - name: Verify Bioconductor version
+        run: |
+          expected <- Sys.getenv("R_BIOC_VERSION")
+          actual <- as.character(BiocManager::version())
+          if (!identical(actual, expected)) {
+            stop("Expected Bioconductor ", expected, "; found ", actual, ".")
+          }
+          cat("Bioconductor", actual, "\n")
+        shell: Rscript {0}
 
       - name: Build and check package
         run: |

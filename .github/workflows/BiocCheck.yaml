@@ -22,7 +22,9 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      R_BIOC_VERSION: '3.24'
       RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+      _R_CHECK_CRAN_INCOMING_: 'false'
       _R_CHECK_CRAN_INCOMING_REMOTE_: 'false'
 
     steps:
@@ -43,8 +45,18 @@ jobs:
         timeout-minutes: 20
         with:
           cache: always
-          extra-packages: bioc::BiocCheck
+          extra-packages: bioc::BiocCheck, any::BiocManager
           needs: check
+
+      - name: Verify Bioconductor version
+        run: |
+          expected <- Sys.getenv("R_BIOC_VERSION")
+          actual <- as.character(BiocManager::version())
+          if (!identical(actual, expected)) {
+            stop("Expected Bioconductor ", expected, "; found ", actual, ".")
+          }
+          cat("Bioconductor", actual, "\n")
+        shell: Rscript {0}
 
       - name: Validate release tag
         run: |

@@ -10,6 +10,7 @@ scratch/
 tmp/
 /cobertura.xml
 /coverage.txt
+/tests/testthat/Rplots.pdf
 
 # R session / IDE state
 .Rhistory
@@ -59,3 +60,5 @@ docker-compose.override.yml
 # Editor / OS noise
 .DS_Store
 Thumbs.db
+/doc/
+/Meta/

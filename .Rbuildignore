@@ -44,3 +44,6 @@
 ^paper$
 ^paper/
 ^man/figures/generate-readme-plots\.R$
+^tests/testthat/Rplots\.pdf$
+^doc$
+^Meta$

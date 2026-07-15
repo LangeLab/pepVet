@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD025 MD024 -->
 
-# pepVet 0.1.8
+# pepVet 0.99.0
 
 ## User-visible changes
 
@@ -28,6 +28,7 @@
 
 ## Documentation and metadata
 
+* Prepared the package metadata and installation guidance for initial Bioconductor submission.
 * Reconciled the README, vignettes, help pages, package metadata, and generated site with the current scoring and validation contracts.
 * Removed the redundant custom package citation because pepVet does not yet have an associated publication DOI. Installed citations now come from DESCRIPTION metadata.
 * Described the scoring weights as documented expert priors because their original derivation record is not retained. The numeric weights are unchanged.

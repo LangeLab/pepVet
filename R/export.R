@@ -96,23 +96,24 @@ export_peptide_list <- function(peptides,
     return(result)
   }
 
+  write_failure <- function(condition) {
+    .abort(
+      c(
+        "Could not write the export file.",
+        "i" = conditionMessage(condition)
+      ),
+      class = "pepvet_error_invalid_file"
+    )
+  }
+
   tryCatch(
-    suppressWarnings(
-      if (identical(normalized_format, "fasta")) {
-        writeLines(result, normalized_file)
-      } else {
-        utils::write.csv(result, normalized_file, row.names = FALSE)
-      }
-    ),
-    error = function(error) {
-      .abort(
-        c(
-          "Could not write the export file.",
-          "i" = conditionMessage(error)
-        ),
-        class = "pepvet_error_invalid_file"
-      )
-    }
+    if (identical(normalized_format, "fasta")) {
+      writeLines(result, normalized_file)
+    } else {
+      utils::write.csv(result, normalized_file, row.names = FALSE)
+    },
+    warning = write_failure,
+    error = write_failure
   )
 
   invisible(normalized_file)

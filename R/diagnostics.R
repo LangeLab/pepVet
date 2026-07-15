@@ -290,10 +290,12 @@ score_diagnostics <- function(batch_result, weights = NULL) {
       response <- comp_cols[i]
       predictors <- comp_cols[-i]
       formula_str <- paste(response, "~", paste(predictors, collapse = " + "))
-      fit <- suppressWarnings(
-        stats::lm(stats::as.formula(formula_str), data = batch_result)
-      )
-      r_squared <- suppressWarnings(summary(fit)$r.squared)
+      fit <- stats::lm(stats::as.formula(formula_str), data = batch_result)
+      fitted_values <- stats::fitted(fit)
+      residual_values <- stats::residuals(fit)
+      model_ss <- sum((fitted_values - mean(fitted_values))^2)
+      residual_ss <- sum(residual_values^2)
+      r_squared <- model_ss / (model_ss + residual_ss)
       vif_vals[i] <- if (!is.finite(r_squared)) {
         NA_real_
       } else if (r_squared >= 1 - .Machine$double.eps) {
@@ -677,7 +679,7 @@ plot_score_diagnostics <- function(x, title = NULL) {
       legend.spacing = ggplot2::unit(0, "pt"))
 
   ## Panel B: PCA scree + cumulative with PC1+PC2 annotation
-  cum2 <- sum(x$pca$var_explained[1:2])
+  cum2 <- sum(x$pca$var_explained[seq_len(2L)])
   var_df <- data.frame(
     pc = factor(paste0("PC", seq_along(x$pca$var_explained)),
       levels = paste0("PC", seq_along(x$pca$var_explained))),

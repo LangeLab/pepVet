@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.1.8-2C5F8A?style=flat-square" alt="v0.1.8">
+  <img src="https://img.shields.io/badge/version-v0.99.0-2C5F8A?style=flat-square" alt="v0.99.0">
   <img src="https://img.shields.io/badge/R-%3E%3D4.6-276DC3?style=flat-square&logo=r&logoColor=white" alt="R >= 4.6">
   <img src="https://img.shields.io/badge/Bioconductor-3.23-87B13F?style=flat-square" alt="Bioconductor 3.23">
   <a href="https://github.com/LangeLab/pepVet/actions/workflows/R-CMD-check.yaml">
@@ -148,13 +148,17 @@ These presets are editable package priors. They do not establish experimental su
 
 ## Installation
 
-pepVet depends on Bioconductor packages. Install them first:
+Install pepVet from Bioconductor:
 
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
-BiocManager::install(c("Biostrings", "IRanges", "cleaver"))
+BiocManager::install("pepVet")
+```
 
+Install the development version from GitHub with:
+
+```r
 if (!requireNamespace("remotes", quietly = TRUE))
   install.packages("remotes")
 remotes::install_github("LangeLab/pepVet", dependencies = TRUE)
